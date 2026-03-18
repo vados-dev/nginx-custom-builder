@@ -51,9 +51,12 @@ jobs:
           rm -f SOURCES/nginx-*.tar.gz
           curl -fL -o "SOURCES/nginx-${ver}.tar.gz" "https://nginx.org/download/nginx-${ver}.tar.gz"
 
-      - name: Get Date Time Stamp # Output will be use in Release
+      - name: Get Env Variables
         run: |
           echo "DT_STAMP=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
+          echo "DateTime=$(date +%d.%m.%Y-%T)" >> $GITHUB_ENV
+          echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "TAG_ID=$(git rev-list --abbrev-commit --tags --max-count=1)" >> $GITHUB_ENV
         continue-on-error: true
 
       - name: Create Release
@@ -62,10 +65,11 @@ jobs:
         with:
             tag_name: ${{ github.run_id }}
             release_name: "Release: ${{ env.DT_STAMP }}, nginx version: ${{ inputs.nginx_version }}."
-#            body: |
-#              Changes in this Release
-#              - Create RPM
-#              - Upload Source RPM
+            body: |
+              Build width:
+              - Date: ${{ env.DateTime }}
+              - TAG: ${{ env.TAG_ID }}
+              - Commit: ${{ env.COMMIT_ID }}
             draft: false
             prerelease: true
         continue-on-error: true
@@ -87,9 +91,9 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
              upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-             asset_path:  |
+             asset_path: |
               RPMS/**/*.rpm
-              SRPMS/*.src.rpm
+#              SRPMS/*.src.rpm
 #             ${{ steps.rpm_build.outputs.source_rpm_path }}
              asset_name: ${{ steps.rpm_build.outputs.source_rpm_name }}
              asset_content_type: ${{ steps.rpm_build.outputs.rpm_content_type }}
@@ -102,16 +106,13 @@ jobs:
         with:
           files: |
             RPMS/**/*.rpm
-            SRPMS/*.src.rpm
-#android-recovery/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/${{ env.BUILD_TARGET_NAME }}.img
-#android-recovery/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/PBRP*.zip
-#android-recovery/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/ramdisk-recovery.*
-          #name: Unofficial PBRP for ${{ github.event.inputs.DEVICE_NAME }} // ${{ env.BUILD_DATE }}
+#            SRPMS/*.src.rpm
           tag_name: ${{ github.run_id }}
-          #body: |
-            # Build: ${{ inputs.MANIFEST_BRANCH }}
-            #Device: [Device Tree/Branch](${{ inputs.DEVICE_TREE }}/tree/${{ inputs.DEVICE_TREE_BRANCH }})
-            #Commit: Most recent [commit](${{ inputs.DEVICE_TREE }}/commit/${{ env.COMMIT_ID }}) during building.
+          body: |
+             Build: ${{ steps.create_release.outputs.release_name }}
+             - Date: ${{ env.DateTime }}
+             - TAG: ${{ env.TAG_ID }}
+             - Commit ID: ${{ env.COMMIT_ID }}
 
       - name: Upload artifacts
         id: upload_artifacts
@@ -122,7 +123,7 @@ jobs:
           name: Binary RPM ${{ inputs.nginx_version }}
           path: |
             RPMS/**/*.rpm
-            SRPMS/*.src.rpm
+#            SRPMS/*.src.rpm
         continue-on-error: true
 
       - name: Echo Build Outputs
