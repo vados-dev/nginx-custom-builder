@@ -51,12 +51,17 @@ jobs:
           rm -f SOURCES/nginx-*.tar.gz
           curl -fL -o "SOURCES/nginx-${ver}.tar.gz" "https://nginx.org/download/nginx-${ver}.tar.gz"
 
+      - name: Get Date Time Stamp # Output will be use in Release
+        run: |
+          echo "DTSTAMP=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
+        continue-on-error: true
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@latest
         with:
             tag_name: ${{ github.ref }}
-            release_name: Release ${{ github.ref }}
+            release_name: Release ${{ env.DTSTAMP }}
             body: |
               Changes in this Release
               - Create RPM
