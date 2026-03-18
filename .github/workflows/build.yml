@@ -62,11 +62,12 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: Binary RPM #nginx-rpms-${{ inputs.nginx_version }}
-          path: ${{ steps.rpm.outputs.rpm_dir_path }}
-          #path: |
-            #RPMS/**/*.rpm
-            #SRPMS/*.src.rpm
+          #nginx-rpms-${{ inputs.nginx_version }}
+          #path: ${{ steps.rpm.outputs.rpm_dir_path }}
+          name: Binary RPM ${{ inputs.nginx_version }} 
+          path: |
+            RPMS/**/*.rpm
+            SRPMS/*.src.rpm
 
       - name: Upload to Release
         uses: softprops/action-gh-release@master
