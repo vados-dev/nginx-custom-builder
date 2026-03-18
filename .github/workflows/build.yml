@@ -1,0 +1,65 @@
+name: Build RPM
+
+on:
+  workflow_dispatch:
+    inputs:
+      nginx_version:
+        description: "Nginx version, e.g. 1.29.6"
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: quay.io/centos/centos:stream10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          dnf -y install dnf-plugins-core
+          dnf config-manager --set-enabled crb || true
+          dnf -y install epel-release || true
+          dnf -y install \
+            rpm-build \
+            rpmdevtools \
+            redhat-rpm-config \
+            gcc \
+            make \
+            curl \
+            systemd \
+            zlib-devel \
+            pcre2-devel \
+            openssl-devel \
+            cmark-devel
+
+      - name: Prepare sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver="${{ inputs.nginx_version }}"
+          sed -i -E "s/^%define base_version .*/%define base_version ${ver}/" rpmbuild/SPECS/nginx.spec
+          sed -i -E "s/^Version: [0-9.]+[+]/Version: ${ver}+/" rpmbuild/SPECS/nginx.spec
+          sed -i -E "s/^BASE_VERSION=.*/BASE_VERSION=${ver}/" rpmbuild/SPECS/Makefile
+          rm -f rpmbuild/SOURCES/nginx-*.tar.gz
+          curl -fL -o "rpmbuild/SOURCES/nginx-${ver}.tar.gz" "https://nginx.org/download/nginx-${ver}.tar.gz"
+
+      - name: Build RPM
+        shell: bash
+        run: |
+          set -euo pipefail
+          rpmbuild -ba \
+            --define "_topdir $(pwd)/rpmbuild" \
+            --define "_module_dir $(pwd)/ngx_markdown_filter_module" \
+            rpmbuild/SPECS/nginx.spec
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nginx-rpms-${{ inputs.nginx_version }}
+          path: |
+            rpmbuild/RPMS/**/*.rpm
+            rpmbuild/SRPMS/*.src.rpm
