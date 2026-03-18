@@ -20,22 +20,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@latest
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-        with:
-            tag_name: ${{ github.ref }}
-            release_name: Release ${{ github.ref }}
-            body: |
-              Changes in this Release
-              - Create RPM
-              - Upload Source RPM
-            draft: false
-            prerelease: true
-        continue-on-error: true
-
       - name: Install build dependencies
         shell: bash
         run: |
@@ -66,6 +50,20 @@ jobs:
           sed -i -E "s/^BASE_VERSION=.*/BASE_VERSION=${ver}/" SPECS/Makefile
           rm -f SOURCES/nginx-*.tar.gz
           curl -fL -o "SOURCES/nginx-${ver}.tar.gz" "https://nginx.org/download/nginx-${ver}.tar.gz"
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@latest
+        with:
+            tag_name: ${{ github.ref }}
+            release_name: Release ${{ github.ref }}
+            body: |
+              Changes in this Release
+              - Create RPM
+              - Upload Source RPM
+            draft: false
+            prerelease: true
+        continue-on-error: true
               
       - name: Build RPM
         id: rpm_build
@@ -79,13 +77,8 @@ jobs:
             --define "_module_dir $(pwd)/ngx_markdown_filter_module" \
             SPECS/nginx.spec
 
-      - name: Echo Build Outputs
-        shell: bash
-        run: |
-            printf "%s\n" "${steps.rpm_build.outputs[@]}"
-        continue-on-error: true
-
       - name: Upload artifacts
+        id: upload_artifacts
         uses: actions/upload-artifact@v6
         with:
           #nginx-rpms-${{ inputs.nginx_version }}
@@ -94,6 +87,14 @@ jobs:
           path: |
             RPMS/**/*.rpm
             SRPMS/*.src.rpm
+        continue-on-error: true
+
+      - name: Echo Build Outputs
+        shell: bash
+        run: |
+            printf "%s\n" "${steps.rpm_build.outputs[@]}"
+            printf "%s\n" "${steps.create_release.outputs[@]}"
+            printf "%s\n" "${steps.upload_artifacts.outputs[@]}"
         continue-on-error: true
 
       - name: Upload Release Asset
