@@ -59,7 +59,7 @@ jobs:
             SPECS/nginx.spec
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nginx-rpms-${{ inputs.nginx_version }}
           path: |
