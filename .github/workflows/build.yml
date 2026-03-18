@@ -60,8 +60,7 @@ jobs:
         id: create_release
         uses: actions/create-release@latest
         with:
-            tag_name: ${{ env.run_id }}
-            pre_receive: "Pre Release: ${{ env.DT_STAMP }}, nginx version: ${{ inputs.nginx_version }}."
+            tag_name: ${{ github.run_id }}
             release_name: "Release: ${{ env.DT_STAMP }}, nginx version: ${{ inputs.nginx_version }}."
 #            body: |
 #              Changes in this Release
