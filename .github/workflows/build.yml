@@ -61,7 +61,8 @@ jobs:
         uses: actions/create-release@latest
         with:
             tag_name: ${{ env.run_id }}
-            release_name: "Release nginx: ${{ inputs.nginx_version }}, this build: ${{ env.DT_STAMP }}"
+            pre_receive: "Pre Release: ${{ env.DT_STAMP }}, nginx version: ${{ inputs.nginx_version }}."
+            release_name: "Release: ${{ env.DT_STAMP }}, nginx version: ${{ inputs.nginx_version }}."
 #            body: |
 #              Changes in this Release
 #              - Create RPM
@@ -82,6 +83,36 @@ jobs:
             --define "_module_dir $(pwd)/ngx_markdown_filter_module" \
             SPECS/nginx.spec
 
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+             upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+             asset_path: ${{ steps.rpm_build.outputs.source_rpm_path }}
+             asset_name: ${{ steps.rpm_build.outputs.source_rpm_name }}
+             asset_content_type: ${{ steps.rpm_build.outputs.rpm_content_type }}
+        continue-on-error: true
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@master
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            RPMS/**/*.rpm
+            SRPMS/*.src.rpm
+#android-recovery/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/${{ env.BUILD_TARGET_NAME }}.img
+#android-recovery/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/PBRP*.zip
+#android-recovery/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/ramdisk-recovery.*
+          #name: Unofficial PBRP for ${{ github.event.inputs.DEVICE_NAME }} // ${{ env.BUILD_DATE }}
+          tag_name: ${{ github.run_id }}
+          #body: |
+            # Build: ${{ inputs.MANIFEST_BRANCH }}
+            #Device: [Device Tree/Branch](${{ inputs.DEVICE_TREE }}/tree/${{ inputs.DEVICE_TREE_BRANCH }})
+            #Commit: Most recent [commit](${{ inputs.DEVICE_TREE }}/commit/${{ env.COMMIT_ID }}) during building.
+
       - name: Upload artifacts
         id: upload_artifacts
         uses: actions/upload-artifact@v6
@@ -97,35 +128,7 @@ jobs:
       - name: Echo Build Outputs
         shell: bash
         run: |
-            printf "%s\n" "${{ steps.rpm_build.outputs }}"
-            printf "%s\n" "${{ steps.create_release.outputs }}"
-            printf "%s\n" "${{ steps.upload_artifacts.outputs }}"
+            echo "${{ steps.rpm_build.outputs }}"
+            echo "${{ steps.create_release.outputs }}"
+            echo "${{ steps.upload_artifacts.outputs }}"
         continue-on-error: true
-
-      - name: Upload Release Asset
-        id: upload-release-asset 
-        uses: actions/upload-release-asset@v1
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-             upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-             asset_path: ${{ steps.rpm_build.outputs.source_rpm_path }}
-             asset_name: ${{ steps.rpm_build.outputs.source_rpm_name }}
-             asset_content_type: ${{ steps.rpm_build.outputs.rpm_content_type }}
-        continue-on-error: true
-
-      - name: Upload to Release
-        uses: softprops/action-gh-release@master
-        with:
-          files: |
-            RPMS/**/*.rpm
-            SRPMS/*.src.rpm
-#android-recovery/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/${{ env.BUILD_TARGET_NAME }}.img
-#android-recovery/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/PBRP*.zip
-#android-recovery/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/ramdisk-recovery.*
-          #name: Unofficial PBRP for ${{ github.event.inputs.DEVICE_NAME }} // ${{ env.BUILD_DATE }}
-          tag_name: ${{ github.run_id }}
-          #body: |
-            # Build: ${{ inputs.MANIFEST_BRANCH }}
-            #Device: [Device Tree/Branch](${{ inputs.DEVICE_TREE }}/tree/${{ inputs.DEVICE_TREE_BRANCH }})
-            #Commit: Most recent [commit](${{ inputs.DEVICE_TREE }}/commit/${{ env.COMMIT_ID }}) during building.
