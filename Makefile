@@ -1,6 +1,6 @@
 Makefile
 
 help:
-    @make -C rpmbuild/SPECS/
+    @make -C SPECS/
 %:
-    @make -C rpmbuild/SPECS/ $@
+    @make -C SPECS/ $@
