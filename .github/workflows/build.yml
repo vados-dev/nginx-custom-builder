@@ -63,7 +63,7 @@ jobs:
         id: create_release
         uses: actions/create-release@latest
         with:
-            tag_name: ${{ github.run_id }}
+            tag_name: ${{ github.ref }} #${{ github.run_id }}
             release_name: "Release: ${{ env.DT_STAMP }}, nginx version: ${{ inputs.nginx_version }}."
             body: |
               Build width:
@@ -107,11 +107,12 @@ jobs:
           files: |
             RPMS/**/*.rpm
 #            SRPMS/*.src.rpm
-          tag_name: ${{ github.run_id }}
+          tag_name: ${{ github.ref }} #${{ github.run_id }}
           body: |
              Build: ${{ steps.create_release.outputs.release_name }}
              - Date: ${{ env.DateTime }}
-             - TAG: ${{ env.TAG_ID }}
+             - TAG ID: ${{ env.TAG_ID }}
+             - TAG Name: ${{ github.ref }}
              - Commit ID: ${{ env.COMMIT_ID }}
 
       - name: Upload artifacts
