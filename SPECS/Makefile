@@ -4,8 +4,9 @@ BASE_VERSION=	1.29.6
 BASE_RELEASE=	1
 BASE_SRC=	nginx-$(BASE_VERSION).tar.gz
 SRCPATH?=	../SOURCES
+CONTRIBPATH?=	../contrib
 BUILD_ENV_PATH=	${HOME}/rpmbuild
-MODULE_TARGET?=	oss
+#MODULE_TARGET?=	oss
 MODSRC_PREFIX=
 MODSRC_PATH=	$(SRCPATH)
 BUILD_DIR=	%{bdir}
@@ -33,7 +34,7 @@ MODULE_RELEASE_markdown		1
 
 #MODULE_SOURCES_njs=		njs-$(MODULE_VERSION_njs).tar.gz
 #MODULE_SOURCES_rtmp=	rtmp-v$(MODULE_VERSION_rtmp).tar.gz
-MODULE_SOURCES_markdown=	ngx_markdown_filter_module.tar.gz
+MODULE_SOURCES_markdown=	$(CONTRIBPATH)/src/ngx_markdown_filter_module
 MODULE_CONFARGS_markdown=	--add-dynamic-module=%{_module_dir}
 
 # markdown

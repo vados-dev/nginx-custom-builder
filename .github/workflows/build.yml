@@ -79,7 +79,7 @@ jobs:
             draft: false
             prerelease: false
         continue-on-error: true
-              
+ 
       - name: Build RPM
         id: rpm_build
         shell: bash
