@@ -176,7 +176,7 @@ cd $RPM_BUILD_ROOT%{_sysconfdir}/nginx && \
     $RPM_BUILD_ROOT%{_sysconfdir}/nginx/nginx.conf
 %{__install} -m 644 -p %{SOURCE3} \
     $RPM_BUILD_ROOT%{_sysconfdir}/nginx/conf.d/default.conf
-%{__install} -m 644 -p %{SOURCE14} \
+%{__install} -m 644 -p %{SOURCE10} \
     $RPM_BUILD_ROOT%{_sysconfdir}/nginx/conf.d/ssl.conf
 
 %{__install} -p -D -m 0644 %{bdir}/objs/nginx.8 \

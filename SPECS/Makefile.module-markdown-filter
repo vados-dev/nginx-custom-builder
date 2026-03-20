@@ -1,0 +1,36 @@
+
+MODULES+=	markdown-filter
+
+MODULE_SUMMARY_markdown_filter=		Dynamic module markdown filter for nginx
+
+MODULE_VERSION_markdown_filter=		0.1.6f
+MODULE_RELEASE_markdown_filter=		1
+
+#include $(CONTRIB)/src/ngx_markdown_filter_module/version
+#MODULE_VERSION_PREFIX_markdown_filter=$(MODULE_TARGET_PREFIX)
+
+MODULE_SOURCES_markdown_filter=		$(CONTRIB)/src/ngx_markdown_filter_module
+MODULE_CONFARGS_markdown_filter=	--add-dynamic-module=%{MODULE_SOURCES_markdown_filter}
+
+# markdown
+
+define MODULE_DEFINITIONS_markdown
+Requires: cmark-devel
+Requires: nginx-r%{base_version}
+export MODULE_DEFINITIONS_markdown
+endef
+
+define MODULE_POST_markdown
+cat <<BANNER
+----------------------------------------------------------------------
+
+The $(MODULE_SUMMARY_markdown) for nginx have been installed.
+To enable this module, add the following to /etc/nginx/modules-enabled/module-markdown-filter.conf
+and reload nginx:
+
+    load_module modules/ngx_markdown_filter_module.so;
+
+----------------------------------------------------------------------
+BANNER
+endef
+export MODULE_POST_markdown
