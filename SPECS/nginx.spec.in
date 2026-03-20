@@ -80,21 +80,21 @@ Requires(pre): shadow-utils
 
 # end of distribution specific definitions
 
-%define base_version 1.29.6
-%define base_release 1%{?dist}.ngx
+%define base_version %%BASE_VERSION%%
+%define base_release %%BASE_RELEASE%%%{?dist}.ngx
 
 %define bdir %{_builddir}/%{name}-%{base_version}
 
 %define WITH_CC_OPT $(echo %{optflags} $(pcre2-config --cflags)) -fPIC
 %define WITH_LD_OPT -Wl,-z,relro -Wl,-z,now -pie
 
-%define BASE_CONFIGURE_ARGS $(echo "--prefix=%{_sysconfdir}/nginx --sbin-path=%{_sbindir}/nginx --modules-path=%{_libdir}/nginx/modules --conf-path=%{_sysconfdir}/nginx/nginx.conf --error-log-path=%{_localstatedir}/log/nginx/error.log --http-log-path=%{_localstatedir}/log/nginx/access.log --pid-path=%{_localstatedir}/run/nginx.pid --lock-path=%{_localstatedir}/run/nginx.lock --http-client-body-temp-path=%{_localstatedir}/cache/nginx/client_temp --http-proxy-temp-path=%{_localstatedir}/cache/nginx/proxy_temp --http-fastcgi-temp-path=%{_localstatedir}/cache/nginx/fastcgi_temp --http-uwsgi-temp-path=%{_localstatedir}/cache/nginx/uwsgi_temp --http-scgi-temp-path=%{_localstatedir}/cache/nginx/scgi_temp --user=%{nginx_user} --group=%{nginx_group} --with-compat --with-file-aio --with-threads --with-http_addition_module --with-http_auth_request_module --with-http_dav_module --with-http_flv_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_mp4_module --with-http_random_index_module --with-http_realip_module --with-http_secure_link_module --with-http_slice_module --with-http_ssl_module --with-http_stub_status_module --with-http_sub_module --with-http_v2_module --with-mail --with-mail_ssl_module --with-stream --with-stream_realip_module --with-stream_ssl_module --with-stream_ssl_preread_module")
+%define BASE_CONFIGURE_ARGS $(echo "%%BASE_CONFIGURE_ARGS%%")
 
 Summary: High performance web server
 Name: nginx
 Version: %{base_version}
 Release: %{base_release}
-Vendor: NGINX Packaging <nginx-packaging@f5.com>
+Vendor: %%PACKAGE_VENDOR%%
 URL: https://nginx.org/
 Group: %{_group}
 
@@ -110,7 +110,7 @@ Source8: nginx.copyright
 Source9: nginx.check-reload.sh
 Source10: nginx.ssl.conf
 
-
+%%BASE_PATCHES%%
 
 License: 2-clause BSD-like license
 
