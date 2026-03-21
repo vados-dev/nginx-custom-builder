@@ -14,6 +14,8 @@ MODULE_PACKAGE_URL_include_server=		https://github.com/RekGRpth
 
 MODULE_NAME_include_server=	ngx_http_include_server_module
 
+MODULE_PACKAGE_LICENSE_include_server=	MIT
+
 MODULE_SOURCES_include_server=	$(GITHUB)/$(MODULE_NAME_include_server).git
 
 MODULE_CONFARGS_include_server=	--add-dynamic-module=$(MODULE_NAME_include_server)

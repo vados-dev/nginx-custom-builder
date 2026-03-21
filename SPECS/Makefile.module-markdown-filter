@@ -13,6 +13,8 @@ MODULE_PACKAGE_VENDOR_markdown_filter=		Karim Ulzhabayev <nginx-packaging@f5.com
 
 MODULE_PACKAGE_URL_markdown_filter=		https://github.com/ukarim
 
+MODULE_PACKAGE_LICENSE_markdown_filter=	MIT
+
 MODULE_SOURCES_markdown_filter=		$(GITHUB)/$(NAME_markdown_filter).git
 
 MODULE_CONFARGS_markdown_filter=	--add-dynamic-module=$(NAME_markdown_filter)

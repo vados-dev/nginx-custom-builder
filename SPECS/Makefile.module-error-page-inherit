@@ -13,6 +13,8 @@ MODULE_PACKAGE_URL_error_page_inherit=		https://github.com/RekGRpth
 
 MODULE_NAME_error_page_inherit=	ngx_http_error_page_inherit_module
 
+MODULE_PACKAGE_LICENSE_error_page_inherit=	MIT
+
 MODULE_SOURCES_error_page_inherit=	$(GITHUB)/$(MODULE_NAME_error_page_inherit).git
 
 MODULE_CONFARGS_error_page_inherit=	--add-dynamic-module=$(MODULE_NAME_error_page_inherit)
