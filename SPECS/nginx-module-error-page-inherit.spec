@@ -36,7 +36,7 @@ Name: nginx-module-error-page-inherit
 Version: 1.29.6+0.01
 Release: 1%{?dist}.ngx
 Vendor: Georgy Shelkovy [RekGRpth]
-Vendor URL: https://github.com/RekGRpth
+URL: https://github.com/RekGRpth
 Group: %{_group}
 
 Source0: nginx-%{main_version}.tar.gz

@@ -11,6 +11,7 @@ MODULE_TARGET?=	oss
 MODSRC_PREFIX=
 MODSRC_PATH=	$(SRCPATH)
 BUILD_DIR=	%{bdir}
+RPMBUILD_EXTRA_DEFINES?= --define "debug_package %{nil}" --define "_debugsource_packages 0"
 
 GITHUB := https://github.com/vados-dev
 
@@ -111,7 +112,7 @@ $(SRCPATH)/$(BASE_SRC):
 
 base:	nginx.spec $(SRCPATH)/$(BASE_SRC)
 	@echo "===> Building base package" ; \
-	$(SHELL) -c "time -p rpmbuild -ba nginx.spec" && \
+	$(SHELL) -c "time -p rpmbuild -ba $(RPMBUILD_EXTRA_DEFINES) nginx.spec" && \
 	ln -s ../BUILD/nginx-$(BASE_VERSION)/objs base
 
 nginx.spec:
@@ -132,7 +133,7 @@ nginx.spec:
 
 module-%: nginx-module-%.spec $(SRCPATH)/$(BASE_SRC)
 	@echo "===> Building nginx-$@ package" ; \
-	$(SHELL) -c "time -p rpmbuild -ba nginx-$@.spec" && \
+	$(SHELL) -c "time -p rpmbuild -ba $(RPMBUILD_EXTRA_DEFINES) nginx-$@.spec" && \
 	ln -s ../BUILD/nginx-$@-$(BASE_VERSION)/objs $@
 
 nginx-module-%.spec:
@@ -275,6 +276,7 @@ nginx-module-%.spec:
 		-e "s#%%MODULE_FILES%%#$${files}#g" \
 		-e "s#%%MODULE_POST%%#$${post}#g" \
 		> $@.tmp && \
+	sed -i -e 's#^Vendor URL:#URL:#' $@.tmp && \
 	cat $${changelog_file} | grep -v "^#" >> $@.tmp && \
 	mv $@.tmp $@ ; \
 	}
