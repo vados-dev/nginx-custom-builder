@@ -26,20 +26,20 @@ Epoch: %{epoch}
 
 %%MODULE_DEFINITIONS%%
 
-%define main_version %%MAIN_VERSION%%
-%define main_release %%MAIN_RELEASE%%%{?dist}.ngx
+%define base_version %%BASE_VERSION%%
+%define base_release %%BASE_RELEASE%%%{?dist}.ngx
 
-%define bdir %{_builddir}/%{name}-%{main_version}
+%define bdir %{_builddir}/%{name}-%{base_version}
 
 Summary: %%SUMMARY%%
 Name: %%NAME%%
-Version: %%VERSION_PREFIX%%%%VERSION%%
+Version: %%MODULE_VERSION_PREFIX%%%%VERSION%%
 Release: %%RELEASE%%%{?dist}.ngx
 Vendor: %%MODULE_PACKAGE_VENDOR%%
-URL: %%MODULE_PACKAGE_URL%%
+Vendor URL: %%MODULE_PACKAGE_URL%%
 Group: %{_group}
 
-Source0: http://nginx.org/download/nginx-%{main_version}.tar.gz
+Source0: nginx-%{main_version}.tar.gz
 Source1: %%COPYRIGHT_SOURCE%%
 %%MODULE_SOURCES%%
 
@@ -74,6 +74,7 @@ tar --strip-components=1 -zxf %{SOURCE0}
 %build
 %%MODULE_PREBUILD%%
 cd %{bdir}
+%%MODULE_ENV%%
 ./configure %{BASE_CONFIGURE_ARGS} %{MODULE_CONFIGURE_ARGS} \
 	--with-cc-opt="%{WITH_CC_OPT}" \
 	--with-ld-opt="%{WITH_LD_OPT}" \

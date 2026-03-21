@@ -33,19 +33,18 @@ ifeq ($(MODULE_TARGET), plus)
 MODULE_SUMMARY_PREFIX=  NGINX Plus
 TARGET_VERSION=$(PLUS_VERSION)
 MODULE_SUFFIX=-plus
-MODULE_PACKAGE_URL=     https://www.nginx.com/
-MODULE_PACKAGE_LICENSE= Proprietary (EULA included)
+PACKAGE_URL=     https://www.nginx.com/
+PACKAGE_LICENSE= Proprietary (EULA included)
 else
 MODULE_SUMMARY_PREFIX=  nginx
 TARGET_VERSION=$(BASE_VERSION)
-MODULE_PACKAGE_URL=     https://nginx.org/
-MODULE_PACKAGE_LICENSE=2-clause BSD-like license
+PACKAGE_URL=     https://nginx.org/
+PACKAGE_LICENSE=2-clause BSD-like license
 endif
 
-MODULE_PACKAGE_VENDOR=	Nginx, Inc.
-PACKAGE_VENDOR= NGINX Packaging <nginx-packaging@f5.com>
+PACKAGE_VENDOR=	NGINX Inc.
 
-MODULES=	error-page-inherit include-server markdown-filter
+#MODULES=	error-page-inherit include-server markdown-filter
 
 -include Makefile.module-*
 
@@ -121,6 +120,7 @@ nginx.spec:
 	set -e ; \
 	cat nginx.spec.in | sed \
 		-e 's#%%PACKAGE_VENDOR%%#$(PACKAGE_VENDOR)#g' \
+		-e 's#%%PACKAGE_URL%%#$(PACKAGE_URL)#g' \
 		-e 's#%%BASE_VERSION%%#$(BASE_VERSION)#g' \
 		-e 's#%%BASE_RELEASE%%#$(BASE_RELEASE)#g' \
 		-e 's#%%MAIN_VERSION%%#$(BASE_VERSION)#g' \
@@ -142,32 +142,10 @@ nginx-module-%.spec:
 	i=100 ; \
 	sources= ; \
 	prepsources= ; \
-	for src in $(MODULE_SOURCES_$(call modname, $*)); do \
-		ln -sf $(CONTRIB)/tarballs/$${src} $(SRCPATH)/$${src} ; \
+	for src in $(MODULE_SOURCES_$(call modname, $@)); do \
 		s="`printf "Source%d: %s\n" $${i} $${src}`" ; \
 		sources="$${sources}\n$${s}" ; \
-		case "$${src}" in \
-			*.tar.xz) \
-				taropts="xvJfo" ; \
-				;; \
-			*.git) \
-				taropts="git" ; \
-				;; \
-			*) \
-				taropts="xvzfo" ; \
-				;; \
-		esac ; \
-		if [ "$${taropts}" = "git" ] ; then \
-			s="`printf "$${taropts} clone %%{SOURCE%d\}" $${i}`" ; \
-		else \
-			s="`printf "tar $${taropts} %%{SOURCE%d\}" $${i}`" ; \
-		fi ; \		
-		prepsources="$${prepsources}\n$${s}" ; \
-		sn=`echo $${src} | sed -e 's/-[0-9].*$$//'` ; \
-		if [ "$${sn}" = "$${src}" ] ; then \
-			sn=$${src%-*} ; \
-		fi ; \
-		s="`printf "ln -s $${sn}-* $${sn}"`" ; \
+		s="`printf "tar zxf %%{SOURCE%d\}" $${i}`" ; \
 		prepsources="$${prepsources}\n$${s}" ; \
 		i=$$(($${i}+1)) ; \
 	done ; \
@@ -205,15 +183,17 @@ nginx-module-%.spec:
 	post=`echo "$$MODULE_POST_$(call modname, $@)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
 	cat $(MODULE_SPEC_TEMPLATE) | sed \
 		-e "s#%%NAME%%#$${pkgname}#g" \
-		-e "s#%%MODULE_PACKAGE_VENDOR%%#$(MODULE_PACKAGE_VENDOR)#g" \
-		-e "s#%%PACKAGE_VENDOR%%#$(PACKAGE_VENDOR)#g" \
-		-e "s#%%MODULE_PACKAGE_URL%%#$(MODULE_PACKAGE_URL)#g" \
-		-e "s#%%MODULE_PACKAGE_LICENSE%%#$(MODULE_PACKAGE_LICENSE)#g" \
+		-e "s#%%MODULE_PACKAGE_VENDOR%%#$(MODULE_PACKAGE_VENDOR_$(call modname, $@))#g" \
+		-e "s#%%MODULE_PACKAGE_URL%%#$(MODULE_PACKAGE_URL_$(call modname, $@))#g" \
+		-e "s#%%MODULE_PACKAGE_LICENSE%%#$(MODULE_PACKAGE_LICENSE_$(call modname, $@))#g" \
 		-e "s#%%SUMMARY%%#$(MODULE_SUMMARY_PREFIX) $(MODULE_SUMMARY_$(call modname, $@))#g" \
 		-e "s#%%SHORT_SUMMARY%%#$(MODULE_SUMMARY_$(call modname, $@))#g" \
+		-e "s#%%TARGET_VERSION%%#$(TARGET_VERSION)#g" \
 		-e "s#%%MAIN_VERSION%%#$(BASE_VERSION)#g" \
 		-e "s#%%MAIN_RELEASE%%#$(BASE_RELEASE)#g" \
-		-e "s#%%VERSION_PREFIX%%#$(MODULE_VERSION_PREFIX_$(call modname, $@))#g" \
+		-e "s#%%BASE_VERSION%%#$(BASE_VERSION)#g" \
+		-e "s#%%BASE_RELEASE%%#$(BASE_RELEASE)#g" \
+		-e "s#%%MODULE_VERSION_PREFIX%%#$(MODULE_VERSION_PREFIX_$(call modname, $@))#g" \
 		-e "s#%%VERSION%%#$(MODULE_VERSION_$(call modname, $@))#g" \
 		-e "s#%%RELEASE%%#$(MODULE_RELEASE_$(call modname, $@))#g" \
 		-e "s#%%BASE_CONFIGURE_ARGS%%#$(BASE_CONFIGURE_ARGS)#g" \

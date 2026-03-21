@@ -56,7 +56,9 @@ jobs:
           ??? (now get nginx version) sed -i -E "s/^Version: [0-9.]+[+]/Version: ${ver}+/" SPECS/nginx.spec
           sed -i -E "s/^BASE_VERSION=.*/BASE_VERSION=${ver}/" SPECS/Makefile
 # не надо, уже на месте          curl -fL -o "SOURCES/nginx-${ver}.tar.gz" "https://nginx.org/download/nginx-${ver}.tar.gz"
-# здесь надо доделать/отладить мои модули в nginx.spec.in          [make specs and copy to rpmbuild]
+# здесь надо доделать/отладить мои модули в SPECS/Makefile[.*] nginx-module.spec.in          [make specs and copy to rpmbuild]
+# не работает как хотелось бы define MODULE_PREP_SOURCES т.к. там при выполнении make specs ожидается архив. 
+# Архив не проблема, но мне это не нравится, зачем архив, когда есть репка!?
 # здесь мои конфиги и папка для распаковки в /usr/share/nginx/html       [copy SOURCES to rpmbuild]
 
       - name: Get Env Variables
@@ -85,7 +87,8 @@ jobs:
             draft: false
             prerelease: false
         continue-on-error: true
- 
+
+# Посмотри пожалуйста в строну всяких actions типа: naveenrajm7/rpmbuild@master janbrummer/build-rpm-action
       - name: Build RPM
         id: rpm_build
         shell: bash

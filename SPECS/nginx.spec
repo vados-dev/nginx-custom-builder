@@ -94,7 +94,7 @@ Summary: High performance web server
 Name: nginx
 Version: %{base_version}
 Release: %{base_release}
-Vendor: NGINX Packaging <nginx-packaging@f5.com>
+Vendor: NGINX Inc.
 URL: https://nginx.org/
 Group: %{_group}
 
@@ -130,9 +130,9 @@ Recommends: logrotate
 nginx [engine x] is an HTTP and reverse proxy server, as well as
 a mail proxy server.
 
-#%if ( 0%{?suse_version} && 0%{?suse_version} < 1600 )
-#%debug_package
-#%endif
+%if ( 0%{?suse_version} && 0%{?suse_version} < 1600 )
+%debug_package
+%endif
 
 %prep
 %autosetup -p1

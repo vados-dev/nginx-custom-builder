@@ -7,16 +7,24 @@ MODULE_RELEASE_error_page_inherit=	1
 
 MODULE_VERSION_PREFIX_error_page_inherit=$(MODULE_TARGET_PREFIX)
 
+MODULE_PACKAGE_VENDOR_error_page_inherit=		Georgy Shelkovy [RekGRpth]
+
+MODULE_PACKAGE_URL_error_page_inherit=		https://github.com/RekGRpth
+
 MODULE_NAME_error_page_inherit=	ngx_http_error_page_inherit_module
 
 MODULE_SOURCES_error_page_inherit=	$(GITHUB)/$(MODULE_NAME_error_page_inherit).git
 
 MODULE_CONFARGS_error_page_inherit=	--add-dynamic-module=$(MODULE_NAME_error_page_inherit)
 
-define MODULE_PREP_SOURCES_error_page_inherit
+# error-page-inherit
+
+MODULE_VERSION_PREFIX_error_page_inherit=$(BASE_VERSION)+
+
+define MODULE_PREBUILD_error_page_inherit
 cd %{bdir} \&\& git clone $(MODULE_SOURCES_error_page_inherit)
 endef
-export MODULE_PREP_SOURCES_error_page_inherit
+export MODULE_PREBUILD_error_page_inherit
 
 define MODULE_POST_error_page_inherit
 cat <<BANNER

@@ -2,10 +2,15 @@ MODULES+=	include-server
 
 MODULE_SUMMARY_include_server=	enable support to include_server derective in nginx.conf.
 
+
 MODULE_VERSION_include_server=	0.01
 MODULE_RELEASE_include_server=	1
 
 MODULE_VERSION_PREFIX_include_server=$(MODULE_TARGET_PREFIX)
+
+MODULE_PACKAGE_VENDOR_include_server=		Georgy Shelkovy [RekGRpth]
+
+MODULE_PACKAGE_URL_include_server=		https://github.com/RekGRpth
 
 MODULE_NAME_include_server=	ngx_http_include_server_module
 
@@ -13,10 +18,14 @@ MODULE_SOURCES_include_server=	$(GITHUB)/$(MODULE_NAME_include_server).git
 
 MODULE_CONFARGS_include_server=	--add-dynamic-module=$(MODULE_NAME_include_server)
 
-define MODULE_PREP_SOURCES_include_server
+# include-server
+
+MODULE_VERSION_PREFIX_include_server=$(BASE_VERSION)+
+
+define MODULE_PREBUILD_include_server
 cd %{bdir} \&\& git clone $(MODULE_SOURCES_include_server)
 endef
-export MODULE_PREP_SOURCES_include_server
+export MODULE_PREBUILD_include_server
 
 define MODULE_POST_include_server
 cat <<BANNER
