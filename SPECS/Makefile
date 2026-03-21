@@ -11,7 +11,7 @@ MODULE_TARGET?=	oss
 MODSRC_PREFIX=
 MODSRC_PATH=	$(SRCPATH)
 BUILD_DIR=	%{bdir}
-RPMBUILD_EXTRA_DEFINES?= --define "_debugsource_packages 0"
+RPMBUILD_EXTRA_DEFINES?=
 
 GITHUB := https://github.com/vados-dev
 
