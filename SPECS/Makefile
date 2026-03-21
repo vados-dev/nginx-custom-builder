@@ -154,7 +154,7 @@ nginx-module-%.spec:
 				is_archive=1 ; \
 				s="`printf "tar -xf %%{SOURCE%d}" $${i}`" ;; \
 			*.git) \
-				s="`printf "git clone %%{SOURCE%d} || true" $${i}`" ;; \
+				s="`printf "git clone %%{SOURCE%d} || git clone %s || true" $${i} $${src}`" ;; \
 			*) \
 				s="`printf "echo Skipping non-archive SOURCE%d" $${i}`" ;; \
 		esac ; \
