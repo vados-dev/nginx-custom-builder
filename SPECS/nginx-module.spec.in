@@ -57,10 +57,6 @@ Requires: nginx == %{?epoch:%{epoch}:}%%MAIN_VERSION%%-%%MAIN_RELEASE%%%{?dist}.
 %description
 nginx %%SHORT_SUMMARY%%.
 
-%if (0%{?suse_version} || 0%{?amzn}) && !0%{?disable_debug_package}
-%debug_package
-%endif
-
 %define WITH_CC_OPT $(echo %{optflags} $(pcre2-config --cflags))
 %define WITH_LD_OPT -Wl,-z,relro -Wl,-z,now
 
