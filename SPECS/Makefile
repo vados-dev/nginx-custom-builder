@@ -191,6 +191,49 @@ nginx-module-%.spec:
 	if [ "$(MODULE_TARGET)" = "plus" ]; then \
 		pkgname=`echo $${pkgname} | sed -e "s#^nginx-#nginx-plus-#"` ; \
 	fi ; \
+	if [ -z "$(MODULE_PACKAGE_LICENSE_$(subst -,_,$*))" ]; then \
+		tmplic=`mktemp -d` ; \
+		found_license="" ; \
+		for src in $(MODULE_SOURCES_$(subst -,_,$*)); do \
+			work="$${tmplic}/scan" ; \
+			rm -rf "$${work}" ; \
+			mkdir -p "$${work}" ; \
+			case "$${src}" in \
+				*.git) \
+					git clone --depth 1 "$${src}" "$${work}/src" >/dev/null 2>&1 || true ; \
+					[ -d "$${work}/src" ] && found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ;; \
+				http://*|https://*) \
+					case "$${src}" in \
+						*.git) \
+							git clone --depth 1 "$${src}" "$${work}/src" >/dev/null 2>&1 || true ; \
+							[ -d "$${work}/src" ] && found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ;; \
+						*.tar|*.tar.gz|*.tgz|*.tar.bz2|*.tbz2|*.tar.xz|*.txz) \
+							file="$${work}/$${src##*/}" ; \
+							curl -fsSL "$${src}" -o "$${file}" >/dev/null 2>&1 || true ; \
+							if [ -f "$${file}" ]; then \
+								mkdir -p "$${work}/src" ; \
+								tar -xf "$${file}" -C "$${work}/src" >/dev/null 2>&1 || true ; \
+								found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ; \
+							fi ;; \
+					esac ;; \
+				*) \
+					file="$(SRCPATH)/$${src}" ; \
+					if [ -f "$${file}" ]; then \
+						case "$${file}" in \
+							*.tar|*.tar.gz|*.tgz|*.tar.bz2|*.tbz2|*.tar.xz|*.txz) \
+								mkdir -p "$${work}/src" ; \
+								tar -xf "$${file}" -C "$${work}/src" >/dev/null 2>&1 || true ; \
+								found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ;; \
+						esac ; \
+					fi ;; \
+			esac ; \
+			[ -n "$${found_license}" ] && break ; \
+		done ; \
+		if [ -n "$${found_license}" ]; then \
+			echo "WARNING: MODULE_PACKAGE_LICENSE_$(subst -,_,$*) is empty (found: $${found_license})" >&2 ; \
+		fi ; \
+		rm -rf "$${tmplic}" ; \
+	fi ; \
 	definitions=`echo "$$MODULE_DEFINITIONS_$(subst -,_,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
 	prebuild=`echo "$$MODULE_PREBUILD_$(subst -,_,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
 	preinstall=`echo "$$MODULE_PREINSTALL_$(subst -,_,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
