@@ -1,0 +1,9 @@
+* text=auto
+
+*.sh text eol=lf
+Makefile text eol=lf
+SPECS/Makefile* text eol=lf
+SPECS/*.spec text eol=lf
+SPECS/*.spec.in text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

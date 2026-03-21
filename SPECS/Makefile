@@ -95,9 +95,14 @@ export CR=\\n
 modname = $(shell basename "$1" | sed -e 's#^nginx-module-##' -e 's#\.spec$$##' | tr '-' '_')
 
 default:
-	@echo "valid targets: all base $(addprefix module-, $(MODULES)) test test-debug"
+	@echo "valid targets: all clean cln tree base $(addprefix module-, $(MODULES)) test test-debug"
 
-all:	tree base modules
+
+all:
+	@$(MAKE) clean
+	@$(MAKE) tree
+	@$(MAKE) specs
+	@$(MAKE) base modules
 	@echo "===> all done"
 
 tree:
@@ -106,7 +111,9 @@ tree:
 
 modules:	$(addprefix module-, $(MODULES))
 
-specs:	nginx.spec $(addsuffix .spec, $(addprefix nginx-module-, $(MODULES)))
+specs:
+	@rm -f nginx.spec nginx-module-*.spec
+	@$(MAKE) nginx.spec $(addsuffix .spec, $(addprefix nginx-module-, $(MODULES)))
 
 $(BASE_SRC):
 	wget http://nginx.org/download/$(BASE_SRC)
@@ -196,7 +203,7 @@ nginx-module-%.spec:
 	else \
 		changelog_file=nginx-module.changelog.in ; \
 	fi ; \
-	pkgname=$(shell echo $@ | cut -d '.' -f 1) ; \
+	pkgname=`echo $@ | cut -d '.' -f 1` ; \
 	if [ "$(MODULE_TARGET)" = "plus" ]; then \
 		pkgname=`echo $${pkgname} | sed -e "s#^nginx-#nginx-plus-#"` ; \
 	fi ; \
@@ -350,11 +357,13 @@ prepare-build-env: $(BASE_SRC)
 	echo "    make" ; \
 	}
 
-clean:
+cln:
 	@rm -f base module-*
 	@rm -f nginx.spec nginx-module-*.spec
 	@rm -rf nginx-tests
 	@rm -f $(SRCPATH)/$(BASE_SRC)
+
+clean: cln
 	@rpmdev-wipetree
 
 detect-module-licenses:
@@ -488,6 +497,7 @@ detect-module-licenses:
 	fi ; \
 	}
 
-.PHONY:	default all tree modules specs test test-debug clean detect-module-licenses
+.PHONY:	default all modules specs test test-debug clean cln detect-module-licenses
+
 
 .SECONDARY:

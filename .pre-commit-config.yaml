@@ -1,0 +1,22 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  - repo: local
+    hooks:
+      - id: rpm-no-vendor-url-tag
+        name: "RPM: forbid 'Vendor URL:' tag"
+        language: pygrep
+        entry: "^Vendor URL:"
+        files: "^SPECS/.*\\.(spec|spec\\.in)$"
+      - id: rpm-no-empty-license-tag
+        name: "RPM: forbid empty License tag"
+        language: pygrep
+        entry: "^License:[[:space:]]*$"
+        files: "^SPECS/.*\\.(spec|spec\\.in)$"
