@@ -7,6 +7,8 @@ SRCPATH?=	../SOURCES
 CONTRIB?=       ../contrib
 CONTRIB:=       $(abspath $(CONTRIB))
 BUILD_ENV_PATH=	${HOME}/rpmbuild
+ARTIFACTS_DIR?=	../RPMS
+BUILD_SOURCES=	$(BUILD_ENV_PATH)/SOURCES
 MODULE_TARGET?=	oss
 MODSRC_PREFIX=
 MODSRC_PATH=	$(SRCPATH)
@@ -115,15 +117,20 @@ specs:
 	@rm -f nginx.spec nginx-module-*.spec
 	@$(MAKE) nginx.spec $(addsuffix .spec, $(addprefix nginx-module-, $(MODULES)))
 
-$(BASE_SRC):
-	wget http://nginx.org/download/$(BASE_SRC)
+$(BUILD_SOURCES)/$(BASE_SRC):
+	@mkdir -p $(BUILD_SOURCES)
+	@cd $(BUILD_SOURCES) && wget -N http://nginx.org/download/$(BASE_SRC)
 
-$(SRCPATH)/$(BASE_SRC):
-	@cd $(SRCPATH) && wget http://nginx.org/download/$(BASE_SRC)
+stage-sources: $(BUILD_SOURCES)/$(BASE_SRC)
+	@mkdir -p $(BUILD_SOURCES)
+	@find $(SRCPATH) -maxdepth 1 -type f ! -name "$(BASE_SRC)" -exec cp -f {} $(BUILD_SOURCES)/ \;
 
-base:	nginx.spec $(SRCPATH)/$(BASE_SRC)
+base:	nginx.spec stage-sources
 	@echo "===> Building base package" ; \
 	$(SHELL) -c "time -p rpmbuild -ba $(RPMBUILD_EXTRA_DEFINES) nginx.spec" && \
+	mkdir -p $(ARTIFACTS_DIR) && \
+	find $(BUILD_ENV_PATH)/RPMS -type f -name "*.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; && \
+	find $(BUILD_ENV_PATH)/SRPMS -maxdepth 1 -type f -name "*.src.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; && \
 	ln -s ../BUILD/nginx-$(BASE_VERSION)/objs base
 
 nginx.spec:
@@ -142,9 +149,12 @@ nginx.spec:
 		> nginx.spec ; \
 	}
 
-module-%: nginx-module-%.spec $(SRCPATH)/$(BASE_SRC)
+module-%: nginx-module-%.spec stage-sources
 	@echo "===> Building nginx-$@ package" ; \
 	$(SHELL) -c "time -p rpmbuild -ba $(RPMBUILD_EXTRA_DEFINES) nginx-$@.spec" && \
+	mkdir -p $(ARTIFACTS_DIR) && \
+	find $(BUILD_ENV_PATH)/RPMS -type f -name "*.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; && \
+	find $(BUILD_ENV_PATH)/SRPMS -maxdepth 1 -type f -name "*.src.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; && \
 	ln -s ../BUILD/nginx-$@-$(BASE_VERSION)/objs $@
 
 nginx-module-%.spec:
@@ -361,7 +371,6 @@ cln:
 	@rm -f base module-*
 	@rm -f nginx.spec nginx-module-*.spec
 	@rm -rf nginx-tests
-	@rm -f $(SRCPATH)/$(BASE_SRC)
 
 clean: cln
 	@rpmdev-wipetree
@@ -497,7 +506,7 @@ detect-module-licenses:
 	fi ; \
 	}
 
-.PHONY:	default all modules specs test test-debug clean cln detect-module-licenses
+.PHONY:	default all modules specs stage-sources test test-debug clean cln detect-module-licenses
 
 
 .SECONDARY:
