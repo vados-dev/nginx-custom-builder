@@ -14,6 +14,14 @@ on:
         options:
           - stable
           - mainline
+      build_args:
+        description: "rpmbuild arguments"
+        required: true
+        default: "-bb"
+        type: choice
+        options:
+          - '-bb'
+          - '-ba'
       disable_debug_packages:
         description: "Disable debug/debuginfo packages"
         required: true
@@ -129,7 +137,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          rpmbuild_args=( -bb --define "_topdir $(pwd)" )
+          rpmbuild_args=( ${{ inputs.build_args }} --define "_topdir $(pwd)" )
           if [[ "${{ inputs.disable_debug_packages }}" == "true" ]]; then
             rpmbuild_args+=( --define "debug_package %{nil}" --define "_debugsource_packages 0" )
           fi

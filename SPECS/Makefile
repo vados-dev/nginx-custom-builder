@@ -7,13 +7,14 @@ SRCPATH?=	../SOURCES
 CONTRIB?=       ../contrib
 CONTRIB:=       $(abspath $(CONTRIB))
 BUILD_ENV_PATH=	${HOME}/rpmbuild
-ARTIFACTS_DIR?=	../RPMS
-COPY_ARTIFACTS?=	$(if $(CI),1,0)
+ARTIFACTS_DIR?=	/.data/nfs/dst/nginx/RPMS all
+COPY_ARTIFACTS?=	1 #$(if $(CI),1,0)
 BUILD_SOURCES=	$(BUILD_ENV_PATH)/SOURCES
 MODULE_TARGET?=	oss
 MODSRC_PREFIX=
 MODSRC_PATH=	$(SRCPATH)
 BUILD_DIR=	%{bdir}
+RPMBUILD_ARGS?=	-bb
 RPMBUILD_EXTRA_DEFINES?=
 
 GITHUB := https://github.com/vados-dev
@@ -100,13 +101,12 @@ modname = $(shell basename "$1" | sed -e 's#^nginx-module-##' -e 's#\.spec$$##' 
 default:
 	@echo "valid targets: all clean cln tree base $(addprefix module-, $(MODULES)) test test-debug"
 
-
 all:
 	@$(MAKE) clean
 	@$(MAKE) tree
 	@$(MAKE) specs
 	@$(MAKE) base modules
-	@echo "===> all done"
+	@echo "===> $@ done!"
 
 tree:
 	@rpmdev-setuptree
@@ -117,24 +117,28 @@ modules:	$(addprefix module-, $(MODULES))
 specs:
 	@rm -f nginx.spec nginx-module-*.spec
 	@$(MAKE) nginx.spec $(addsuffix .spec, $(addprefix nginx-module-, $(MODULES)))
+	@echo "===> $@ done!"
 
 $(BUILD_SOURCES)/$(BASE_SRC):
 	@mkdir -p $(BUILD_SOURCES)
 	@cd $(BUILD_SOURCES) && wget -N http://nginx.org/download/$(BASE_SRC)
+	@echo "===> $@ done!"
 
 stage-sources: $(BUILD_SOURCES)/$(BASE_SRC)
 	@mkdir -p $(BUILD_SOURCES)
 	@find $(SRCPATH) -maxdepth 1 -type f ! -name "$(BASE_SRC)" -exec cp -f {} $(BUILD_SOURCES)/ \;
+	@echo "===> $@ done!"
 
 base:	nginx.spec stage-sources
 	@echo "===> Building base package" ; \
-	$(SHELL) -c "time -p rpmbuild -ba $(RPMBUILD_EXTRA_DEFINES) nginx.spec" && \
+	$(SHELL) -c "time -p rpmbuild $(RPMBUILD_ARGS) $(RPMBUILD_EXTRA_DEFINES) nginx.spec" && \
 	if [ "$(COPY_ARTIFACTS)" = "1" ]; then \
 		mkdir -p $(ARTIFACTS_DIR) && \
 		find $(BUILD_ENV_PATH)/RPMS -type f -name "*.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; && \
 		find $(BUILD_ENV_PATH)/SRPMS -maxdepth 1 -type f -name "*.src.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; ; \
 	fi && \
 	ln -s ../BUILD/nginx-$(BASE_VERSION)/objs base
+	@echo "===> $@ done!"
 
 nginx.spec:
 	@echo "===> Creating $@"
@@ -151,16 +155,18 @@ nginx.spec:
 		-e 's#%%BASE_CONFIGURE_ARGS%%#$(BASE_CONFIGURE_ARGS)#g' \
 		> nginx.spec ; \
 	}
+	@echo "===> $@ done!"
 
 module-%: nginx-module-%.spec stage-sources
 	@echo "===> Building nginx-$@ package" ; \
-	$(SHELL) -c "time -p rpmbuild -ba $(RPMBUILD_EXTRA_DEFINES) nginx-$@.spec" && \
+	$(SHELL) -c "time -p rpmbuild $(RPMBUILD_ARGS) $(RPMBUILD_EXTRA_DEFINES) nginx-$@.spec" && \
 	if [ "$(COPY_ARTIFACTS)" = "1" ]; then \
 		mkdir -p $(ARTIFACTS_DIR) && \
 		find $(BUILD_ENV_PATH)/RPMS -type f -name "*.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; && \
 		find $(BUILD_ENV_PATH)/SRPMS -maxdepth 1 -type f -name "*.src.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; ; \
 	fi && \
 	ln -s ../BUILD/nginx-$@-$(BASE_VERSION)/objs $@
+	@echo "===> $@ done!"
 
 nginx-module-%.spec:
 	@echo "===> Creating $@"
@@ -306,6 +312,7 @@ nginx-module-%.spec:
 	cat $${changelog_file} | grep -v "^#" >> $@.tmp && \
 	mv $@.tmp $@ ; \
 	}
+	@echo "===> $@ done!"
 
 nginx-tests:
 	@{ \
@@ -317,6 +324,7 @@ nginx-tests:
 		hg clone http://hg.nginx.org/nginx-tests ; \
 	fi ; \
 	}
+	@echo "===> $@ done!"
 
 test: base nginx-tests
 	@echo "===> Running tests with regular binary/modules"
@@ -331,6 +339,7 @@ test: base nginx-tests
 	fi ; \
 	cd nginx-tests && TEST_NGINX_BINARY=$$pwd/base/nginx TEST_NGINX_GLOBALS="$$globals" prove . ; \
 	}
+	@echo "===> $@ done!"
 
 test-debug: base nginx-tests
 	@echo "===> Running tests with debug binary/modules"
@@ -345,6 +354,7 @@ test-debug: base nginx-tests
 	fi ; \
 	cd nginx-tests && TEST_NGINX_BINARY=$$pwd/base/nginx-debug TEST_NGINX_GLOBALS="$$globals" prove . ; \
 	}
+	@echo "===> $@ done!"
 
 prepare-build-env: $(BASE_SRC)
 	@{ \
@@ -371,14 +381,18 @@ prepare-build-env: $(BASE_SRC)
 	echo "    cd $(BUILD_ENV_PATH)/SPECS" ; \
 	echo "    make" ; \
 	}
+	@echo "===> $@ done!"
 
 cln:
 	@rm -f base module-*
 	@rm -f nginx.spec nginx-module-*.spec
-	@rm -rf nginx-tests
+	@rm -rf nginx-tets
+	@rm -rf $(SRCPATH)/$(BASE_SRC)
+	@echo "===> $@ done!"
 
 clean: cln
 	@rpmdev-wipetree
+	@echo "===> $@ done!"
 
 detect-module-licenses:
 	@{ \
