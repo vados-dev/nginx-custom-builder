@@ -6,10 +6,14 @@
 ### За основу взяты:
 1) [ nginx-rpmbuild ](https://github.com/archsh/nginx-rpmbuild).
 2) [ pkg-oss ](http://hg.nginx.org/pkg-oss).
-> т.е. по сути, сборщик не только для Centos 10, а может быть использован для других платформ тоже. НО! Мной не тестировано т.к. идея была в другом...
-> А именно:
-> - Т.к. использую некоторые не стандартные модули, хочется иметь возможность обновлять Nginx по фен-шую, вместе с другими системными пакетами.
-> - Конфиги тоже никто не отменял, их интегрирую в сборщик и на выходе получаю знакомо настроенный веб-морд.
+
+<sub>Т.е. по сути, сборщик не только для Centos 10, а может быть использован для других платформ тоже. НО! Мной не тестировано т.к. идея была в другом...
+<br />
+А именно:<br />
+Т.к. использую некоторые не стандартные модули, хочется иметь возможность обновлять Nginx по фен-шую, вместе с другими системными пакетами.
+<br />
+Конфиги тоже никто не отменял, их интегрирую в сборщик и на выходе получаю знакомо настроенный веб-морд.</sub>
+<br />
 
 ## В чём волшебство:
 Писали мы это чудо с codex 5.1-5.3.
@@ -18,19 +22,16 @@
 В рабочий комплект, включены прямо из репок (доставляются при помощи `git clone`) и настроены:
 1. [ ngx_markdown_filter_module ](https://github.com/ukarim/ngx_markdown_filter_module).
 2. [ ngx_http_include_server_module ](https://github.com/RekGRpth/ngx_http_include_server_module).
-3. [ ngx_http_error_page_inherit_module ](https://github.com/RekGRpth/ngx_http_error_page_inherit_module).
+3. [ ngx_http_error_page_inherit_module ](https://github.com/RekGRpth/ngx_http_error_page_inherit_module).<br />
 Также использовоны красивые шаблоны отсюда: [![REUSE status](https://api.reuse.software/badge/github.com/joppuyo/nice-nginx-error-page)](https://api.reuse.software/info/github.com/joppuyo/nice-nginx-error-page) и настроены простые кастомные страницы с ошибками, для всего сервера.
 В этом мне помогла [статья с хабра](https://habr.com/ru/articles/652479/).
+<br /><br /><br /><br /><br /><br /><br />
+<br /><br /><br /><br /><br /><br /><br />
 
 
 
 
-
-
--* Ниже мои/мне подсказки из самого начала этого пути )))
-
-
-## References
+> <sub>Ниже мои/мне подсказки из самого начала этого пути )))</sub>
 
 ### RPM and Key
 - [Package RPM Nginx Instructions](https://www.dmosk.ru/miniinstruktions.php?mini=package-rpm-nginx)
@@ -43,7 +44,6 @@
 2. [Markdown Filter Module](https://github.com/bet0x/ngx_markdown_filter_module)
 
 ## Signing
-
 Sign the RPM package:
 
 ```bash
