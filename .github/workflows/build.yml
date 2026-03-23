@@ -36,6 +36,7 @@ jobs:
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
       GITHUB_TOKEN: ${{ secrets.amsternl }}
       RPM_GPG_PRIVATE_KEY: ${{ secrets.RPM_GPG_PRIVATE_KEY }}
+      RPM_GPG_PASSPHRASE: ${{ secrets.RPM_GPG_PASSPHRASE }}
     container: quay.io/centos/centos:stream10
 
     steps:
@@ -95,7 +96,7 @@ jobs:
           dnf -y --disablerepo="*" --enablerepo="$source_repo" download --source nginx
           src_rpm="$(ls -1t nginx-*.src.rpm | head -n 1)"
           ver="$(rpm -qp --queryformat '%{VERSION}\n' "$src_rpm")"
-          echo "NGINX_VERSION=$ver" >> $GITHUB_ENV
+          echo "NGINX_VERSION=${ver}" >> "$GITHUB_ENV"
           rm -rf /tmp/nginx-srpm
           mkdir -p /tmp/nginx-srpm
           pushd /tmp/nginx-srpm >/dev/null
@@ -109,25 +110,25 @@ jobs:
           sed -i -E "s/^BASE_VERSION[[:space:]]*=.*/BASE_VERSION=\t${ver}/" SPECS/Makefile
           make -C SPECS nginx.spec specs
 
-          echo "nginx_version=$NGINX_VERSION" >> $GITHUB_OUTPUT
-          echo "source_repo=$source_repo" >> $GITHUB_OUTPUT
-          echo "source_rpm=$src_rpm" >> $GITHUB_OUTPUT
-          echo "source_tarball=$tarball" >> $GITHUB_OUTPUT
+          echo "nginx_version=${ver}" >> "$GITHUB_OUTPUT"
+          echo "source_repo=${source_repo}" >> "$GITHUB_OUTPUT"
+          echo "source_rpm=${src_rpm}" >> "$GITHUB_OUTPUT"
+          echo "source_tarball=${tarball}" >> "$GITHUB_OUTPUT"
         continue-on-error: true
 
       - name: Get env variables
         shell: bash
         run: |
-          echo "DT_STAMP=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
-          echo "DateTime=$(date +%d.%m.%Y-%T)" >> $GITHUB_ENV
-          echo "REF=$GITHUB.REF" >> $GITHUB_ENV
-          echo "REF_NAME=$GITHUB.REF_NAME" >> $GITHUB_ENV
-          echo "GITHUB_RUN_ID=$GITHUB.RUN_ID" >> $GITHUB_ENV
-          echo "SHA=$GITHUB.SHA" >> $GITHUB_ENV
-          echo "NGINX_VERSION=$NGINX_VERSION" >> $GITHUB_ENV
-          echo "SOURCE_REPO=${{ steps.prepare.outputs.source_repo }}" >> $GITHUB_ENV
-          echo "SOURCE_RPM=${{ steps.prepare.outputs.source_rpm }}" >> $GITHUB_ENV
-          echo "SOURCE_TARBALL=${{ steps.prepare.outputs.source_tarball }}" >> $GITHUB_ENV
+          echo "DT_STAMP=$(date +%Y%m%d%H%M)" >> "$GITHUB_ENV"
+          echo "DateTime=$(date +%d.%m.%Y-%T)" >> "$GITHUB_ENV"
+          echo "REF=${{ github.ref }}" >> "$GITHUB_ENV"
+          echo "REF_NAME=${{ github.ref_name }}" >> "$GITHUB_ENV"
+          echo "GITHUB_RUN_ID=${{ github.run_id }}" >> "$GITHUB_ENV"
+          echo "SHA=${{ github.sha }}" >> "$GITHUB_ENV"
+          echo "NGINX_VERSION=${{ steps.prepare.outputs.nginx_version }}" >> "$GITHUB_ENV"
+          echo "SOURCE_REPO=${{ steps.prepare.outputs.source_repo }}" >> "$GITHUB_ENV"
+          echo "SOURCE_RPM=${{ steps.prepare.outputs.source_rpm }}" >> "$GITHUB_ENV"
+          echo "SOURCE_TARBALL=${{ steps.prepare.outputs.source_tarball }}" >> "$GITHUB_ENV"
         continue-on-error: true
 
       - name: Build RPM
@@ -157,6 +158,7 @@ jobs:
         uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ env.RPM_GPG_PRIVATE_KEY }}
+          passphrase: ${{ env.RPM_GPG_PASSPHRASE }}
         continue-on-error: true
 
       - name: Sign RPM packages
@@ -217,28 +219,36 @@ jobs:
           files: |
             RPMS/**/*.rpm
             SRPMS/*.src.rpm
-          name: "Build #$env.RUN_ID nginx $env.NGINX_VERSION ($inputs.nginx_channel)"
-          tag_name: $env.REF_NAME
+          name: "Build #${{ github.run_id }} nginx ${{ env.NGINX_VERSION }} (${{ inputs.nginx_channel }})"
+          tag_name: ${{ github.ref_name }}
           body: |
             Build info:
-            - Date: $env.DateTime
-            - Run ID: $GITHUB_RUN_ID
-            - Ref: $env.REF
-            - Ref name: $env.REF_NAME
-            - SHA: $env.SHA
-            - nginx channel: $inputs.nginx_channel
-            - source repo: $env.SOURCE_REPO
-            - source rpm: $env.SOURCE_RPM
-            - source tarball: $env.SOURCE_TARBALL
-            - nginx version: $env.NGINX_VERSION
-            - debug packages disabled: $inputs.disable_debug_packages
+            - Date: ${{ env.DateTime }}
+            - Run ID: ${{ env.GITHUB_RUN_ID }}
+            - Ref: ${{ env.REF }}
+            - Ref name: ${{ env.REF_NAME }}
+            - SHA: ${{ env.SHA }}
+            - nginx channel: ${{ inputs.nginx_channel }}
+            - source repo: ${{ env.SOURCE_REPO }}
+            - source rpm: ${{ env.SOURCE_RPM }}
+            - source tarball: ${{ env.SOURCE_TARBALL }}
+            - nginx version: ${{ env.NGINX_VERSION }}
+            - debug packages disabled: ${{ inputs.disable_debug_packages }}
         continue-on-error: true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: nginx-rpms-$NGINX_VERSION
+          name: nginx-rpms-${{ env.NGINX_VERSION }}
           path: |
             RPMS/**/*.rpm
             SRPMS/*.src.rpm
         continue-on-error: true
+
+      - name: Echo build outputs
+        shell: bash
+        run: |
+          echo "nginx_version=${{ env.NGINX_VERSION }}"
+          echo "source_repo=${{ env.SOURCE_REPO }}"
+          echo "source_rpm=${{ env.SOURCE_RPM }}"
+          echo "source_tarball=${{ env.SOURCE_TARBALL }}"
