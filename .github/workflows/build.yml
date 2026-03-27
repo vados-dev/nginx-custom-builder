@@ -239,19 +239,19 @@ jobs:
             - debug packages disabled: ${{ inputs.disable_debug_packages }}
         continue-on-error: true
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: nginx-rpms-${{ env.NGINX_VERSION }}
-          path: |
-            RPMS/**/*.rpm
-            SRPMS/*.src.rpm
-        continue-on-error: true
+#      - name: Upload artifacts
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: nginx-rpms-${{ env.NGINX_VERSION }}
+#          path: |
+#            RPMS/**/*.rpm
+#            SRPMS/*.src.rpm
+#        continue-on-error: true
 
-      - name: Echo build outputs
-        shell: bash
-        run: |
-          echo "nginx_version=${{ env.NGINX_VERSION }}"
-          echo "source_repo=${{ env.SOURCE_REPO }}"
-          echo "source_rpm=${{ env.SOURCE_RPM }}"
-          echo "source_tarball=${{ env.SOURCE_TARBALL }}"
+#      - name: Echo build outputs
+#        shell: bash
+#        run: |
+#          echo "nginx_version=${{ env.NGINX_VERSION }}"
+#          echo "source_repo=${{ env.SOURCE_REPO }}"
+#          echo "source_rpm=${{ env.SOURCE_RPM }}"
+#          echo "source_tarball=${{ env.SOURCE_TARBALL }}"
