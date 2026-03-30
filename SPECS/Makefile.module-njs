@@ -1,0 +1,40 @@
+MODULES+=	njs
+
+MODULE_SUMMARY_njs=		Dynamic module njs (JavaScript for NGINX)
+
+MODULE_NAME_njs=			njs
+
+MODULE_VERSION_njs=		0.8.5
+MODULE_RELEASE_njs=		1
+
+MODULE_VERSION_PREFIX_njs=	$(MODULE_TARGET_PREFIX)
+
+MODULE_PACKAGE_VENDOR_njs=	NGINX, Inc.
+MODULE_PACKAGE_URL_njs=		https://github.com/nginx/njs
+MODULE_PACKAGE_LICENSE_njs=	BSD-2-Clause
+
+# Build from the upstream njs repository directly.
+MODULE_SOURCES_njs=		https://github.com/nginx/njs.git
+
+# njs nginx module sources live under njs/nginx in the repository.
+MODULE_CONFARGS_njs=	--add-dynamic-module=njs/nginx
+
+# njs
+MODULE_VERSION_PREFIX_njs=$(BASE_VERSION)+
+
+define MODULE_POST_njs
+cat <<BANNER
+----------------------------------------------------------------------
+
+The $(MODULE_SUMMARY_njs) for $(MODULE_SUMMARY_PREFIX) has been installed.
+To enable these modules, add the following lines to /etc/nginx/nginx.conf
+and reload nginx:
+
+    load_module modules/ngx_http_js_module.so;
+    load_module modules/ngx_stream_js_module.so;
+
+----------------------------------------------------------------------
+BANNER
+endef
+export MODULE_POST_njs
+
