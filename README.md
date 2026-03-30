@@ -115,6 +115,7 @@ sudo dnf upgrade "nginx*"
 Он синхронизирует пакеты `stable/mainline` из `nginx.org` в `gh-pages`:
 - `repo/alpine/v<alpine-version>/<channel>/<arch>/APKINDEX.tar.gz`
 - `repo/alpine/keys/nginx_signing.rsa.pub`
+По умолчанию публикуется только последняя версия каждого пакета, `*-dbg` исключены.
 
 Пример для Alpine `3.20` и `mainline`:
 

@@ -24,6 +24,11 @@ on:
         required: true
         default: "x86_64 aarch64"
         type: string
+      include_dbg_packages:
+        description: "Include *-dbg APK packages"
+        required: true
+        default: false
+        type: boolean
       publish_repo:
         description: "Publish Alpine repo to gh-pages"
         required: true
@@ -47,6 +52,7 @@ jobs:
           CHANNEL: ${{ inputs.nginx_channel }}
           ALPINE_VERSION: ${{ inputs.alpine_version }}
           ARCH_LIST: ${{ inputs.architectures }}
+          INCLUDE_DBG: ${{ inputs.include_dbg_packages }}
         run: |
           set -euo pipefail
 
@@ -71,11 +77,36 @@ jobs:
             index_tmp="$(mktemp)"
             tar -xOf "${out_dir}/APKINDEX.tar.gz" APKINDEX > "${index_tmp}"
 
-            mapfile -t apk_files < <(awk -F: '
-              /^P:/ {pkg=$2}
-              /^V:/ {if (pkg != "") {print pkg "-" $2 ".apk"}}
-            ' "${index_tmp}")
-            for apk_file in "${apk_files[@]}"; do
+            # Keep only latest version of each package from APKINDEX.
+            declare -A latest_files=()
+            while IFS=$'\t' read -r pkg ver apk_file; do
+              if [[ -z "${pkg}" || -z "${ver}" || -z "${apk_file}" ]]; then
+                continue
+              fi
+              latest_files["${pkg}"]="${apk_file}"
+            done < <(
+              awk -F: '
+                /^P:/ {pkg=$2}
+                /^V:/ {ver=$2}
+                /^$/  {
+                  if (pkg != "" && ver != "") {
+                    print pkg "\t" ver "\t" pkg "-" ver ".apk"
+                  }
+                  pkg=""; ver=""
+                }
+                END {
+                  if (pkg != "" && ver != "") {
+                    print pkg "\t" ver "\t" pkg "-" ver ".apk"
+                  }
+                }
+              ' "${index_tmp}" | sort -t $'\t' -k1,1 -k2,2V
+            )
+
+            for pkg in "${!latest_files[@]}"; do
+              apk_file="${latest_files[${pkg}]}"
+              if [[ "${INCLUDE_DBG}" != "true" && "${pkg}" == *-dbg ]]; then
+                continue
+              fi
               curl -fsSL "${arch_url}/${apk_file}" -o "${out_dir}/${apk_file}"
             done
 
