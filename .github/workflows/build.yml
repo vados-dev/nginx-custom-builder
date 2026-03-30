@@ -272,17 +272,41 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          dnf_root="/tmp/dnf-repo/repo/${{ inputs.nginx_channel }}"
-          mkdir -p "${dnf_root}/x86_64" "${dnf_root}/SRPMS"
-          cp -f RPMS/x86_64/*.rpm "${dnf_root}/x86_64/"
+          source /etc/os-release
+          os_token="${ID}"
+          release_token="${VERSION_ID%%.*}"
+          arch_token="$(uname -m)"
+          channel="${{ inputs.nginx_channel }}"
+
+          # Legacy flat layout (kept for backward compatibility)
+          legacy_root="/tmp/dnf-repo/repo/${channel}"
+          mkdir -p "${legacy_root}/${arch_token}" "${legacy_root}/SRPMS"
+          cp -f RPMS/"${arch_token}"/*.rpm "${legacy_root}/${arch_token}/"
           if compgen -G "SRPMS/*.src.rpm" > /dev/null; then
-            cp -f SRPMS/*.src.rpm "${dnf_root}/SRPMS/"
+            cp -f SRPMS/*.src.rpm "${legacy_root}/SRPMS/"
           fi
-          createrepo_c --update "${dnf_root}/x86_64"
-          if compgen -G "${dnf_root}/SRPMS/*.src.rpm" > /dev/null; then
-            createrepo_c --update "${dnf_root}/SRPMS"
+          createrepo_c --update "${legacy_root}/${arch_token}"
+          if compgen -G "${legacy_root}/SRPMS/*.src.rpm" > /dev/null; then
+            createrepo_c --update "${legacy_root}/SRPMS"
           fi
-          printf '%s\n' "${{ env.NGINX_VERSION }}" > "${dnf_root}/VERSION"
+          printf '%s\n' "${NGINX_VERSION}" > "${legacy_root}/VERSION"
+
+          # Structured layout with releasever/basearch support:
+          # repo/<os>/<release>/<channel>/<arch>/ and .../SRPMS/
+          structured_root="/tmp/dnf-repo/repo/${os_token}/${release_token}/${channel}"
+          mkdir -p "${structured_root}/${arch_token}" "${structured_root}/SRPMS"
+          cp -f RPMS/"${arch_token}"/*.rpm "${structured_root}/${arch_token}/"
+          if compgen -G "SRPMS/*.src.rpm" > /dev/null; then
+            cp -f SRPMS/*.src.rpm "${structured_root}/SRPMS/"
+          fi
+          createrepo_c --update "${structured_root}/${arch_token}"
+          if compgen -G "${structured_root}/SRPMS/*.src.rpm" > /dev/null; then
+            createrepo_c --update "${structured_root}/SRPMS"
+          fi
+          printf '%s\n' "${NGINX_VERSION}" > "${structured_root}/VERSION"
+          printf '%s\n' "${os_token}" > /tmp/dnf-repo/OS_TOKEN
+          printf '%s\n' "${release_token}" > /tmp/dnf-repo/RELEASE_TOKEN
+          printf '%s\n' "${arch_token}" > /tmp/dnf-repo/ARCH_TOKEN
 
       - name: Publish DNF repository to gh-pages
         if: ${{ inputs.publish_dnf_repo }}
@@ -300,7 +324,10 @@ jobs:
           publish_root="/tmp/gh-pages-publish"
           remote_url="https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
           channel="${{ inputs.nginx_channel }}"
-          source_root="/tmp/dnf-repo/repo/${channel}"
+          source_root="/tmp/dnf-repo/repo"
+          os_token="$(cat /tmp/dnf-repo/OS_TOKEN)"
+          release_token="$(cat /tmp/dnf-repo/RELEASE_TOKEN)"
+          arch_token="$(cat /tmp/dnf-repo/ARCH_TOKEN)"
 
           rm -rf "${publish_root}"
           mkdir -p "${publish_root}"
@@ -317,22 +344,23 @@ jobs:
             git reset --hard FETCH_HEAD
           fi
 
-          mkdir -p "repo/${channel}"
-          rm -rf "repo/${channel}/x86_64" "repo/${channel}/SRPMS"
-          cp -a "${source_root}/x86_64" "repo/${channel}/x86_64"
-          if [[ -d "${source_root}/SRPMS" ]]; then
-            cp -a "${source_root}/SRPMS" "repo/${channel}/SRPMS"
-          fi
-          cp -f "${source_root}/VERSION" "repo/${channel}/VERSION"
+          mkdir -p repo
+          rm -rf "repo/${channel}" "repo/${os_token}/${release_token}/${channel}"
+          cp -a "${source_root}/${channel}" "repo/${channel}"
+          mkdir -p "repo/${os_token}/${release_token}"
+          cp -a "${source_root}/${os_token}/${release_token}/${channel}" "repo/${os_token}/${release_token}/${channel}"
           if [[ -f "${GITHUB_WORKSPACE}/SOURCES/RPM-GPG-KEY-nginx" ]]; then
             cp -f "${GITHUB_WORKSPACE}/SOURCES/RPM-GPG-KEY-nginx" "repo/RPM-GPG-KEY-nginx"
           fi
 
           cat > repo/README.txt <<EOF
           DNF repository for ${GH_REPO}
-          Path format:
+          Legacy path format:
           - repo/mainline/x86_64
           - repo/stable/x86_64
+          Structured path format:
+          - repo/${os_token}/${release_token}/${channel}/${arch_token}
+          - repo/${os_token}/${release_token}/${channel}/SRPMS
           EOF
 
           git add repo

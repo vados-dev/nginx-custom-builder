@@ -69,6 +69,8 @@ rpm --addsign rpmbuild/RPMS/x86_64/nginx-1.29.5-1.el10.ngx.x86_64.rpm
 `build.yml` теперь публикует готовый DNF-репозиторий (с `repodata`) в ветку `gh-pages`:
 - `repo/mainline/x86_64`
 - `repo/stable/x86_64`
+- `repo/centos/10/mainline/x86_64`
+- `repo/centos/10/stable/x86_64`
 
 Перед использованием включи GitHub Pages:
 - `Settings -> Pages -> Build and deployment -> Deploy from a branch`
@@ -79,11 +81,25 @@ rpm --addsign rpmbuild/RPMS/x86_64/nginx-1.29.5-1.el10.ngx.x86_64.rpm
 ```ini
 [nginx-custom-mainline]
 name=Custom nginx mainline
-baseurl=https://<github-user>.github.io/<repo>/repo/mainline/x86_64/
+baseurl=https://<github-user>.github.io/<repo>/repo/centos/$releasever/mainline/$basearch/
 enabled=1
 gpgcheck=1
-gpgkey=https://<github-user>.github.io/<repo>/RPM-GPG-KEY-nginx
+gpgkey=https://<github-user>.github.io/<repo>/repo/RPM-GPG-KEY-nginx
 ```
+
+Пример source repo:
+
+```ini
+[nginx-custom-mainline-source]
+name=Custom nginx mainline source
+baseurl=https://<github-user>.github.io/<repo>/repo/centos/$releasever/mainline/SRPMS/
+enabled=0
+gpgcheck=1
+gpgkey=https://<github-user>.github.io/<repo>/repo/RPM-GPG-KEY-nginx
+```
+
+Legacy fallback (без `$releasever/$basearch`):
+`https://<github-user>.github.io/<repo>/repo/mainline/x86_64/`
 
 Проверка и обновление:
 
