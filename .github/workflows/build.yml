@@ -32,6 +32,16 @@ on:
         required: true
         default: true
         type: boolean
+      alpine_version:
+        description: "Alpine major.minor for apk repo layout, e.g. 3.20"
+        required: true
+        default: "3.20"
+        type: string
+      publish_alpine_structure:
+        description: "Publish Alpine repo directory structure to gh-pages"
+        required: true
+        default: true
+        type: boolean
   workflow_call:
     inputs:
       nginx_channel:
@@ -51,6 +61,16 @@ on:
         type: boolean
       publish_dnf_repo:
         description: "Publish DNF repository to gh-pages"
+        required: false
+        default: true
+        type: boolean
+      alpine_version:
+        description: "Alpine major.minor for apk repo layout, e.g. 3.20"
+        required: false
+        default: "3.20"
+        type: string
+      publish_alpine_structure:
+        description: "Publish Alpine repo directory structure to gh-pages"
         required: false
         default: true
         type: boolean
@@ -362,6 +382,27 @@ jobs:
           - repo/${os_token}/${release_token}/${channel}/${arch_token}
           - repo/${os_token}/${release_token}/${channel}/SRPMS
           EOF
+
+          if [[ "${{ inputs.publish_alpine_structure }}" == "true" ]]; then
+            alpine_v="v${{ inputs.alpine_version }}"
+            for arch in x86_64 aarch64; do
+              mkdir -p "repo/alpine/${alpine_v}/stable/${arch}"
+              mkdir -p "repo/alpine/${alpine_v}/mainline/${arch}"
+              touch "repo/alpine/${alpine_v}/stable/${arch}/.keep"
+              touch "repo/alpine/${alpine_v}/mainline/${arch}/.keep"
+            done
+            cat > "repo/alpine/${alpine_v}/README.txt" <<EOF
+            Alpine APK repository layout
+            Channels:
+            - stable
+            - mainline
+            Architectures:
+            - x86_64
+            - aarch64
+            Expected path pattern:
+            - repo/alpine/${alpine_v}/<channel>/<arch>/
+            EOF
+          fi
 
           git add repo
           if git diff --cached --quiet; then

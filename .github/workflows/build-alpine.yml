@@ -1,0 +1,158 @@
+name: Build Alpine APK Repo
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      nginx_channel:
+        description: "nginx channel"
+        required: true
+        default: "mainline"
+        type: choice
+        options:
+          - stable
+          - mainline
+      alpine_version:
+        description: "Alpine major.minor, e.g. 3.20"
+        required: true
+        default: "3.20"
+        type: string
+      architectures:
+        description: "Space-separated arch list"
+        required: true
+        default: "x86_64 aarch64"
+        type: string
+      publish_repo:
+        description: "Publish Alpine repo to gh-pages"
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  sync-alpine-repo:
+    if: github.event.repository.owner.id == github.event.sender.id
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Mirror nginx Alpine packages
+        id: mirror
+        shell: bash
+        env:
+          CHANNEL: ${{ inputs.nginx_channel }}
+          ALPINE_VERSION: ${{ inputs.alpine_version }}
+          ARCH_LIST: ${{ inputs.architectures }}
+        run: |
+          set -euo pipefail
+
+          alpine_v="v${ALPINE_VERSION}"
+          mirror_root="/tmp/alpine-mirror/repo/alpine/${alpine_v}/${CHANNEL}"
+          mkdir -p "${mirror_root}"
+
+          upstream_base="https://nginx.org/packages/alpine/${alpine_v}/main"
+          if [[ "${CHANNEL}" == "mainline" ]]; then
+            upstream_base="https://nginx.org/packages/mainline/alpine/${alpine_v}/main"
+          fi
+
+          latest_versions_file="/tmp/alpine-mirror/latest_versions.txt"
+          : > "${latest_versions_file}"
+
+          for arch in ${ARCH_LIST}; do
+            arch_url="${upstream_base}/${arch}"
+            out_dir="${mirror_root}/${arch}"
+            mkdir -p "${out_dir}"
+
+            curl -fsSL "${arch_url}/APKINDEX.tar.gz" -o "${out_dir}/APKINDEX.tar.gz"
+            index_tmp="$(mktemp)"
+            tar -xOf "${out_dir}/APKINDEX.tar.gz" APKINDEX > "${index_tmp}"
+
+            mapfile -t apk_files < <(awk -F: '/^F:/{print $2}' "${index_tmp}")
+            for apk_file in "${apk_files[@]}"; do
+              curl -fsSL "${arch_url}/${apk_file}" -o "${out_dir}/${apk_file}"
+            done
+
+            latest_nginx="$(awk -F: '
+              /^P:nginx$/ {is_nginx=1; next}
+              /^P:/ {is_nginx=0}
+              is_nginx && /^V:/ {print $2; is_nginx=0}
+            ' "${index_tmp}" | sort -V | tail -n1 || true)"
+
+            if [[ -n "${latest_nginx}" ]]; then
+              echo "${arch}=${latest_nginx}" >> "${latest_versions_file}"
+            fi
+          done
+
+          mkdir -p "/tmp/alpine-mirror/repo/alpine/keys"
+          curl -fsSL "https://nginx.org/keys/nginx_signing.rsa.pub" \
+            -o "/tmp/alpine-mirror/repo/alpine/keys/nginx_signing.rsa.pub"
+
+          {
+            echo "channel=${CHANNEL}"
+            echo "alpine_v=${alpine_v}"
+            echo "upstream_base=${upstream_base}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Publish Alpine repo to gh-pages
+        if: ${{ inputs.publish_repo }}
+        shell: bash
+        env:
+          GH_REPO: ${{ github.repository }}
+          CHANNEL: ${{ inputs.nginx_channel }}
+          ALPINE_VERSION: ${{ inputs.alpine_version }}
+          GH_TOKEN: ${{ env.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${GH_TOKEN:-}" ]]; then
+            echo "GITHUB token is empty, skip Alpine publish."
+            exit 0
+          fi
+
+          alpine_v="v${ALPINE_VERSION}"
+          publish_root="/tmp/gh-pages-publish"
+          source_root="/tmp/alpine-mirror/repo/alpine/${alpine_v}/${CHANNEL}"
+          remote_url="https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
+
+          rm -rf "${publish_root}"
+          mkdir -p "${publish_root}"
+          cd "${publish_root}"
+
+          git init
+          git checkout -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "${remote_url}"
+
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git fetch --depth 1 origin gh-pages
+            git reset --hard FETCH_HEAD
+          fi
+
+          mkdir -p "repo/alpine/${alpine_v}"
+          rm -rf "repo/alpine/${alpine_v}/${CHANNEL}"
+          cp -a "${source_root}" "repo/alpine/${alpine_v}/${CHANNEL}"
+          mkdir -p "repo/alpine/keys"
+          cp -f "/tmp/alpine-mirror/repo/alpine/keys/nginx_signing.rsa.pub" "repo/alpine/keys/nginx_signing.rsa.pub"
+
+          cat > "repo/alpine/${alpine_v}/README.txt" <<EOF
+          Alpine APK repository
+          Channels:
+          - stable
+          - mainline
+          Example repositories line:
+          - https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/repo/alpine/${alpine_v}/mainline
+          EOF
+
+          git add repo/alpine
+          if git diff --cached --quiet; then
+            echo "No Alpine repo changes to publish."
+            exit 0
+          fi
+          git commit -m "repo: publish alpine ${alpine_v}/${CHANNEL} (run ${GITHUB_RUN_ID})"
+          git push origin gh-pages
+

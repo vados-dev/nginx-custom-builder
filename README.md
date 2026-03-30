@@ -108,3 +108,19 @@ sudo dnf clean all
 sudo dnf makecache
 sudo dnf upgrade "nginx*"
 ```
+
+## Alpine (APK) repo for Docker
+
+Для Alpine добавлен workflow `.github/workflows/build-alpine.yml`.
+Он синхронизирует пакеты `stable/mainline` из `nginx.org` в `gh-pages`:
+- `repo/alpine/v<alpine-version>/<channel>/<arch>/APKINDEX.tar.gz`
+- `repo/alpine/keys/nginx_signing.rsa.pub`
+
+Пример для Alpine `3.20` и `mainline`:
+
+```sh
+echo "https://vados-dev.github.io/nginx-rpmbuild/repo/alpine/v3.20/mainline" >> /etc/apk/repositories
+wget -O /etc/apk/keys/nginx_signing.rsa.pub https://vados-dev.github.io/nginx-rpmbuild/repo/alpine/keys/nginx_signing.rsa.pub
+apk update
+apk add nginx
+```
