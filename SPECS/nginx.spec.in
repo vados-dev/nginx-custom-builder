@@ -121,6 +121,9 @@ License: 2-clause BSD-like license
 BuildRoot: %{_tmppath}/%{name}-%{base_version}-%{base_release}-root
 BuildRequires: zlib-devel
 BuildRequires: pcre2-devel
+BuildRequires: gd-devel
+BuildRequires: libxslt-devel
+BuildRequires: perl-devel
 
 Provides: webserver
 Provides: nginx-r%{base_version}
@@ -138,6 +141,9 @@ a mail proxy server.
 
 %build
 ./configure %{BASE_CONFIGURE_ARGS} \
+    --with-http_image_filter_module=dynamic \
+    --with-http_xslt_module=dynamic \
+    --with-http_perl_module=dynamic \
     --with-cc-opt="%{WITH_CC_OPT}" \
     --with-ld-opt="%{WITH_LD_OPT}" \
     --with-debug
@@ -145,6 +151,9 @@ make %{?_smp_mflags}
 %{__mv} %{bdir}/objs/nginx \
     %{bdir}/objs/nginx-debug
 ./configure %{BASE_CONFIGURE_ARGS} \
+    --with-http_image_filter_module=dynamic \
+    --with-http_xslt_module=dynamic \
+    --with-http_perl_module=dynamic \
     --with-cc-opt="%{WITH_CC_OPT}" \
     --with-ld-opt="%{WITH_LD_OPT}"
 make %{?_smp_mflags}
@@ -261,6 +270,9 @@ cat /dev/null > debugsourcefiles.list
 
 %attr(0755,root,root) %dir %{_libdir}/nginx
 %attr(0755,root,root) %dir %{_libdir}/nginx/modules
+%{_libdir}/nginx/modules/ngx_http_image_filter_module.so
+%{_libdir}/nginx/modules/ngx_http_perl_module.so
+%{_libdir}/nginx/modules/ngx_http_xslt_filter_module.so
 %dir %{_datadir}/nginx
 %dir %{_datadir}/nginx/html
 %{_datadir}/nginx/html/*
