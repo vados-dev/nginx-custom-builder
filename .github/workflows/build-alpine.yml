@@ -142,14 +142,14 @@ jobs:
           mkdir -p "repo/alpine/keys"
           cp -f "/tmp/alpine-mirror/repo/alpine/keys/nginx_signing.rsa.pub" "repo/alpine/keys/nginx_signing.rsa.pub"
 
-          cat > "repo/alpine/${alpine_v}/README.txt" <<EOF
-          Alpine APK repository
-          Channels:
-          - stable
-          - mainline
-          Example repositories line:
-          - https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/repo/alpine/${alpine_v}/mainline
-          EOF
+          {
+            echo "Alpine APK repository"
+            echo "Channels:"
+            echo "- stable"
+            echo "- mainline"
+            echo "Example repositories line:"
+            echo "- https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/repo/alpine/${alpine_v}/mainline"
+          } > "repo/alpine/${alpine_v}/README.txt"
 
           git add repo/alpine
           if git diff --cached --quiet; then
