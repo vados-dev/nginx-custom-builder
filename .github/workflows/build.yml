@@ -27,14 +27,31 @@ on:
         required: true
         default: true
         type: boolean
+  workflow_call:
+    inputs:
+      nginx_channel:
+        description: "nginx source channel"
+        required: false
+        default: "mainline"
+        type: string
+      build_args:
+        description: "rpmbuild arguments"
+        required: false
+        default: "-bb"
+        type: string
+      disable_debug_packages:
+        description: "Disable debug/debuginfo packages"
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   build:
-    if: github.event.repository.owner.id == github.event.sender.id
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.repository.owner.id == github.event.sender.id }}
     runs-on: ubuntu-latest
     env:
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-      GITHUB_TOKEN: ${{ secrets.amsternl }}
+      GITHUB_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
       RPM_GPG_PRIVATE_KEY: ${{ secrets.RPM_GPG_PRIVATE_KEY }}
     container: quay.io/centos/centos:stream10
 

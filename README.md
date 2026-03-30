@@ -49,3 +49,17 @@ Sign the RPM package:
 ```bash
 rpm --addsign rpmbuild/RPMS/x86_64/nginx-1.29.5-1.el10.ngx.x86_64.rpm
 ```
+
+## GitHub Actions: авто-проверка и Telegram
+
+В репозитории настроены два workflow:
+- `.github/workflows/check-version.yml` - проверяет новую версию nginx по расписанию (каждые 6 часов), отправляет уведомление в Telegram и запускает сборку при изменении версии.
+- `.github/workflows/build.yml` - ручная и автоматическая сборка RPM (используется также как reusable workflow).
+
+Нужные secrets в `Settings -> Secrets and variables -> Actions`:
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
+- `RPM_GPG_PRIVATE_KEY` (опционально, для подписи RPM)
+- `amsternl` (опционально, PAT; если не задан, workflow использует встроенный `GITHUB_TOKEN`)
+
+Состояние последней собранной версии хранится в `.github/version-state/nginx-<channel>.txt`.
