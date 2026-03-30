@@ -372,9 +372,10 @@ jobs:
           git push origin gh-pages
 
 #      - name: Upload artifacts
+#        env: RPM_VER=${{ env.NGINX_VERSION }}
 #        uses: actions/upload-artifact@v4
 #        with:
-#          name: nginx-rpms-${{ env.NGINX_VERSION }}
+#          name: nginx-rpms-
 #          path: |
 #            RPMS/**/*.rpm
 #            SRPMS/*.src.rpm
