@@ -130,13 +130,17 @@ jobs:
           git push
 
       - name: Notify Telegram
-        if: ${{ steps.detect.outputs.should_build == 'true' && secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != '' }}
+        if: ${{ steps.detect.outputs.should_build == 'true' }}
         shell: bash
         env:
           TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           set -euo pipefail
+          if [[ -z "${TG_TOKEN:-}" || -z "${TG_CHAT_ID:-}" ]]; then
+            echo "Telegram secrets are missing, skip notification."
+            exit 0
+          fi
           prev="${{ steps.detect.outputs.previous_version }}"
           if [[ -z "${prev}" ]]; then
             prev="(none)"
