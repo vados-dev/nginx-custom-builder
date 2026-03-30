@@ -124,6 +124,7 @@ BuildRequires: pcre2-devel
 BuildRequires: gd-devel
 BuildRequires: libxslt-devel
 BuildRequires: perl-devel
+BuildRequires: perl-ExtUtils-Embed
 
 Provides: webserver
 Provides: nginx-r%{base_version}

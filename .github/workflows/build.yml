@@ -119,6 +119,7 @@ jobs:
             gd-devel \
             libxslt-devel \
             perl-devel \
+            perl-ExtUtils-Embed \
             cmark-devel
 
       - name: Prepare sources from nginx SRPM
