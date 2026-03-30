@@ -71,7 +71,10 @@ jobs:
             index_tmp="$(mktemp)"
             tar -xOf "${out_dir}/APKINDEX.tar.gz" APKINDEX > "${index_tmp}"
 
-            mapfile -t apk_files < <(awk -F: '/^F:/{print $2}' "${index_tmp}")
+            mapfile -t apk_files < <(awk -F: '
+              /^P:/ {pkg=$2}
+              /^V:/ {if (pkg != "") {print pkg "-" $2 ".apk"}}
+            ' "${index_tmp}")
             for apk_file in "${apk_files[@]}"; do
               curl -fsSL "${arch_url}/${apk_file}" -o "${out_dir}/${apk_file}"
             done
@@ -155,4 +158,3 @@ jobs:
           fi
           git commit -m "repo: publish alpine ${alpine_v}/${CHANNEL} (run ${GITHUB_RUN_ID})"
           git push origin gh-pages
-
