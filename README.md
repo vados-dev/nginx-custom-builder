@@ -63,3 +63,32 @@ rpm --addsign rpmbuild/RPMS/x86_64/nginx-1.29.5-1.el10.ngx.x86_64.rpm
 - `amsternl` (опционально, PAT; если не задан, workflow использует встроенный `GITHUB_TOKEN`)
 
 Состояние последней собранной версии хранится в `.github/version-state/nginx-<channel>.txt`.
+
+## DNF repo from GitHub Pages
+
+`build.yml` теперь публикует готовый DNF-репозиторий (с `repodata`) в ветку `gh-pages`:
+- `repo/mainline/x86_64`
+- `repo/stable/x86_64`
+
+Перед использованием включи GitHub Pages:
+- `Settings -> Pages -> Build and deployment -> Deploy from a branch`
+- Branch: `gh-pages` (root)
+
+Пример `.repo` для mainline:
+
+```ini
+[nginx-custom-mainline]
+name=Custom nginx mainline
+baseurl=https://<github-user>.github.io/<repo>/repo/mainline/x86_64/
+enabled=1
+gpgcheck=1
+gpgkey=https://<github-user>.github.io/<repo>/RPM-GPG-KEY-nginx
+```
+
+Проверка и обновление:
+
+```bash
+sudo dnf clean all
+sudo dnf makecache
+sudo dnf upgrade "nginx*"
+```

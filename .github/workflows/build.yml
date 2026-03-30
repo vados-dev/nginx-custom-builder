@@ -27,6 +27,11 @@ on:
         required: true
         default: true
         type: boolean
+      publish_dnf_repo:
+        description: "Publish DNF repository to gh-pages"
+        required: true
+        default: true
+        type: boolean
   workflow_call:
     inputs:
       nginx_channel:
@@ -41,6 +46,11 @@ on:
         type: string
       disable_debug_packages:
         description: "Disable debug/debuginfo packages"
+        required: false
+        default: true
+        type: boolean
+      publish_dnf_repo:
+        description: "Publish DNF repository to gh-pages"
         required: false
         default: true
         type: boolean
@@ -78,6 +88,7 @@ jobs:
             gnupg2 \
             cpio \
             systemd \
+            createrepo_c \
             zlib-devel \
             pcre2-devel \
             openssl-devel \
@@ -255,6 +266,82 @@ jobs:
             - rpmbuild arguments: ${{ inputs.build_args }}
             - debug packages disabled: ${{ inputs.disable_debug_packages }}
         continue-on-error: true
+
+      - name: Build DNF repository metadata
+        if: ${{ inputs.publish_dnf_repo }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dnf_root="/tmp/dnf-repo/repo/${{ inputs.nginx_channel }}"
+          mkdir -p "${dnf_root}/x86_64" "${dnf_root}/SRPMS"
+          cp -f RPMS/x86_64/*.rpm "${dnf_root}/x86_64/"
+          if compgen -G "SRPMS/*.src.rpm" > /dev/null; then
+            cp -f SRPMS/*.src.rpm "${dnf_root}/SRPMS/"
+          fi
+          createrepo_c --update "${dnf_root}/x86_64"
+          if compgen -G "${dnf_root}/SRPMS/*.src.rpm" > /dev/null; then
+            createrepo_c --update "${dnf_root}/SRPMS"
+          fi
+          printf '%s\n' "${{ env.NGINX_VERSION }}" > "${dnf_root}/VERSION"
+
+      - name: Publish DNF repository to gh-pages
+        if: ${{ inputs.publish_dnf_repo }}
+        shell: bash
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ env.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${GH_TOKEN:-}" ]]; then
+            echo "GITHUB token is empty, skip DNF publish."
+            exit 0
+          fi
+
+          publish_root="/tmp/gh-pages-publish"
+          remote_url="https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
+          channel="${{ inputs.nginx_channel }}"
+          source_root="/tmp/dnf-repo/repo/${channel}"
+
+          rm -rf "${publish_root}"
+          mkdir -p "${publish_root}"
+          cd "${publish_root}"
+
+          git init
+          git checkout -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "${remote_url}"
+
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git fetch --depth 1 origin gh-pages
+            git reset --hard FETCH_HEAD
+          fi
+
+          mkdir -p "repo/${channel}"
+          rm -rf "repo/${channel}/x86_64" "repo/${channel}/SRPMS"
+          cp -a "${source_root}/x86_64" "repo/${channel}/x86_64"
+          if [[ -d "${source_root}/SRPMS" ]]; then
+            cp -a "${source_root}/SRPMS" "repo/${channel}/SRPMS"
+          fi
+          cp -f "${source_root}/VERSION" "repo/${channel}/VERSION"
+          if [[ -f "${GITHUB_WORKSPACE}/SOURCES/RPM-GPG-KEY-nginx" ]]; then
+            cp -f "${GITHUB_WORKSPACE}/SOURCES/RPM-GPG-KEY-nginx" "repo/RPM-GPG-KEY-nginx"
+          fi
+
+          cat > repo/README.txt <<EOF
+          DNF repository for ${GH_REPO}
+          Path format:
+          - repo/mainline/x86_64
+          - repo/stable/x86_64
+          EOF
+
+          git add repo
+          if git diff --cached --quiet; then
+            echo "No DNF repo changes to publish."
+            exit 0
+          fi
+          git commit -m "repo: publish ${channel} nginx ${NGINX_VERSION} (run ${GITHUB_RUN_ID})"
+          git push origin gh-pages
 
 #      - name: Upload artifacts
 #        uses: actions/upload-artifact@v4
