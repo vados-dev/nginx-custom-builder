@@ -22,6 +22,14 @@ raw_version="$(curl -fsSL "${nginx_version_url}")"
 nginx_version="${raw_version%%-*}"
 export NGINX_VERSION="${nginx_version}"
 
+if [[ "${channel}" == "mainline" ]]; then
+  channel="main"
+fi
+
+if [[ "${channel}" == "stable" ]]; then
+  channel="stable-${nginx_version}"
+fi
+
 work_root="/tmp/pkg-oss-build"
 rm -rf "${work_root}"
 mkdir -p "${work_root}" "${repo_root}/artifacts"
