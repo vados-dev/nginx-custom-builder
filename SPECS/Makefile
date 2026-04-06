@@ -49,26 +49,18 @@ endif
 
 PACKAGE_VENDOR=	NGINX Inc.
 
-#MODULES=	error-page-inherit include-server markdown-filter
+# Unified module selection point:
+# - module metadata stays in Makefile.module-*
+# - enabled set is controlled only here.
+MODULES?=
 
 -include Makefile.module-*
 
-BASE_CONFIGURE_ARGS=\
-	--prefix=%{_sysconfdir}/nginx \
-	--sbin-path=%{_sbindir}/nginx \
-	--modules-path=%{_libdir}/nginx/modules \
-	--conf-path=%{_sysconfdir}/nginx/nginx.conf \
-	--error-log-path=%{_localstatedir}/log/nginx/error.log \
-	--http-log-path=%{_localstatedir}/log/nginx/access.log \
-	--pid-path=%{_localstatedir}/run/nginx.pid \
-	--lock-path=%{_localstatedir}/run/nginx.lock \
-	--http-client-body-temp-path=%{_localstatedir}/cache/nginx/client_temp \
-	--http-proxy-temp-path=%{_localstatedir}/cache/nginx/proxy_temp \
-	--http-fastcgi-temp-path=%{_localstatedir}/cache/nginx/fastcgi_temp \
-	--http-uwsgi-temp-path=%{_localstatedir}/cache/nginx/uwsgi_temp \
-	--http-scgi-temp-path=%{_localstatedir}/cache/nginx/scgi_temp \
-	--user=%{nginx_user} \
-	--group=%{nginx_group} \
+DISCOVERED_MODULES := $(strip $(MODULES))
+ENABLED_MODULES ?= acme error-page-inherit include-server markdown-filter njs
+MODULES := $(strip $(filter $(ENABLED_MODULES),$(DISCOVERED_MODULES)))
+
+STANDARD_CONFIGURE_MODULES=\
 	--with-compat \
 	--with-file-aio \
 	--with-threads \
@@ -93,6 +85,27 @@ BASE_CONFIGURE_ARGS=\
 	--with-stream_realip_module \
 	--with-stream_ssl_module \
 	--with-stream_ssl_preread_module
+
+EXTRA_BASE_CONFIGURE_ARGS?=
+
+BASE_CONFIGURE_ARGS=\
+	--prefix=%{_sysconfdir}/nginx \
+	--sbin-path=%{_sbindir}/nginx \
+	--modules-path=%{_libdir}/nginx/modules \
+	--conf-path=%{_sysconfdir}/nginx/nginx.conf \
+	--error-log-path=%{_localstatedir}/log/nginx/error.log \
+	--http-log-path=%{_localstatedir}/log/nginx/access.log \
+	--pid-path=%{_localstatedir}/run/nginx.pid \
+	--lock-path=%{_localstatedir}/run/nginx.lock \
+	--http-client-body-temp-path=%{_localstatedir}/cache/nginx/client_temp \
+	--http-proxy-temp-path=%{_localstatedir}/cache/nginx/proxy_temp \
+	--http-fastcgi-temp-path=%{_localstatedir}/cache/nginx/fastcgi_temp \
+	--http-uwsgi-temp-path=%{_localstatedir}/cache/nginx/uwsgi_temp \
+	--http-scgi-temp-path=%{_localstatedir}/cache/nginx/scgi_temp \
+	--user=%{nginx_user} \
+	--group=%{nginx_group} \
+	$(STANDARD_CONFIGURE_MODULES) \
+	$(EXTRA_BASE_CONFIGURE_ARGS)
 
 export CR=\\n
 
