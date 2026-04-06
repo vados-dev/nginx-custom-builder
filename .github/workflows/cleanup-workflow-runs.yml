@@ -1,0 +1,58 @@
+name: Cleanup Workflow Runs
+
+permissions:
+  actions: write
+  contents: read
+
+on:
+  schedule:
+    - cron: "47 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Keep only last 3 workflow runs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          page=1
+          keep=3
+          seen=0
+          deleted=0
+
+          while :; do
+            resp="$(curl -fsSL \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${REPO}/actions/runs?per_page=100&page=${page}")"
+
+            count="$(echo "${resp}" | jq '.workflow_runs | length')"
+            if [[ "${count}" -eq 0 ]]; then
+              break
+            fi
+
+            while IFS=$'\t' read -r run_id created_at; do
+              [[ -z "${run_id}" ]] && continue
+              seen=$((seen + 1))
+              if [[ "${seen}" -gt "${keep}" ]]; then
+                echo "Deleting run ${run_id} (${created_at})"
+                curl -fsSL -X DELETE \
+                  -H "Authorization: Bearer ${GH_TOKEN}" \
+                  -H "Accept: application/vnd.github+json" \
+                  "https://api.github.com/repos/${REPO}/actions/runs/${run_id}" \
+                  >/dev/null
+                deleted=$((deleted + 1))
+              fi
+            done < <(echo "${resp}" | jq -r '.workflow_runs[] | [.id, .created_at] | @tsv')
+
+            page=$((page + 1))
+          done
+
+          echo "Kept latest runs: ${keep}"
+          echo "Deleted workflow runs: ${deleted}"

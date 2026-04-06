@@ -5,7 +5,7 @@ permissions:
 
 on:
   schedule:
-    - cron: "17 */6 * * *"
+    - cron: "17 3 * * 1"
   workflow_dispatch:
     inputs:
       nginx_channel:
@@ -39,6 +39,8 @@ jobs:
   detect:
     runs-on: ubuntu-latest
     container: quay.io/centos/centos:stream10
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     outputs:
       should_build: ${{ steps.detect.outputs.should_build }}
       channel: ${{ steps.detect.outputs.channel }}
@@ -48,13 +50,17 @@ jobs:
       reason: ${{ steps.detect.outputs.reason }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install check dependencies
         shell: bash
         run: |
           set -euo pipefail
-          dnf -y install dnf-plugins-core rpm
+          for i in 1 2 3; do
+            dnf -y install dnf-plugins-core rpm && break
+            echo "Retry dnf install ($i/3)" >&2
+            sleep 5
+          done
 
       - name: Detect latest source version
         id: detect
@@ -85,7 +91,19 @@ jobs:
           sed -i -E "/^\[${source_repo}\]/,/^\[/{s/^enabled=.*/enabled=1/}" "${repo_file}"
           cp "${repo_file}" /etc/yum.repos.d/nginx.repo
 
-          dnf -y --disablerepo="*" --enablerepo="${source_repo}" download --source nginx
+          ok=0
+          for i in 1 2 3; do
+            if dnf -y --disablerepo="*" --enablerepo="${source_repo}" download --source nginx; then
+              ok=1
+              break
+            fi
+            echo "Retry dnf source download ($i/3)" >&2
+            sleep 5
+          done
+          if [[ "${ok}" -ne 1 ]]; then
+            echo "Failed to download nginx source after retries from ${source_repo}" >&2
+            exit 1
+          fi
           src_rpm="$(ls -1t nginx-*.src.rpm | head -n 1)"
           new_version="$(rpm -qp --queryformat '%{VERSION}\n' "${src_rpm}")"
 
