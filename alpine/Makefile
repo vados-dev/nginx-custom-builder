@@ -45,11 +45,15 @@ ARCH=		$(shell uname -m)
 default:
 	@echo "valid targets: all base $(addprefix module-, $(MODULES)) check-modules test test-debug"
 
-BASE_MODULES=	geoip image-filter njs otel perl xslt
+BASE_MODULES=	geoip image-filter njs perl xslt
 
 MODULES=
 
 -include Makefile.module-*
+
+DISCOVERED_MODULES := $(strip $(MODULES))
+ENABLED_MODULES ?= acme error-page-inherit include-server markdown-filter
+MODULES := $(strip $(filter $(ENABLED_MODULES),$(DISCOVERED_MODULES)))
 
 BASE_CONFIGURE_ARGS=\
 	--prefix=/etc/nginx \
@@ -168,6 +172,20 @@ abuild-base: $(BASE_SRC)
 		cp -v $(CONTRIB)/src/nginx$(BASE_SUFFIX)/$$patch abuild-base/ ; \
 	done ;\
 	cp $(DOCS)/nginx.copyright abuild-base/COPYRIGHT ; \
+	if [ -f ../SOURCES/nginx.tar.gz ]; then \
+		cp ../SOURCES/nginx.tar.gz abuild-base/nginx.tar.gz ; \
+	else \
+		tmp_empty_cfg=`mktemp -d` ; \
+		tar -czf abuild-base/nginx.tar.gz -C "$${tmp_empty_cfg}" . ; \
+		rm -rf "$${tmp_empty_cfg}" ; \
+	fi ; \
+	if [ -f ../SOURCES/html.tar.gz ]; then \
+		cp ../SOURCES/html.tar.gz abuild-base/html.tar.gz ; \
+	else \
+		tmp_empty_html=`mktemp -d` ; \
+		tar -czf abuild-base/html.tar.gz -C "$${tmp_empty_html}" . ; \
+		rm -rf "$${tmp_empty_html}" ; \
+	fi ; \
 	if [ "$(BASE_TARGET)" != "oss" ]; then \
 		cp -v $(DOCS)/EULA-* $(CONTRIB)/tarballs/dashboard.html $(DOCS)/nginx-modules-reference.pdf abuild-base/ ; \
 	fi; \
@@ -200,8 +218,29 @@ abuild-module-%: $(BASE_SRC) .deps-module-%
 	cp $(BASE_SRC) $${builddir}/nginx-module-$${module_asis}-$(BASE_VERSION).tar.gz ; \
 	sources= ; \
 	for src in $(MODULE_SOURCES_$(call modname, $*)); do \
-		cp $(CONTRIB)/tarballs/$${src} $${builddir}/ ; \
-		sources="$${sources} $${src}" ; \
+		case "$${src}" in \
+			*.git) \
+				repo_name=`basename "$${src}" .git` ; \
+				tmpmod=`mktemp -d` ; \
+				if git clone --depth 1 "$${src}" "$${tmpmod}/src" >/dev/null 2>&1 ; then \
+					gitrev=`cd "$${tmpmod}/src" && git rev-parse --short HEAD 2>/dev/null || echo git` ; \
+					archive_name="$${repo_name}-$${gitrev}.tar.gz" ; \
+					tar -czf "$${builddir}/$${archive_name}" -C "$${tmpmod}/src" . ; \
+					sources="$${sources} $${archive_name}" ; \
+				else \
+					echo "Failed to clone module source: $${src}" >&2 ; \
+					rm -rf "$${tmpmod}" ; \
+					exit 1 ; \
+				fi ; \
+				rm -rf "$${tmpmod}" ;; \
+			http://*.tar|https://*.tar|http://*.tar.gz|https://*.tar.gz|http://*.tgz|https://*.tgz|http://*.tar.bz2|https://*.tar.bz2|http://*.tbz2|https://*.tbz2|http://*.tar.xz|https://*.tar.xz|http://*.txz|https://*.txz) \
+				archive_name=`basename "$${src}" | sed -e 's/[?].*$$//'` ; \
+				curl -fsSL "$${src}" -o "$${builddir}/$${archive_name}" ; \
+				sources="$${sources} $${archive_name}" ;; \
+			*) \
+				cp $(CONTRIB)/tarballs/$${src} $${builddir}/ ; \
+				sources="$${sources} $${src}" ;; \
+		esac ; \
 	done ; \
 	base_patches=`find $(CONTRIB)/src/nginx$(BASE_SUFFIX)/ \
 	        -type f -name '*.patch' | sort |tr "\\n" " "` ; \
@@ -213,7 +252,11 @@ abuild-module-%: $(BASE_SRC) .deps-module-%
 		sources="$${sources} $${pn}" ; \
 	done ; \
 	module_copyright="nginx-module-$${module_asis}.copyright" ; \
-	cp -p $(DOCS)/$${module_copyright} $${builddir}/COPYRIGHT ; \
+	if [ -f $(DOCS)/$${module_copyright} ]; then \
+		cp -p $(DOCS)/$${module_copyright} $${builddir}/COPYRIGHT ; \
+	else \
+		cp -p $(DOCS)/nginx.copyright $${builddir}/COPYRIGHT ; \
+	fi ; \
 	postinstall_script=$${builddir}/nginx$(MODULE_SUFFIX)-module-$${module_asis}.post-install ; \
 	definitions=`echo "$$MODULE_DEFINITIONS_$(call modname, $*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
 	addcontroltags=`echo "$$MODULE_ADD_CONTROL_TAGS_$(call modname, $*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \

@@ -1,0 +1,30 @@
+MODULES+=	acme
+
+MODULE_SUMMARY_acme=	Dynamic module ACME (automatic certificate management)
+
+MODULE_NAME_acme=	nginx-acme
+
+MODULE_VERSION_acme=	0.3.0
+MODULE_RELEASE_acme=	1
+
+MODULE_VERSION_PREFIX_acme=$(BASE_VERSION)+
+
+MODULE_SOURCES_acme=	https://github.com/nginx/nginx-acme.git
+MODULE_CONFARGS_acme=	--add-dynamic-module=$(MODULE_NAME_acme)
+
+MODULE_BUILD_DEPENDS_acme=rust cargo clang pkgconf
+
+define MODULE_POST_acme
+cat <<BANNER
+----------------------------------------------------------------------
+
+The $(MODULE_SUMMARY_acme) for $(MODULE_SUMMARY_PREFIX) has been installed.
+To enable this module, add the following line to /etc/nginx/nginx.conf
+and reload nginx:
+
+    load_module modules/ngx_http_acme_module.so;
+
+----------------------------------------------------------------------
+BANNER
+endef
+export MODULE_POST_acme

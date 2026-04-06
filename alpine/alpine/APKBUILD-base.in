@@ -28,6 +28,8 @@ replaces="nginx-common nginx-initscripts nginx-lua nginx-rtmp"
 source="$pkgname-$_base_version.tar.gz
 	$pkgname.conf
 	$pkgname.default.conf
+	nginx.tar.gz
+	html.tar.gz
 	$pkgname.logrotate
 	$pkgname.initd
 	$pkgname-debug.initd
@@ -93,6 +95,28 @@ package() {
 
 	mkdir -p ./usr/share/nginx
 	mv ./etc/nginx/html ./usr/share/nginx/
+
+	# Install additional nginx config snippets from SOURCES/nginx.tar.gz.
+	tmpcfgdir="$(mktemp -d)"
+	tar -xzf "$srcdir"/nginx.tar.gz -C "$tmpcfgdir"
+	if [ -d "$tmpcfgdir/nginx" ]; then
+		cp -a "$tmpcfgdir/nginx/." ./etc/nginx/
+	else
+		cp -a "$tmpcfgdir/." ./etc/nginx/
+	fi
+	rm -rf "$tmpcfgdir"
+
+	# Install custom static html from SOURCES/html.tar.gz.
+	tmphtmldir="$(mktemp -d)"
+	tar -xzf "$srcdir"/html.tar.gz -C "$tmphtmldir"
+	rm -rf ./usr/share/nginx/html
+	mkdir -p ./usr/share/nginx/html
+	if [ -d "$tmphtmldir/html" ]; then
+		cp -a "$tmphtmldir/html/." ./usr/share/nginx/html/
+	else
+		cp -a "$tmphtmldir/." ./usr/share/nginx/html/
+	fi
+	rm -rf "$tmphtmldir"
 
 	mkdir -p ./$_modules_dir
 	ln -sf /$_modules_dir ./etc/nginx/modules
