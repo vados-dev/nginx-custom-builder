@@ -5,7 +5,7 @@ permissions:
 
 on:
   schedule:
-    - cron: "17 3 * * 1"
+    - cron: "*/10 * * * *"
   workflow_dispatch:
     inputs:
       nginx_channel:
