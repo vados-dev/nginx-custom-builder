@@ -25,3 +25,7 @@ SPECS/*.tmp.spec
 RPMS/*.rpm
 RPMS/*.src.rpm
 SOURCES/nginx-*.tar.gz
+
+# local rpm artifacts in repo root
+/*.rpm
+/*.src.rpm

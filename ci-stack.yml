@@ -6,7 +6,7 @@ services:
     command: ["bash", "-lc", "sleep infinity"]
     working_dir: /work
     volumes:
-      - /opt/nginx-rpmbuild:/work
+      - /opt/swarm/nginx-rpmbuild:/work
     deploy:
       replicas: 1
       restart_policy:
