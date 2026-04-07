@@ -113,19 +113,23 @@ apk update
 apk add nginx
 ```
 
-## Запуск локально через Docker (как у CI):
+## Запуск локально через Docker (как у CI)
 
+```sh
   docker run --rm -it -v "$PWD":/work -w /work quay.io/centos/centos:stream10 bash -lc '
   chmod +x scripts/check-version-local.sh
   CHANNEL=mainline FORCE_BUILD=false WRITE_STATE=false scripts/check-version-local.sh
   '
+```
 
   Если надо сразу записать state-файл:
 
+```sh
   docker run --rm -it -v "$PWD":/work -w /work quay.io/centos/centos:stream10 bash -lc '
   chmod +x scripts/check-version-local.sh
   CHANNEL=mainline WRITE_STATE=true scripts/check-version-local.sh
   '
+```
 
   Для stable:
 
@@ -140,12 +144,49 @@ apk add nginx
 
   Пример проверки кода выхода в Docker:
 
-  docker run --rm -i -v "$(pwd):/work" -w /work quay.io/centos/centos:stream10 bash -lc '
+```sh
+docker run --rm -i -v "$(pwd):/work" -w /work quay.io/centos/centos:stream10 bash -lc '
     CHANNEL=mainline WRITE_STATE=false scripts/check-version-local.sh
     rc=$?
     echo "exit_code=$rc"
-  '
+    '
+```
 
+## Готово, перевёл на compose-only
+
+  Что добавил:
+
+- docker-compose.ci.yml с build + image + volume + runner.
+- Обновил Makefile: все ci-* теперь через docker compose, без swarm.
+
+  Как запускать теперь:
+
+```sh
+  make ci-build
+  make ci-deploy
+  make ci-ps
+  make ci-check-all
+```
+
+## Сборка RPM
+
+```sh
+  make ci-rpm-mainline
+```
+
+### или
+
+```sh
+  make ci-rpm-stable
+```
+
+  Остановить:
+
+```sh
+  make ci-rm
+```
+
+  Такой flow ровно как ты хотел: compose build --pull + compose up -d, и дальше по запросу запуск чек/сборки.
   
 
 
