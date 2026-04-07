@@ -19,12 +19,12 @@
 
 <sub>Конфиги тоже никто не отменял, их интегрирую в сборщик и на выходе получаю знакомо настроенный веб-морд.</sub>
 
-## В чём волшебство
+## В чём `волшебство`
 
 Писали мы это чудо с codex 5.1-5.3.
 Поэтому как минимум было весело. Правда Codex тот ещё любитель изобретать "велосипед", чем знатно меня побешивал временами.
 Но тем не менее получилось два билдера, один работает прямо здесь, второй можно запускать локально.
-В рабочий комплект, включены прямо из репок (доставляются при помощи `git clone`) и настроены:
+В рабочий комплект, включены прямо из репо (доставляются при помощи `git clone`) и настроены:
 
 1. [ngx_markdown_filter_module](https://github.com/ukarim/ngx_markdown_filter_module).
 2. [ngx_http_include_server_module](https://github.com/RekGRpth/ngx_http_include_server_module).
@@ -32,7 +32,7 @@
 4. [ngx_http_acme_module](https://github.com/nginx/nginx-acme).
 5. [Dynamic module njs](https://github.com/nginx/njs).
 
-Также использовоны красивые шаблоны отсюда: [![REUSE status](https://api.reuse.software/badge/github.com/joppuyo/nice-nginx-error-page)](https://api.reuse.software/info/github.com/joppuyo/nice-nginx-error-page) и настроены простые кастомные страницы с ошибками, для всего сервера.
+Также использовоны красивые шаблоны [отсюда](https://api.reuse.software/info/github.com/joppuyo/nice-nginx-error-page) и настроены простые кастомные страницы с ошибками, для всего сервера.
 В этом мне помогла [статья с хабра](https://habr.com/ru/articles/652479/).
 
 ## GitHub Actions: авто-проверка и Telegram
