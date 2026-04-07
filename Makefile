@@ -9,7 +9,7 @@ CI_GID ?= $(shell id -g)
 CI_USER ?= $(shell id -un)
 
 ci-build:
-	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) build --pull
+	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) build --progress=plain --no-cache
 
 ci-push:
 	docker push $(CI_IMAGE)
