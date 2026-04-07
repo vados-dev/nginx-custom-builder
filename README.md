@@ -34,12 +34,12 @@
 
 ## GitHub Actions: авто-проверка и Telegram
 
-В репозитории настроены два workflow:
+### В репозитории настроены два workflow
 
 - `.github/workflows/check-version.yml` - проверяет новую версию nginx по расписанию (каждые 6 часов), отправляет уведомление в Telegram и запускает сборку при изменении версии.
 - `.github/workflows/build.yml` - ручная и автоматическая сборка RPM (используется также как reusable workflow).
 
-Нужные secrets в `Settings -> Secrets and variables -> Actions`:
+### Нужные secrets в `Settings -> Secrets and variables -> Actions`
 
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
@@ -48,7 +48,7 @@
 
 Состояние последней собранной версии хранится в `.github/version-state/nginx-<channel>.txt`.
 
-## DNF repo from GitHub Pages
+### DNF repo from GitHub Pages
 
 `build.yml` теперь публикует готовый DNF-репозиторий (с `repodata`) в ветку `gh-pages`:
 
@@ -57,12 +57,12 @@
 - `repo/centos/10/mainline/x86_64`
 - `repo/centos/10/stable/x86_64`
 
-Перед использованием включи GitHub Pages:
+### Перед использованием включить GitHub Pages
 
 - `Settings -> Pages -> Build and deployment -> Deploy from a branch`
 - Branch: `gh-pages` (root)
 
-Пример `.repo` для mainline:
+### Пример `.repo` для mainline
 
 ```ini
 [nginx-custom-mainline]
@@ -73,7 +73,7 @@ gpgcheck=1
 gpgkey=https://<github-user>.github.io/<repo>/repo/RPM-GPG-KEY-nginx
 ```
 
-###Пример source repo
+### Пример source repo
 
 ```ini
 [nginx-custom-mainline-source]
@@ -87,7 +87,7 @@ gpgkey=https://<github-user>.github.io/<repo>/repo/RPM-GPG-KEY-nginx
 Legacy fallback (без `$releasever/$basearch`):
 `https://<github-user>.github.io/<repo>/repo/mainline/x86_64/`
 
-Проверка и обновление
+### Проверка и обновление
 
 ```bash
 sudo dnf clean all
@@ -104,7 +104,7 @@ sudo dnf upgrade "nginx*"
 - `repo/alpine/keys/nginx_signing.rsa.pub`
 По умолчанию публикуется только последняя версия каждого пакета, `*-dbg` исключены.
 
-## Пример для Alpine `3.20` и `mainline`
+### Пример для Alpine `3.20` и `mainline`
 
 ```sh
 echo "https://vados-dev.github.io/nginx-rpmbuild/repo/alpine/v3.20/mainline" >> /etc/apk/repositories
