@@ -29,3 +29,6 @@ SOURCES/nginx-*.tar.gz
 # local rpm artifacts in repo root
 /*.rpm
 /*.src.rpm
+
+# local build results
+.ci-home/
