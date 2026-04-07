@@ -47,7 +47,6 @@
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 - `RPM_GPG_PRIVATE_KEY` (опционально, для подписи RPM)
-- `amsternl` (опционально, PAT; если не задан, workflow использует встроенный `GITHUB_TOKEN`)
 
 Состояние последней собранной версии хранится в `.github/version-state/nginx-<channel>.txt`.
 
