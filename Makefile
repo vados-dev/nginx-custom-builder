@@ -59,12 +59,21 @@ ci-rpm-stable:
 
 ci-artifacts:
 	@mkdir -p "$(CI_ARTIFACTS_DIR)"
-	@if [ -d "$(CI_RPMBUILD_DIR)/RPMS" ]; then find "$(CI_RPMBUILD_DIR)/RPMS" -type f -name "*.rpm" -exec cp -f {} "$(CI_ARTIFACTS_DIR)/" \; ; fi
-	@if [ -d "$(CI_RPMBUILD_DIR)/SRPMS" ]; then find "$(CI_RPMBUILD_DIR)/SRPMS" -type f -name "*.src.rpm" -exec cp -f {} "$(CI_ARTIFACTS_DIR)/" \; ; fi
+	@if [ -d "$(CI_RPMBUILD_DIR)/RPMS" ]; then \
+		find "$(CI_RPMBUILD_DIR)/RPMS" -type f -name "*.rpm" | while read -r f; do \
+			arch="$$(basename "$$(dirname "$$f")")"; \
+			mkdir -p "$(CI_ARTIFACTS_DIR)/$$arch"; \
+			cp -f "$$f" "$(CI_ARTIFACTS_DIR)/$$arch/"; \
+		done; \
+	fi
+	@if [ -d "$(CI_RPMBUILD_DIR)/SRPMS" ]; then \
+		mkdir -p "$(CI_ARTIFACTS_DIR)/SRPMS"; \
+		find "$(CI_RPMBUILD_DIR)/SRPMS" -type f -name "*.src.rpm" -exec cp -f {} "$(CI_ARTIFACTS_DIR)/SRPMS/" \; ; \
+	fi
 	@echo "Artifacts copied to $(CI_ARTIFACTS_DIR)"
 
 ci-specs-clean:
-	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -T -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash -c 'mkdir -p /work/.ci-home && export HOME=/work/.ci-home USER=$(CI_USER) LOGNAME=$(CI_USER) && make -C SPECS clean'
+	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -T -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash -c 'mkdir -p /work/.ci-home && export HOME=/work/.ci-home USER=$(CI_USER) LOGNAME=$(CI_USER) && make -C SPECS cln && rpmdev-wipetree'
 
 help:
 	@make -C SPECS/
