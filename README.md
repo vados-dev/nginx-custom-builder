@@ -116,11 +116,21 @@ apk add nginx
 ## Запуск workflow GitHub c локального CentOS
 
 ```sh
-  crontab -e
+crontab -e
 
-  */10 * * * * cd /home/git/projects/nginx-rpmbuild && gh workflow run "Check nginx version" -f nginx_channel=mainline -f force_build=false
+# mainline: каждые 10 минут
+*/10 * * * * /usr/bin/flock -n /tmp/nginx-check-mainline.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-rpmbuild && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=mainline -f force_build=false >> /home/git/projects/nginx-rpmbuild/.github/cron-mainline.log 2>&1'
 
-  crontab -l
+# stable: раз в час, без пересечения с mainline
+17 * * * * /usr/bin/flock -n /tmp/nginx-check-stable.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-rpmbuild && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=stable -f force_build=false >> /home/git/projects/nginx-rpmbuild/.github/cron-stable.log 2>&1'
+
+crontab -l
+```
+
+Проверка `gh` под пользователем `git`:
+
+```sh
+sudo -u git -H /usr/bin/gh auth status
 ```
 
 ## Запуск локально через Docker (как у CI)
