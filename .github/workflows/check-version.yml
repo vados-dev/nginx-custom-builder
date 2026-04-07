@@ -52,6 +52,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Debug trigger context
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "event_name=${{ github.event_name }}"
+          echo "ref=${{ github.ref }}"
+          echo "ref_name=${{ github.ref_name }}"
+          echo "sha=${{ github.sha }}"
+          echo "actor=${{ github.actor }}"
+          echo "utc_now=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
       - name: Install check dependencies
         shell: bash
         run: |
