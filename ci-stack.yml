@@ -9,5 +9,8 @@ services:
       - /opt/swarm/nginx-rpmbuild:/work
     deploy:
       replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
       restart_policy:
         condition: any
