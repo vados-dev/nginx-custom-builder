@@ -118,11 +118,11 @@ apk add nginx
 ```sh
 crontab -e
 
-# mainline: каждые 10 минут
-*/10 * * * * /usr/bin/flock -n /tmp/nginx-check-mainline.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-rpmbuild && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=mainline -f force_build=false >> /home/git/projects/nginx-rpmbuild/.github/cron-mainline.log 2>&1'
+# mainline: еженедельно
+17 3 * * 1 /usr/bin/flock -n /tmp/nginx-check-mainline.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-rpmbuild && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=mainline -f force_build=false >> /home/git/projects/nginx-rpmbuild/.github/cron-mainline.log 2>&1'
 
-# stable: раз в час, без пересечения с mainline
-17 * * * * /usr/bin/flock -n /tmp/nginx-check-stable.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-rpmbuild && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=stable -f force_build=false >> /home/git/projects/nginx-rpmbuild/.github/cron-stable.log 2>&1'
+# stable: еженедельно без пересечения с mainline
+27 3 * * 1 /usr/bin/flock -n /tmp/nginx-check-stable.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-rpmbuild && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=stable -f force_build=false >> /home/git/projects/nginx-rpmbuild/.github/cron-stable.log 2>&1'
 
 crontab -l
 ```
