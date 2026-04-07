@@ -104,13 +104,23 @@ sudo dnf upgrade "nginx*"
 - `repo/alpine/keys/nginx_signing.rsa.pub`
 По умолчанию публикуется только последняя версия каждого пакета, `*-dbg` исключены.
 
-Пример для Alpine `3.20` и `mainline`:
+## Пример для Alpine `3.20` и `mainline`
 
 ```sh
 echo "https://vados-dev.github.io/nginx-rpmbuild/repo/alpine/v3.20/mainline" >> /etc/apk/repositories
 wget -O /etc/apk/keys/nginx_signing.rsa.pub https://vados-dev.github.io/nginx-rpmbuild/repo/alpine/keys/nginx_signing.rsa.pub
 apk update
 apk add nginx
+```
+
+## Запуск workflow GitHub c локального CentOS
+
+```sh
+  crontab -e
+
+  */10 * * * * cd /home/git/projects/nginx-rpmbuild && gh workflow run "Check nginx version" -f nginx_channel=mainline -f force_build=false
+
+  crontab -l
 ```
 
 ## Запуск локально через Docker (как у CI)

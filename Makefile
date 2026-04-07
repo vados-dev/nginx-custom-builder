@@ -27,7 +27,7 @@ ci-shell:
 	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash
 
 ci-check:
-	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -T -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash -c 'mkdir -p /work/.ci-home && export HOME=/work/.ci-home USER=$(CI_USER) LOGNAME=$(CI_USER) && CHANNEL=$(CI_CHANNEL) WRITE_STATE=true bash scripts/check-version-local.sh'
+	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -T $(CI_SERVICE) bash -c 'mkdir -p /work/.ci-home && export HOME=/work/.ci-home && CHANNEL=$(CI_CHANNEL) WRITE_STATE=true bash scripts/check-version-local.sh'
 
 ci-rpm:
 	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -T -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash -c 'mkdir -p /work/.ci-home && export HOME=/work/.ci-home USER=$(CI_USER) LOGNAME=$(CI_USER) && make -C SPECS tree specs base modules'
