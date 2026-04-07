@@ -1,0 +1,11 @@
+services:
+  nginx-ci-runner:
+    image: reg.vados.ru/nginx-rpmbuild-ci:lts
+    build:
+      context: .
+      dockerfile: Dockerfile.ci
+    command: ["bash", "-lc", "sleep infinity"]
+    working_dir: /work
+    volumes:
+      - ./:/work
+    restart: unless-stopped
