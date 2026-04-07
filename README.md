@@ -203,6 +203,18 @@ echo "exit_code=$rc"'
 ### Такой flow ровно как и хотелось
 
   compose build --pull + compose up -d, и дальше по запросу запуск чек/сборки.
+
+## Куда складываются RPM после ci-rpm
+
+После `make ci-rpm-mainline` и `make ci-rpm-stable` артефакты автоматически копируются в:
+
+`/.data/nfs/dst/nginx/RPMS`
+
+Если нужен другой путь:
+
+```sh
+make ci-rpm-mainline CI_ARTIFACTS_DIR=/your/path
+```
   
 > <sub>Ниже мои/мне подсказки из самого начала этого пути )))</sub>
 

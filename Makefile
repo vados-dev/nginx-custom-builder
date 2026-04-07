@@ -7,6 +7,9 @@ CI_COMPOSE_FILE ?= docker-compose.ci.yml
 CI_UID ?= $(shell id -u)
 CI_GID ?= $(shell id -g)
 CI_USER ?= $(shell id -un)
+CI_HOME ?= .ci-home
+CI_ARTIFACTS_DIR ?= /.data/nfs/dst/nginx/RPMS
+CI_RPMBUILD_DIR ?= $(CI_HOME)/rpmbuild
 
 ci-build:
 	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) build --progress=plain --no-cache
@@ -31,6 +34,8 @@ ci-check:
 
 ci-rpm:
 	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -T -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash -c 'mkdir -p /work/.ci-home && export HOME=/work/.ci-home USER=$(CI_USER) LOGNAME=$(CI_USER) && make -C SPECS tree specs base modules'
+	@$(MAKE) ci-artifacts
+	@$(MAKE) ci-specs-clean
 
 ci-check-mainline:
 	@$(MAKE) ci-check CI_CHANNEL=mainline
@@ -44,11 +49,29 @@ ci-check-all:
 
 ci-rpm-mainline:
 	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -T -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash -c 'mkdir -p /work/.ci-home && export HOME=/work/.ci-home USER=$(CI_USER) LOGNAME=$(CI_USER) && make -C SPECS clean tree specs base modules BASE_VERSION=$$(curl -fsSL https://nginx.org/packages/mainline/centos/10/SRPMS/ | grep -oE "nginx-[0-9][0-9.]*-[^\"<>[:space:]]*\\.src\\.rpm" | sort -V | tail -n1 | sed -E "s/^nginx-([0-9][0-9.]*).*/\\1/")'
+	@$(MAKE) ci-artifacts
+	@$(MAKE) ci-specs-clean
 
 ci-rpm-stable:
 	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -T -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash -c 'mkdir -p /work/.ci-home && export HOME=/work/.ci-home USER=$(CI_USER) LOGNAME=$(CI_USER) && make -C SPECS clean tree specs base modules BASE_VERSION=$$(curl -fsSL https://nginx.org/packages/centos/10/SRPMS/ | grep -oE "nginx-[0-9][0-9.]*-[^\"<>[:space:]]*\\.src\\.rpm" | sort -V | tail -n1 | sed -E "s/^nginx-([0-9][0-9.]*).*/\\1/")'
+	@$(MAKE) ci-artifacts
+	@$(MAKE) ci-specs-clean
+
+ci-artifacts:
+	@mkdir -p "$(CI_ARTIFACTS_DIR)"
+	@if [ -d "$(CI_RPMBUILD_DIR)/RPMS" ]; then find "$(CI_RPMBUILD_DIR)/RPMS" -type f -name "*.rpm" -exec cp -f {} "$(CI_ARTIFACTS_DIR)/" \; ; fi
+	@if [ -d "$(CI_RPMBUILD_DIR)/SRPMS" ]; then find "$(CI_RPMBUILD_DIR)/SRPMS" -type f -name "*.src.rpm" -exec cp -f {} "$(CI_ARTIFACTS_DIR)/" \; ; fi
+	@echo "Artifacts copied to $(CI_ARTIFACTS_DIR)"
+
+ci-specs-clean:
+	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -T -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash -c 'mkdir -p /work/.ci-home && export HOME=/work/.ci-home USER=$(CI_USER) LOGNAME=$(CI_USER) && make -C SPECS clean'
 
 help:
 	@make -C SPECS/
 %:
 	@make -C SPECS/ $@
+
+.PHONY: \
+	ci-build ci-push ci-deploy ci-rm ci-ps ci-shell ci-check ci-rpm \
+	ci-check-mainline ci-check-stable ci-check-all \
+	ci-rpm-mainline ci-rpm-stable ci-artifacts ci-specs-clean help
