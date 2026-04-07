@@ -73,7 +73,7 @@ gpgcheck=1
 gpgkey=https://<github-user>.github.io/<repo>/repo/RPM-GPG-KEY-nginx
 ```
 
-Пример source repo:
+###Пример source repo
 
 ```ini
 [nginx-custom-mainline-source]
@@ -87,7 +87,7 @@ gpgkey=https://<github-user>.github.io/<repo>/repo/RPM-GPG-KEY-nginx
 Legacy fallback (без `$releasever/$basearch`):
 `https://<github-user>.github.io/<repo>/repo/mainline/x86_64/`
 
-Проверка и обновление:
+Проверка и обновление
 
 ```bash
 sudo dnf clean all
@@ -127,35 +127,31 @@ crontab -e
 crontab -l
 ```
 
-Проверка `gh` под пользователем `git`:
+### Проверка `gh` под пользователем `git`:
 
 ```sh
 sudo -u git -H /usr/bin/gh auth status
 ```
 
-## Запуск локально через Docker (как у CI)
+### Запуск локально через Docker (как у CI)
 
 ```sh
-  docker run --rm -it -v "$PWD":/work -w /work quay.io/centos/centos:stream10 bash -lc '
-  chmod +x scripts/check-version-local.sh
-  CHANNEL=mainline FORCE_BUILD=false WRITE_STATE=false scripts/check-version-local.sh
-  '
+docker run --rm -it -v "$PWD":/work -w /work quay.io/centos/centos:stream10 bash -lc 'chmod +x scripts/check-version-local.sh
+CHANNEL=mainline FORCE_BUILD=false WRITE_STATE=false scripts/check-version-local.sh'
 ```
 
-  Если надо сразу записать state-файл:
+### Если надо сразу записать state-файл
 
 ```sh
-  docker run --rm -it -v "$PWD":/work -w /work quay.io/centos/centos:stream10 bash -lc '
-  chmod +x scripts/check-version-local.sh
-  CHANNEL=mainline WRITE_STATE=true scripts/check-version-local.sh
-  '
+  docker run --rm -it -v "$PWD":/work -w /work quay.io/centos/centos:stream10 bash -lc 'chmod +x scripts/check-version-local.sh
+  CHANNEL=mainline WRITE_STATE=true scripts/check-version-local.sh'
 ```
 
   Для stable:
 
   ... CHANNEL=stable ...
 
-## В scripts/check-version-local.sh теперь
+### В scripts/check-version-local.sh теперь
 
 - добавлен summary-блок в конце,
 - добавлены коды выхода:
@@ -165,16 +161,14 @@ sudo -u git -H /usr/bin/gh auth status
   Пример проверки кода выхода в Docker:
 
 ```sh
-docker run --rm -i -v "$(pwd):/work" -w /work quay.io/centos/centos:stream10 bash -lc '
-    CHANNEL=mainline WRITE_STATE=false scripts/check-version-local.sh
-    rc=$?
-    echo "exit_code=$rc"
-    '
+docker run --rm -i -v "$(pwd):/work" -w /work quay.io/centos/centos:stream10 bash -lc 'CHANNEL=mainline WRITE_STATE=false scripts/check-version-local.sh
+rc=$?
+echo "exit_code=$rc"'
 ```
 
-## Готово, перевёл на compose-only
+## Перевели на compose-only
 
-  Что добавил:
+  Что добавили:
 
 - docker-compose.ci.yml с build + image + volume + runner.
 - Обновил Makefile: все ci-* теперь через docker compose, без swarm.
@@ -206,16 +200,10 @@ docker run --rm -i -v "$(pwd):/work" -w /work quay.io/centos/centos:stream10 bas
   make ci-rm
 ```
 
-  Такой flow ровно как ты хотел: compose build --pull + compose up -d, и дальше по запросу запуск чек/сборки.
+### Такой flow ровно как и хотелось
+
+  compose build --pull + compose up -d, и дальше по запросу запуск чек/сборки.
   
-
-
-
-
-
-
-
-
 > <sub>Ниже мои/мне подсказки из самого начала этого пути )))</sub>
 
 ### RPM and Key
