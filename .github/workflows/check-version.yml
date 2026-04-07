@@ -4,8 +4,8 @@ permissions:
   contents: write
 
 on:
-  schedule:
-    - cron: "*/7 * * * *"
+#  schedule:
+#    - cron: "*/7 * * * *"
   workflow_dispatch:
     inputs:
       nginx_channel:
