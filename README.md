@@ -194,7 +194,7 @@ echo "exit_code=$rc"'
   make ci-rpm-stable
 ```
 
-  Остановить:
+### Остановить
 
 ```sh
   make ci-rm
