@@ -131,6 +131,21 @@ apk add nginx
 
   ... CHANNEL=stable ...
 
+## В scripts/check-version-local.sh теперь
+
+- добавлен summary-блок в конце,
+- добавлены коды выхода:
+    1. 0 если should_build=false (reason=unchanged)
+    2. 10 если should_build=true (reason=new-version или manual-force)
+
+  Пример проверки кода выхода в Docker:
+
+  docker run --rm -i -v "$(pwd):/work" -w /work quay.io/centos/centos:stream10 bash -lc '
+    CHANNEL=mainline WRITE_STATE=false scripts/check-version-local.sh
+    rc=$?
+    echo "exit_code=$rc"
+  '
+
   
 
 

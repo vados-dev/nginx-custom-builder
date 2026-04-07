@@ -57,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           for i in 1 2 3; do
-            dnf -y install dnf-plugins-core rpm && break
+            dnf -y install dnf-plugins-core rpm git && break
             echo "Retry dnf install ($i/3)" >&2
             sleep 5
           done
