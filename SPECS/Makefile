@@ -202,7 +202,7 @@ nginx-module-%.spec:
 				is_archive=1 ; \
 				s="`printf "tar -xf %%{SOURCE%d}" $${i}`" ;; \
 			*.git) \
-				s="`printf "git clone %s || true" $${src}`" ;; \
+				s="`printf "git clone %s" $${src}`" ;; \
 			*) \
 				s="`printf "Source%d: %s\n" $${i} $${src}`" ; \
 				sources="$${sources}\n$${s}" ; \

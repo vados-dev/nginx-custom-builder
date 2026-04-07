@@ -19,12 +19,26 @@ MODULE_CONFARGS_acme=		--add-dynamic-module=$(MODULE_NAME_acme)
 
 # nginx-acme uses Rust during module build.
 define MODULE_DEFINITIONS_acme
+BuildRequires: git
 BuildRequires: cargo
 BuildRequires: rust
 BuildRequires: clang
 BuildRequires: pkgconf-pkg-config
 export MODULE_DEFINITIONS_acme
 endef
+
+define MODULE_PREBUILD_acme
+if [ ! -f "%{bdir}/nginx-acme/config" ]; then
+    rm -rf "%{bdir}/nginx-acme"
+    for i in 1 2 3; do
+        git clone --depth 1 https://github.com/nginx/nginx-acme.git "%{bdir}/nginx-acme" && break
+        rm -rf "%{bdir}/nginx-acme"
+        sleep 3
+    done
+fi
+test -f "%{bdir}/nginx-acme/config"
+endef
+export MODULE_PREBUILD_acme
 
 # acme
 MODULE_VERSION_PREFIX_acme=$(BASE_VERSION)+
@@ -43,4 +57,3 @@ and reload nginx:
 BANNER
 endef
 export MODULE_POST_acme
-

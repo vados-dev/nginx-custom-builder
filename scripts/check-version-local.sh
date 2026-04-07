@@ -52,6 +52,7 @@ need_cmd cp
 need_cmd ls
 need_cmd head
 need_cmd tr
+need_cmd mktemp
 
 retry() {
   local max="$1"
@@ -86,9 +87,15 @@ sed -i -E 's/^enabled=1$/enabled=0/' "${repo_file}"
 sed -i -E "/^\[${source_repo}\]/,/^\[/{s/^enabled=.*/enabled=1/}" "${repo_file}"
 cp "${repo_file}" /etc/yum.repos.d/nginx.repo
 
-retry "${RETRIES}" dnf -y --disablerepo="*" --enablerepo="${source_repo}" download --source nginx >/dev/null
+tmp_dir="$(mktemp -d /tmp/nginx-check.XXXXXX)"
+cleanup() {
+  rm -rf "${tmp_dir}"
+}
+trap cleanup EXIT
 
-src_rpm="$(ls -1t nginx-*.src.rpm | head -n 1)"
+retry "${RETRIES}" bash -lc "cd '${tmp_dir}' && dnf -y --disablerepo='*' --enablerepo='${source_repo}' download --source nginx" >/dev/null
+
+src_rpm="$(ls -1t "${tmp_dir}"/nginx-*.src.rpm | head -n 1)"
 new_version="$(rpm -qp --queryformat '%{VERSION}\n' "${src_rpm}")"
 
 state_dir=".github/version-state"
