@@ -28,7 +28,9 @@
 
 1. [ngx_markdown_filter_module](https://github.com/ukarim/ngx_markdown_filter_module).
 2. [ngx_http_include_server_module](https://github.com/RekGRpth/ngx_http_include_server_module).
-3. [ngx_http_error_page_inherit_module](https://github.com/RekGRpth/ngx_http_error_page_inherit_module).<br />
+3. [ngx_http_error_page_inherit_module](https://github.com/RekGRpth/ngx_http_error_page_inherit_module).
+4. [ngx_http_acme_module](https://github.com/nginx/nginx-acme).
+
 Также использовоны красивые шаблоны отсюда: [![REUSE status](https://api.reuse.software/badge/github.com/joppuyo/nice-nginx-error-page)](https://api.reuse.software/info/github.com/joppuyo/nice-nginx-error-page) и настроены простые кастомные страницы с ошибками, для всего сервера.
 В этом мне помогла [статья с хабра](https://habr.com/ru/articles/652479/).
 
