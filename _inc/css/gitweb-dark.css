@@ -1,0 +1,174 @@
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: black;
+    color: #cccccc;
+  }
+
+  a, a.header {
+    color: #ffff33;
+  }
+
+  a:is(:hover, visited, active), div.page_header a:hover {
+    color: #77ffff;
+  }
+
+  div:is(.page_header, .page_footer) {
+    background-color: #26272e;
+  }
+
+  tr.dark, table.blame .dark:hover {
+    background-color: #333333;
+  }
+
+  tr.light, table.blame .light:hover {
+    background-color: #49494f;
+  }
+
+  tr:is(.light, .dark):hover {
+    background-color: #121319;
+  }
+
+  a.list {
+    color: #cccccc;
+  }
+
+  a.list:hover {
+    color: #77ffff;
+  }
+
+  div#generating_info {
+    color: #afafaf;
+  }
+
+  :is(div, a).title {
+    background-color: #121319;
+    color: #cccccc;
+  }
+
+  span.refs span.head {
+    background-color: #550055;
+    border-color: #330033 #ff33cc #ff33cc #330033;
+  }
+  
+  div.page_footer_text {
+    color: #aaaaaa;
+  }
+
+  a.rss_logo {
+    color: #000000;
+    background-color: #0099ff;
+    border-color: #03385a #82ccfd #1ce5fe #006ab1;
+  }
+
+  table.diff_tree span.file_status.deleted {
+    color: #f00000;
+  }
+
+  table.diff_tree span.file_status.new {
+    color: #00b000;
+  }
+
+  span.atnight {
+    color: #ee0000;
+  }
+
+  div.diff.header {
+    background-color: #121319;
+  }
+
+  div.diff.extended_header {
+    background-color: #090a11;
+  }
+  
+  div.diff.chunk_header a, div.diff.chunk_header {
+    color: #66ff66;
+  }
+
+  div.diff.chunk_header span.chunk_info {
+    background-color: #bb66bb;
+  }
+
+  div.diff.extended_header, div.diff.extended_header a.path, div.diff.extended_header a.hash {
+    color: #999999;
+  }
+
+  div.diff.extended_header .info {
+    color: #d0d0d0;
+  }
+
+  div.diff.from_file a.path, div.diff.from_file {
+    color: #dd0000;
+  }
+
+  div.diff.to_file a.path, div.diff.to_file {
+    color: #00a000;
+  }
+
+  div.diff.rem {
+    color: #ff0000;
+  }
+
+  div.diff.rem span.marked {
+    background-color: #662222;
+  }
+
+  div.diff.add {
+    color: #00bb00;
+  }
+
+  div.diff.add span.marked {
+    background-color: #116611;
+  }
+
+  div.diff.chunk_header span.section {
+    color: #55dd55;
+  }
+
+  div.chunk_block.chg div div.diff {
+    background-color: #00000f;
+  }
+
+  div.chunk_block.add div.new div.diff.add {
+    background-color: #070007;
+  }
+
+  div.chunk_block.ctx div div.diff.ctx {
+    color: #bfbfbf;
+  }
+
+  .kwb {
+    color: #c60000;
+  }
+
+  .kwd {
+    color: #0303d3;
+  }
+
+  .slc {
+    color: #a5a3a5;
+  }
+
+  .num {
+    color: #4b4aff;
+  }
+
+  .kwa {
+    color: #ffffff;
+  }
+
+  .kwb {
+    color: #c60000;
+  }
+
+  .kwb {
+    color: #c60000;
+  }
+
+  .kwb {
+    color: #c60000;
+  }
+
+  .kwb {
+    color: #c60000;
+  }
+}
