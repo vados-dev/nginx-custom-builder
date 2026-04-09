@@ -6,7 +6,7 @@ html,body,p,ol,ul,li,dl,dt,dd,blockquote,figure,fieldset,legend,textarea,pre,ifr
     font-display: block;
     font-style: normal;
     font-named-instance: "Regular";
-    src: url("https://vados-dev.github.io/nginx-rpmbuild/_inc/css/inter-roman-var.woff2?v=3.19") format("woff2");
+    src: url("./assets/css/inter-roman-var.woff2?v=3.19") format("woff2");
 }
 
 html {
