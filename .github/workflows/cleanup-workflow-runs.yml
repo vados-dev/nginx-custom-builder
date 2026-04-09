@@ -6,7 +6,7 @@ permissions:
 
 on:
   schedule:
-    - cron: "47 3 * * 1"
+    - cron: "47 4 * * 1"
   workflow_dispatch:
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
           set -euo pipefail
 
           page=1
-          keep=3
+          keep=4
           seen=0
           deleted=0
 
