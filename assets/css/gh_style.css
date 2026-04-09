@@ -6,7 +6,7 @@ html,body,p,ol,ul,li,dl,dt,dd,blockquote,figure,fieldset,legend,textarea,pre,ifr
     font-display: block;
     font-style: normal;
     font-named-instance: "Regular";
-    src: url("./assets/css/inter-roman-var.woff2?v=3.19") format("woff2");
+    src: url("assets/css/inter-roman-var.woff2?v=3.19") format("woff2");
 }
 
 html {
@@ -24,7 +24,8 @@ html {
     }
 }
 .top {
-    width: 40%;
+    width: 60%;
+    min-height: 100vh;
 }
 .center {
     width: 60%;
@@ -33,8 +34,8 @@ html {
     grid-template-rows: auto 1fr auto;
 }
 @media (max-width: 1023px) {
-    .left,
-    .right {
+    .top,
+    .center {
         width: 100%;
     }
 }
@@ -45,7 +46,7 @@ html {
     align-items: center;
 }
 @media (max-width: 1023px) {
-    .left svg {
+    .top svg {
         min-height: 200px;
     }
 }
@@ -57,7 +58,7 @@ html {
     margin-left: 40px;
 }
 @media (max-width: 1023px) {
-    .left svg {
+    .top svg {
         width: 100px;
     }
 }
