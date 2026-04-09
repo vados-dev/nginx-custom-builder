@@ -3,11 +3,11 @@
 <html lang="ru">
 <head>
     <meta charset="utf-8" />
-    <title></title>
+    <title> &nbsp; </title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="shortcut icon" type="image/png" href="/nginx-rpmbuild/_inc/icons/git-favicon.png" />
+    <link rel="shortcut icon" type="image/png" href="./_inc/icons/git-favicon.png" />
     <meta name="author" content="Vados" />
-    <link rel="stylesheet" href="/nginx-rpmbuild/_inc/css/gh_style.css" />
+    <link rel="stylesheet" href="./_inc/css/gh_style.css" />
     <script>
         function backAway(){
             if(history.length === 1){
@@ -17,19 +17,19 @@
             }
         }
     </script>
-          <script>
+    <script>
         (function () {
           // try to set document title
           var l = ['h1', 'h2', 'h3'];
           for (var i = 0; i < l.length; i++) {
             var h = document.getElementsByTagName(l[i]);
             if (h.length > 0) {
-              document.title = '[Amster] RouterOS Scripts :: ' + h[0].innerText;
+              document.title = '[vados-dev] nginx-rpmbuild :: ' + h[0].innerText;
               break;
             }
           }
         })();
-      </script>
+    </script>
 </head>
 
 <body>
@@ -94,9 +94,9 @@
   render();
 </script>
             </div>
-            <div class="footer">                
-                <p>Адрес запроса: %{request_addr}.</p>                
-                Nginx на <!--# echo var="host" default="localhost" -->                
+            <div class="footer">
+                <p>Адрес запроса: %{request_addr}.</p>
+                GH-Pages <!--# echo var="host" default="localhost" -->
             </div>
         </div>
       </div>
