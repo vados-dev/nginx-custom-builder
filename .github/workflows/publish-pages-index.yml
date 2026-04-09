@@ -134,6 +134,7 @@ jobs:
 
           cp -f /tmp/index.html index.html
           cp -f /tmp/README.md README.md
+          rm -rf _*
           if [[ -d /tmp/html-assets ]]; then
             cp -a /tmp/html-assets/. .
           fi
