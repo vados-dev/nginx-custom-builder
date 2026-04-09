@@ -17,6 +17,8 @@ html {
     min-height: 100vh;
     background-color: transparent;
     display: flex;
+    align-items: center;
+    flex-direction: column;
 }
 @media (max-width: 1023px) {
     .container {
