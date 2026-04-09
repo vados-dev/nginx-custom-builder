@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>nginx-rpmbuild</title>
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; font-family: "Segoe UI", Roboto, sans-serif; background: #f6f8fa; color: #111827; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; }
+    h1 { margin: 0 0 12px; font-size: 28px; }
+    .muted { color: #6b7280; margin-bottom: 16px; }
+    .links { margin: 0 0 18px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 10px; }
+    .links a { text-decoration: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; color: #111827; background: #f9fafb; }
+    #readme { line-height: 1.55; overflow-wrap: anywhere; }
+    #readme pre { background: #0b1020; color: #e5e7eb; border-radius: 8px; padding: 12px; overflow-x: auto; }
+    #readme code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    #readme table { border-collapse: collapse; }
+    #readme th, #readme td { border: 1px solid #e5e7eb; padding: 6px 8px; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h1>nginx-rpmbuild</h1>
+      <p class="muted">Автогенерируемая страница из README.md (ветка gh-pages).</p>
+      <ul class="links">
+        <li><a href="./repo/">DNF/APK repo</a></li>
+        <li><a href="./README.md">Raw README.md</a></li>
+      </ul>
+      <article id="readme">Загрузка README...</article>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    async function render() {
+      const target = document.getElementById("readme");
+      try {
+        const res = await fetch("./README.md", { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const md = await res.text();
+        target.innerHTML = marked.parse(md);
+      } catch (e) {
+        target.textContent = "Не удалось загрузить README.md: " + e.message;
+      }
+    }
+    render();
+  </script>
+</body>
+</html>
