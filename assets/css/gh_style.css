@@ -45,6 +45,8 @@ html {
     display: flex;
     justify-content: center;
     align-items: center;
+    padding-bottom: 5px;
+    margin-bottom: 20px;
 }
 @media (max-width: 1023px) {
     .top svg {
@@ -62,6 +64,23 @@ html {
     .top svg {
         width: 100px;
     }
+}
+div.white-bottom {
+  border-bottom: 1.5px dotted #ccc;
+  padding-bottom: 12px;
+}
+td.head {
+  line-height: 1.2;
+  padding: 0 2em;
+}
+td.head .top {
+  font-size: 250%;
+  font-weight: bold;
+  opacity: 0.9;
+}
+td.head .bottom {
+  font-size: 125%;
+  color: #555;
 }
 .center {
     min-height: 100vh;
