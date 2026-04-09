@@ -28,8 +28,8 @@ jobs:
           cp README.md /tmp/README.md
           rm -rf /tmp/html-assets
           mkdir -p /tmp/html-assets
-          if [[ -f SOURCES/html.tar.gz ]]; then
-            tar -xf SOURCES/html.tar.gz -C /tmp/html-assets || true
+          if [[ -f SOURCES/gh-pages.tar.gz ]]; then
+            tar -xf SOURCES/gh-pages.tar.gz -C /tmp/html-assets || true
           fi
 
           cat > /tmp/body-content.html <<'HTML'
@@ -67,8 +67,8 @@ jobs:
           </script>
           HTML
 
-          if [[ -f /tmp/html-assets/_tmpl/head.html && -f /tmp/html-assets/_tmpl/foot.html ]]; then
-            cat /tmp/html-assets/_tmpl/head.html /tmp/body-content.html /tmp/html-assets/_tmpl/foot.html > /tmp/index.html
+          if [[ -f /tmp/html-assets/_tmpl/gh_top.html && -f /tmp/html-assets/_tmpl/gh_bottom.html ]]; then
+            cat /tmp/html-assets/_tmpl/gh_top.html /tmp/body-content.html /tmp/html-assets/_tmpl/gh_bottom.html > /tmp/index.html
           else
             cat > /tmp/index.html <<'HTML'
           <!doctype html>
