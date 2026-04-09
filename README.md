@@ -196,6 +196,13 @@ echo "exit_code=$rc"'
   make ci-rpm-stable
 ```
 
+По умолчанию версия nginx для сборки берётся из `nginx.org` автоматически по `CHANNEL` и `/etc/os-release` внутри контейнера.
+При необходимости можно переопределить репозиторий/ОС/релиз:
+
+```sh
+make ci-rpm-mainline CI_NGINX_REPO_OS=centos CI_NGINX_REPO_RELEASE=10
+```
+
 ### Остановить
 
 ```sh
