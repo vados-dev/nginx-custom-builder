@@ -25,15 +25,14 @@ html {
         display: block;
     }
 }
-.top {
-    width: 60%;
-    min-height: 100vh;
-}
 .center {
     width: 60%;
     min-height: 100vh;
     display: grid;
     grid-template-rows: auto 1fr auto;
+}
+.top {
+    width: 100%;
 }
 @media (max-width: 1023px) {
     .top,
@@ -75,7 +74,7 @@ html {
     align-items: end;
 }
 .text-container {
-    max-width: 500px;
+    max-width: 580px;
     margin-right: auto;
     margin-left: auto;
     margin-top: auto;
