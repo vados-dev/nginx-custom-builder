@@ -26,7 +26,7 @@ html {
     }
 }
 .center {
-    width: 60%;
+    width: 70%;
     min-height: 100vh;
     display: grid;
     grid-template-rows: auto 1fr auto;
@@ -69,12 +69,12 @@ html {
     justify-content: center;
 }
 .content {
-    width: 90%;
+    width: 100%;
     display: grid;
     align-items: end;
 }
 .text-container {
-    max-width: 580px;
+    width: 100%;
     margin-right: auto;
     margin-left: auto;
     margin-top: auto;
