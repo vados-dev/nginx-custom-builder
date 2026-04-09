@@ -70,8 +70,8 @@ jobs:
 
           if [[ -f /tmp/html-assets/_tmpl/gh_top.html && -f /tmp/html-assets/_tmpl/gh_bottom.html ]]; then
             cat /tmp/html-assets/_tmpl/gh_top.html /tmp/body-content.html /tmp/html-assets/_tmpl/gh_bottom.html > /tmp/index.html
-            cat > /tmp/style.css <<'CSS'
-            <style>
+            cat > /tmp/style.tmp <<'tmp'
+          <style>
               body { margin: 0; font-family: "Segoe UI", Roboto, sans-serif; }
               .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; }
               .card { background: transparent; border: 1px dotted #6c5d53; border-radius: 5px; padding: 20px; }
@@ -87,10 +87,10 @@ jobs:
               #readme code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
               #readme table { border-collapse: collapse; }
               #readme th, #readme td { border: 1px dotted #e5e7eb; padding: 6px 8px; }
-            </style>
-            CSS
-              sed -i '/STYLE_PLACEHOLDER/r /tmp/style.css' /tmp/index.html
-              sed -i '/STYLE_PLACEHOLDER/d' /tmp/index.html
+          </style>
+          tmp
+            sed -i '/STYLE_PLACEHOLDER/r /tmp/style.tmp' /tmp/index.html
+            sed -i '/STYLE_PLACEHOLDER/d' /tmp/index.html
           else
             cat > /tmp/index.html <<'HTML'
           <!doctype html>
