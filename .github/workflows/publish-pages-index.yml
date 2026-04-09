@@ -10,6 +10,7 @@ on:
     paths:
       - README.md
       - .github/workflows/publish-pages-index.yml
+      - SOURCES/gh-pages.tar.gz
   workflow_dispatch:
 
 jobs:
