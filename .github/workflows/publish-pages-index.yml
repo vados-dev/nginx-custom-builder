@@ -67,8 +67,30 @@ jobs:
           </script>
           HTML
 
+
           if [[ -f /tmp/html-assets/_tmpl/gh_top.html && -f /tmp/html-assets/_tmpl/gh_bottom.html ]]; then
             cat /tmp/html-assets/_tmpl/gh_top.html /tmp/body-content.html /tmp/html-assets/_tmpl/gh_bottom.html > /tmp/index.html
+            cat > /tmp/style.css <<'CSS'
+            <style>
+              body { margin: 0; font-family: "Segoe UI", Roboto, sans-serif; }
+              .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; }
+              .card { background: transparent; border: 1px dotted #6c5d53; border-radius: 5px; padding: 20px; }
+              h1 { margin: 0 0 12px; font-size: 28px; }
+              .muted { color: #6c5d53; margin-bottom: 16px; }
+              .links { margin: 0 0 18px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 10px; }
+              .links a { text-decoration: none; border: 1px dotted #6c5d53; border-radius: 5px; padding: 8px 10px; color: #ccc; background: transparent; }
+              .quick { margin: 0 0 18px; padding: 0; list-style: none; }
+              .quick li { margin: 6px 0; }
+              .quick a { color: #0f766e; text-decoration: none; }
+              #readme { line-height: 1.55; overflow-wrap: anywhere; }
+              #readme pre { background: #0b1020; color: #e5e7eb; border: 1px dotted #6c5d53; border-radius: 5px; padding: 12px; overflow-x: auto; white-space: pre-wrap; }
+              #readme code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+              #readme table { border-collapse: collapse; }
+              #readme th, #readme td { border: 1px dotted #e5e7eb; padding: 6px 8px; }
+            </style>
+            CSS
+              sed -i '/STYLE_PLACEHOLDER/r /tmp/style.css' /tmp/index.html
+              sed -i '/STYLE_PLACEHOLDER/d' /tmp/index.html
           else
             cat > /tmp/index.html <<'HTML'
           <!doctype html>
