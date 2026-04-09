@@ -3,7 +3,7 @@
 <html lang="ru">
 <head>
     <meta charset="utf-8" />
-    <title>[ Ошибка ] :: <!--# echo var="status" default="" --> &ndash; <!--# echo var="status_text" default="" --> </title>
+    <title></title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="shortcut icon" type="image/png" href="/nginx-rpmbuild/_inc/icons/git-favicon.png" />
     <meta name="author" content="Vados" />
@@ -17,6 +17,19 @@
             }
         }
     </script>
+          <script>
+        (function () {
+          // try to set document title
+          var l = ['h1', 'h2', 'h3'];
+          for (var i = 0; i < l.length; i++) {
+            var h = document.getElementsByTagName(l[i]);
+            if (h.length > 0) {
+              document.title = '[Amster] RouterOS Scripts :: ' + h[0].innerText;
+              break;
+            }
+          }
+        })();
+      </script>
 </head>
 
 <body>
@@ -42,12 +55,10 @@
                 <!--# if expr="$status_mess" -->
                 <p><!--# echo var="status_mess" --></p>
                 <!--# else -->
-                <p>Описание ошибки отсутствует.<br />
-                    НО!<br />
-                    Если Вам действительно интересен смысл данной ошибки, попробуйте найти её описание по номеру, в известных поисковых системах.</p>
+                <p>&nbsp;<br /><br /></p>
                 <!--# endif -->
                 <div class="gray-top">
-                    <p>Приносим извинения за предоставленные неудобства.</p>
+                    <p>&nbsp;</p>
                 </div>
             </div>
 <main class="wrap">
