@@ -26,13 +26,13 @@ html {
     }
 }
 .center {
-    width: 70%;
+    max-width: 70vh;
     min-height: 100vh;
     display: grid;
     grid-template-rows: auto 1fr auto;
 }
 .top {
-    width: 100%;
+    max-width: 100vh;
 }
 @media (max-width: 1023px) {
     .top,
@@ -74,7 +74,7 @@ html {
     align-items: end;
 }
 .text-container {
-    width: 100%;
+    max-width: 100vh;
     margin-right: auto;
     margin-left: auto;
     margin-top: auto;
