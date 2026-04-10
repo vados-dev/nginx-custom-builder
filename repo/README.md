@@ -1,5 +1,5 @@
-DNF repository for vados-dev/nginx-rpmbuild
-Legacy path format:
+# DNF repository for vados-dev/nginx-rpmbuild
+### Legacy path format
 - repo/mainline/x86_64
 - repo/stable/x86_64
 Structured path format:
