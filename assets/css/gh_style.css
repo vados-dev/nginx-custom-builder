@@ -41,11 +41,13 @@ html {
 }
 .top {
     background-color: #ff0000;
+    font-family: Tahoma, Verdana, Arial, sans-serif;
+    font-size: 10pt;
     display: flex;
-    justify-content: center;
-    align-items: center;
     padding-bottom: 5px;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
 }
 @media (max-width: 1023px) {
     .top svg {
