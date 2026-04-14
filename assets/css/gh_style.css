@@ -13,6 +13,15 @@ html {
     color-scheme: light dark;
     font-family: "Inter var", sans-serif;
 }
+a,
+a:visited {
+    color: #ff0000;
+}
+a:hover,
+a:focus-visible {
+    color: #ff0000;
+    text-decoration: underline;
+}
 .container {
     min-height: 100vh;
     background-color: transparent;
