@@ -385,6 +385,7 @@ jobs:
           }
 
           if [[ -d repo ]]; then
+            find ./repo -type f -name 'README.html' -delete
             while IFS= read -r -d '' dir; do
               if [[ -f "${dir}/index.html" ]] && ! grep -q 'AUTOGEN_DIR_INDEX' "${dir}/index.html"; then
                 continue
