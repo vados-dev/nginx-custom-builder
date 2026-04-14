@@ -24,10 +24,11 @@
     h1 { margin: 0 0 12px; font-size: 28px; }
     .muted { color: #6c5d53; margin-bottom: 16px; }
     .links { margin: 0 0 18px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 10px; }
-    .links a { text-decoration: none; border: 1px dotted #6c5d53; border-radius: 5px; padding: 8px 10px; color: #ff0000; background: transparent; }
+    .links a, .links a:visited, .links a:hover, .links a:focus-visible { text-decoration: none; border: 1px dotted #6c5d53; border-radius: 5px; padding: 8px 10px; color: #ff0000 !important; background: transparent; }
     .quick { margin: 0 0 18px; padding: 0; list-style: none; }
     .quick li { margin: 6px 0; }
-    .quick a { color: #ff0000; text-decoration: none; }
+    .quick a, .quick a:visited, .quick a:hover, .quick a:focus-visible { color: #ff0000 !important; text-decoration: none; }
+    #readme a, #readme a:visited, #readme a:hover, #readme a:focus-visible { color: #ff0000 !important; }
     #readme { line-height: 1.55; overflow-wrap: anywhere; }
     #readme pre { background: #000; color: #6c5d53; border: 1px dotted #6c5d53; border-radius: 5px; padding: 12px; overflow-x: auto; white-space: pre-wrap; }
     #readme code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }

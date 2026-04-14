@@ -13,9 +13,8 @@ html {
     color-scheme: light dark;
     font-family: "Inter var", sans-serif;
 }
-a,
-a:visited {
-    color: #ff0000;
+a, a:visited, a:hover, a:focus-visible {
+    color: #ff0000 !important;
 }
 a:hover,
 a:focus-visible {
@@ -254,3 +253,5 @@ div.gray-top {
     padding-right: 15px;
     cursor: pointer;
 }
+
+
