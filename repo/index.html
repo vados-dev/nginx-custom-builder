@@ -19,8 +19,9 @@
     </script>
 <style>
   .dir-list { margin: 0; padding: 0; list-style: none; }
-  .dir-list li { margin: 6px 0; word-break: break-word; }
+  .dir-list li { margin: 6px 0; word-break: break-word; display: flex; align-items: center; gap: 8px; }
   .dir-list a { color: #0f766e; text-decoration: none; }
+  .dir-list img { width: 20px; height: 22px; image-rendering: auto; flex: 0 0 auto; }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 </style>
 </head>
@@ -89,12 +90,12 @@
       <li><a href="./../">site root</a></li>
     </ul>
     <ul class="dir-list">
-      <li><a href="./alpine/">alpine/</a></li>
-      <li><a href="./centos/">centos/</a></li>
-      <li><a href="./mainline/">mainline/</a></li>
-      <li><a href="./README.md">README.md</a></li>
-      <li><a href="./README.txt">README.txt</a></li>
-      <li><a href="./RPM-GPG-KEY-nginx">RPM-GPG-KEY-nginx</a></li>
+      <li><img src="./../assets/icons/listing/folder.png" alt="[DIR]" /><a href="./alpine/">alpine/</a></li>
+      <li><img src="./../assets/icons/listing/folder.png" alt="[DIR]" /><a href="./centos/">centos/</a></li>
+      <li><img src="./../assets/icons/listing/folder.png" alt="[DIR]" /><a href="./mainline/">mainline/</a></li>
+      <li><img src="./../assets/icons/listing/text.png" alt="[FILE]" /><a href="./README.md">README.md</a></li>
+      <li><img src="./../assets/icons/listing/text.png" alt="[FILE]" /><a href="./README.txt">README.txt</a></li>
+      <li><img src="./../assets/icons/listing/generic.png" alt="[FILE]" /><a href="./RPM-GPG-KEY-nginx">RPM-GPG-KEY-nginx</a></li>
     </ul>
   </section>
 </main>

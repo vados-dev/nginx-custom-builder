@@ -19,8 +19,9 @@
     </script>
 <style>
   .dir-list { margin: 0; padding: 0; list-style: none; }
-  .dir-list li { margin: 6px 0; word-break: break-word; }
+  .dir-list li { margin: 6px 0; word-break: break-word; display: flex; align-items: center; gap: 8px; }
   .dir-list a { color: #0f766e; text-decoration: none; }
+  .dir-list img { width: 20px; height: 22px; image-rendering: auto; flex: 0 0 auto; }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 </style>
 </head>
@@ -89,7 +90,7 @@
       <li><a href="./../../../">site root</a></li>
     </ul>
     <ul class="dir-list">
-      <li><a href="./nginx_signing.rsa.pub">nginx_signing.rsa.pub</a></li>
+      <li><img src="./../../../assets/icons/listing/generic.png" alt="[FILE]" /><a href="./nginx_signing.rsa.pub">nginx_signing.rsa.pub</a></li>
     </ul>
   </section>
 </main>
