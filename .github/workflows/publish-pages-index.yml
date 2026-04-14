@@ -235,13 +235,12 @@ jobs:
             local dir="$1"
             local rel="${dir#./}"
             local title="Index of /${rel}"
-            local body_tmp style_tmp top_tmp up_prefix icon_base readme_file readme_kind readme_html
+            local body_tmp style_tmp top_tmp up_prefix icon_base readme_file readme_kind
             body_tmp="$(mktemp)"
             style_tmp="$(mktemp)"
             top_tmp="$(mktemp)"
             up_prefix="$(awk -F'/' '{ for(i=1;i<=NF;i++) printf "../" }' <<< "${rel}")"
             icon_base="${up_prefix}assets/icons/listing"
-            readme_html="${dir}/README.html"
             readme_file=""
             readme_kind=""
             if [[ -f "${dir}/README.md" ]]; then
@@ -250,79 +249,6 @@ jobs:
             elif [[ -f "${dir}/README.txt" ]]; then
               readme_file="README.txt"
               readme_kind="txt"
-            fi
-
-            if [[ -n "${readme_file}" ]]; then
-              cat > "${readme_html}" <<HTML
-          <!doctype html>
-          <html lang="en">
-          <head>
-            <meta charset="utf-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <title>README - ${title}</title>
-            <style>
-              body { margin: 0; font-family: "Segoe UI", Roboto, sans-serif; background: #f6f8fa; color: #111827; }
-              .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; }
-              .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; }
-              .links { margin: 0 0 18px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 10px; }
-              .links a { text-decoration: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; color: #111827; background: #f9fafb; }
-              #readme { line-height: 1.55; overflow-wrap: anywhere; }
-              #readme pre { background: #0b1020; color: #e5e7eb; border-radius: 8px; padding: 12px; overflow-x: auto; white-space: pre-wrap; }
-              #readme code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-              #readme table { border-collapse: collapse; }
-              #readme th, #readme td { border: 1px solid #e5e7eb; padding: 6px 8px; }
-            </style>
-          </head>
-          <body>
-            <main class="wrap">
-              <section class="card">
-                <ul class="links">
-                  <li><a href="./">Back to index</a></li>
-                </ul>
-                <article id="readme">Loading ${readme_file}...</article>
-              </section>
-            </main>
-          HTML
-              if [[ "${readme_kind}" == "md" ]]; then
-                cat >> "${readme_html}" <<'HTML'
-            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-            <script>
-              (async function() {
-                const target = document.getElementById("readme");
-                try {
-                  const res = await fetch("./README.md", { cache: "no-store" });
-                  if (!res.ok) throw new Error("HTTP " + res.status);
-                  const md = await res.text();
-                  target.innerHTML = marked.parse(md);
-                } catch (e) {
-                  target.textContent = "Failed to load README.md: " + e.message;
-                }
-              })();
-            </script>
-          </body>
-          </html>
-          HTML
-              else
-                cat >> "${readme_html}" <<'HTML'
-            <script>
-              (async function() {
-                const target = document.getElementById("readme");
-                try {
-                  const res = await fetch("./README.txt", { cache: "no-store" });
-                  if (!res.ok) throw new Error("HTTP " + res.status);
-                  const text = await res.text();
-                  const pre = document.createElement("pre");
-                  pre.textContent = text;
-                  target.replaceChildren(pre);
-                } catch (e) {
-                  target.textContent = "Failed to load README.txt: " + e.message;
-                }
-              })();
-            </script>
-          </body>
-          </html>
-          HTML
-              fi
             fi
 
             cat > "${style_tmp}" <<'STYLE'
@@ -349,9 +275,6 @@ jobs:
               printf '    <ul class="links">\n'
               printf '      <li><a href="../">.. (up)</a></li>\n'
               printf '      <li><a href="./%s">site root</a></li>\n' "${up_prefix}"
-              if [[ -n "${readme_file}" ]]; then
-                printf '      <li><a href="./README.html">README.html</a></li>\n'
-              fi
               printf '    </ul>\n'
               if [[ -n "${readme_file}" ]]; then
                 printf '    <article id="readme">Loading %s...</article>\n' "$(html_escape "${readme_file}")"
@@ -371,7 +294,7 @@ jobs:
                 enc="$(url_escape "${name}")"
                 icon="$(icon_for_file "${name}")"
                 printf '      <li><img src="./%s/%s" alt="[FILE]" /><a href="./%s">%s</a></li>\n' "${icon_base}" "${icon}" "${enc}" "$(html_escape "${name}")"
-              done < <(find "${dir}" -mindepth 1 -maxdepth 1 -type f ! -name 'index.html' ! -name 'README.md' ! -name 'README.txt' ! -name 'README.html' ! -name '.DS_Store' ! -name 'Thumbs.db' -print0 | sort -z)
+              done < <(find "${dir}" -mindepth 1 -maxdepth 1 -type f ! -name 'index.html' ! -name 'README.md' ! -name 'README.txt' ! -name '.DS_Store' ! -name 'Thumbs.db' -print0 | sort -z)
 
               printf '    </ul>\n'
               if [[ -n "${readme_file}" ]]; then
