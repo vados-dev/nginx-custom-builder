@@ -91,14 +91,22 @@ td.head .bottom {
 .content {
     width: 100%;
     display: grid;
-    align-items: end;
+    align-items: start;
+    align-content: start;
 }
 .text-container {
-    max-width: 100vh;
+    min-width: 100vh;
     margin-right: auto;
     margin-left: auto;
-    margin-top: auto;
+    margin-top: 0;
     margin-bottom: 40px;
+}
+@media (max-width: 1023px) {
+    .text-container {
+        min-width: 100%;
+        width: 100%;
+        margin-bottom: 20px;
+    }
 }
 .text-container *:last-child {
     margin-bottom: 0;
