@@ -14,6 +14,11 @@ on:
         required: false
         type: number
         default: 3
+      purge_cleanup_workflow_runs:
+        description: "Delete all runs of this cleanup workflow (for full purge)"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   cleanup:
@@ -25,6 +30,7 @@ jobs:
           REPO: ${{ github.repository }}
           CURRENT_WORKFLOW_NAME: ${{ github.workflow }}
           KEEP_RUNS_PER_WORKFLOW: ${{ github.event.inputs.keep_runs_per_workflow || '3' }}
+          PURGE_CLEANUP_WORKFLOW_RUNS: ${{ github.event.inputs.purge_cleanup_workflow_runs || 'false' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -67,7 +73,7 @@ jobs:
           while IFS=$'\t' read -r run_id created_at workflow_name workflow_id; do
             [[ -z "${run_id}" ]] && continue
 
-            if [[ "${workflow_name}" == "${CURRENT_WORKFLOW_NAME}" ]]; then
+            if [[ "${PURGE_CLEANUP_WORKFLOW_RUNS}" == "true" && "${workflow_name}" == "${CURRENT_WORKFLOW_NAME}" ]]; then
               printf '%s\t%s\n' "${run_id}" "${created_at}" >> "${delete_file}"
               continue
             fi
