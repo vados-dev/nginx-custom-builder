@@ -22,6 +22,11 @@
   .dir-list li { margin: 6px 0; word-break: break-word; display: flex; align-items: center; gap: 8px; }
   .dir-list a { color: #0f766e; text-decoration: none; }
   .dir-list img { width: 20px; height: 22px; image-rendering: auto; flex: 0 0 auto; }
+  #readme { line-height: 1.55; overflow-wrap: anywhere; margin: 18px 0; }
+  #readme pre { background: #000; color: #6c5d53; border: 1px dotted #6c5d53; border-radius: 5px; padding: 12px; overflow-x: auto; white-space: pre-wrap; }
+  #readme code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  #readme table { border-collapse: collapse; }
+  #readme th, #readme td { border: 1px dotted #e5e7eb; padding: 6px 8px; }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 </style>
 </head>
@@ -89,11 +94,25 @@
       <li><a href="../">.. (up)</a></li>
       <li><a href="./../../../">site root</a></li>
     </ul>
+    <article id="readme">Loading README.txt...</article>
     <ul class="dir-list">
       <li><img src="./../../../assets/icons/listing/folder.png" alt="[DIR]" /><a href="./mainline/">mainline/</a></li>
       <li><img src="./../../../assets/icons/listing/folder.png" alt="[DIR]" /><a href="./stable/">stable/</a></li>
       <li><img src="./../../../assets/icons/listing/text.png" alt="[FILE]" /><a href="./README.txt">README.txt</a></li>
     </ul>
+<script>
+  (async function(){
+    const t=document.getElementById("readme");
+    try {
+      const r=await fetch("./README.txt",{cache:"no-store"});
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      const text=await r.text();
+      const pre=document.createElement("pre");
+      pre.textContent=text;
+      t.replaceChildren(pre);
+    } catch(e) { t.textContent="Failed to load README.txt: "+e.message; }
+  })();
+</script>
   </section>
 </main>
 <script>document.title = "[ vados-dev ] :: Index of /repo/alpine/v3.20";</script>
