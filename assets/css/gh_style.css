@@ -15,7 +15,7 @@ html {
 }
 a, a:visited, a:hover, a:focus-visible {
     color: #ff0000 !important;
-}
+text-decoration: none;`n}
 a:hover,
 a:focus-visible {
     color: #ff0000;
@@ -253,5 +253,6 @@ div.gray-top {
     padding-right: 15px;
     cursor: pointer;
 }
+
 
 
