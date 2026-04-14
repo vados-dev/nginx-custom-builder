@@ -10,6 +10,7 @@ on:
     paths:
       - README.md
       - .github/workflows/publish-pages-index.yml
+      - .github/pages/site.json
       - SOURCES/gh-pages.tar.gz
   workflow_dispatch:
 
@@ -27,6 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           cp README.md /tmp/README.md
+          cp .github/pages/site.json /tmp/site.json
           rm -rf /tmp/html-assets
           rm -f /tmp/style.tmp 
           mkdir -p /tmp/html-assets
@@ -34,26 +36,40 @@ jobs:
             tar -xf SOURCES/gh-pages.tar.gz -C /tmp/html-assets || true
           fi
 
-          cat > /tmp/body-content.html <<'HTML'
+          project_title="$(jq -r '.projectTitle // "nginx-rpmbuild"' /tmp/site.json)"
+          title_prefix_json="$(jq -c '.titlePrefix // "[ vados-dev ] :: "' /tmp/site.json)"
+          subtitle="$(jq -r '.subtitle // "Автогенерируемая страница из README.md (ветка gh-pages)."' /tmp/site.json)"
+
+          jq -r '.links[]? | "<li><a href=\"" + (.href | @html) + "\">" + (.text | @html) + "</a></li>"' /tmp/site.json > /tmp/links.html
+          jq -r '.quickLinks[]? | "<li><a href=\"" + (.href | @html) + "\">" + (.text | @html) + "</a></li>"' /tmp/site.json > /tmp/quick-links.html
+
+          cat > /tmp/body-content-head.html <<HTML
           <main class="wrap">
             <section class="card">
-              <h1>nginx-rpmbuild</h1>
-              <p class="muted">Автогенерируемая страница из README.md (ветка gh-pages).</p>
+              <h1>${project_title}</h1>
+              <p class="muted">${subtitle}</p>
               <ul class="links">
-                <li><a href="./repo/">DNF/APK repo</a></li>
-                <li><a href="./README.md">Raw README.md</a></li>
               </ul>
               <ul class="quick">
-                <li><a href="./repo/centos/10/mainline/x86_64/">DNF mainline (CentOS 10 x86_64)</a></li>
-                <li><a href="./repo/centos/10/stable/x86_64/">DNF stable (CentOS 10 x86_64)</a></li>
-                <li><a href="./repo/alpine/v3.20/mainline/x86_64/">APK mainline (Alpine v3.20 x86_64)</a></li>
-                <li><a href="./repo/alpine/v3.20/stable/x86_64/">APK stable (Alpine v3.20 x86_64)</a></li>
               </ul>
               <article id="readme">Загрузка README...</article>
             </section>
           </main>
+          HTML
+
+          cat > /tmp/body-content-tail.html <<HTML
           <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
           <script>
+            const titlePrefix = ${title_prefix_json};
+
+            function updateDocumentTitle() {
+              const heading = document.querySelector("#readme h1, #readme h2, .card h1, .card h2");
+              if (!heading) return;
+              const text = heading.textContent.trim();
+              if (!text) return;
+              document.title = titlePrefix + text;
+            }
+
             async function render() {
               const target = document.getElementById("readme");
               try {
@@ -61,13 +77,29 @@ jobs:
                 if (!res.ok) throw new Error("HTTP " + res.status);
                 const md = await res.text();
                 target.innerHTML = marked.parse(md);
+                updateDocumentTitle();
               } catch (e) {
                 target.textContent = "Не удалось загрузить README.md: " + e.message;
+                updateDocumentTitle();
               }
             }
-            render();
+
+            if (document.readyState === "loading") {
+              document.addEventListener("DOMContentLoaded", render, { once: true });
+            } else {
+              render();
+            }
           </script>
           HTML
+
+          cat /tmp/body-content-head.html > /tmp/body-content.html
+          if [[ -s /tmp/links.html ]]; then
+            sed -i '/<ul class="links">/r /tmp/links.html' /tmp/body-content.html
+          fi
+          if [[ -s /tmp/quick-links.html ]]; then
+            sed -i '/<ul class="quick">/r /tmp/quick-links.html' /tmp/body-content.html
+          fi
+          cat /tmp/body-content-tail.html >> /tmp/body-content.html
 
           if [[ -f /tmp/html-assets/_tmpl/gh_top.html && -f /tmp/html-assets/_tmpl/gh_bottom.html ]]; then
             cat /tmp/html-assets/_tmpl/gh_top.html /tmp/body-content.html /tmp/html-assets/_tmpl/gh_bottom.html > /tmp/index.html
@@ -93,13 +125,13 @@ jobs:
             sed -i '/STYLE_PLACEHOLDER/r /tmp/style.tmp' /tmp/index.html
             sed -i '/STYLE_PLACEHOLDER/d' /tmp/index.html
           else
-            cat > /tmp/index.html <<'HTML'
+            cat > /tmp/index.html <<HTML
           <!doctype html>
           <html lang="ru">
           <head>
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <title>nginx-rpmbuild</title>
+            <title>${project_title}</title>
             <style>
               :root { color-scheme: light; }
               body { margin: 0; font-family: "Segoe UI", Roboto, sans-serif; background: #f6f8fa; color: #111827; }
@@ -157,7 +189,7 @@ jobs:
 
           cp -f /tmp/index.html index.html
           cp -f /tmp/README.md README.md
-          rm -rf _tmpl assets
+          find . -mindepth 1 -maxdepth 1 -type d \( -name '_*' -o -name 'assets' \) -exec rm -rf {} +
           if [[ -d /tmp/html-assets ]]; then
             cp -a /tmp/html-assets/. .
           fi
