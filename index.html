@@ -95,20 +95,30 @@
     <h1>nginx-rpmbuild</h1>
     <p class="muted">Автогенерируемая страница из README.md (ветка gh-pages).</p>
     <ul class="links">
-      <li><a href="./repo/">DNF/APK repo</a></li>
-      <li><a href="./README.md">Raw README.md</a></li>
+<li><a href="./repo/">DNF/APK repo</a></li>
+<li><a href="./README.md">Raw README.md</a></li>
     </ul>
     <ul class="quick">
-      <li><a href="./repo/centos/10/mainline/x86_64/">DNF mainline (CentOS 10 x86_64)</a></li>
-      <li><a href="./repo/centos/10/stable/x86_64/">DNF stable (CentOS 10 x86_64)</a></li>
-      <li><a href="./repo/alpine/v3.20/mainline/x86_64/">APK mainline (Alpine v3.20 x86_64)</a></li>
-      <li><a href="./repo/alpine/v3.20/stable/x86_64/">APK stable (Alpine v3.20 x86_64)</a></li>
+<li><a href="./repo/centos/10/mainline/x86_64/">DNF mainline (CentOS 10 x86_64)</a></li>
+<li><a href="./repo/centos/10/stable/x86_64/">DNF stable (CentOS 10 x86_64)</a></li>
+<li><a href="./repo/alpine/v3.20/mainline/x86_64/">APK mainline (Alpine v3.20 x86_64)</a></li>
+<li><a href="./repo/alpine/v3.20/stable/x86_64/">APK stable (Alpine v3.20 x86_64)</a></li>
     </ul>
     <article id="readme">Загрузка README...</article>
   </section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
+  const titlePrefix = "[ vados-dev ] :: ";
+
+  function updateDocumentTitle() {
+    const heading = document.querySelector("#readme h1, #readme h2, .card h1, .card h2");
+    if (!heading) return;
+    const text = heading.textContent.trim();
+    if (!text) return;
+    document.title = titlePrefix + text;
+  }
+
   async function render() {
     const target = document.getElementById("readme");
     try {
@@ -116,11 +126,18 @@
       if (!res.ok) throw new Error("HTTP " + res.status);
       const md = await res.text();
       target.innerHTML = marked.parse(md);
+      updateDocumentTitle();
     } catch (e) {
       target.textContent = "Не удалось загрузить README.md: " + e.message;
+      updateDocumentTitle();
     }
   }
-  render();
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", render, { once: true });
+  } else {
+    render();
+  }
 </script>
             </div>
             <div class="footer">
