@@ -235,12 +235,21 @@ jobs:
             local dir="$1"
             local rel="${dir#./}"
             local title="Index of /${rel}"
-            local body_tmp style_tmp top_tmp up_prefix icon_base
+            local body_tmp style_tmp top_tmp up_prefix icon_base readme_file readme_kind
             body_tmp="$(mktemp)"
             style_tmp="$(mktemp)"
             top_tmp="$(mktemp)"
             up_prefix="$(awk -F'/' '{ for(i=1;i<=NF;i++) printf "../" }' <<< "${rel}")"
             icon_base="${up_prefix}assets/icons/listing"
+            readme_file=""
+            readme_kind=""
+            if [[ -f "${dir}/README.md" ]]; then
+              readme_file="README.md"
+              readme_kind="md"
+            elif [[ -f "${dir}/README.txt" ]]; then
+              readme_file="README.txt"
+              readme_kind="txt"
+            fi
 
             cat > "${style_tmp}" <<'STYLE'
           <style>
@@ -248,6 +257,11 @@ jobs:
             .dir-list li { margin: 6px 0; word-break: break-word; display: flex; align-items: center; gap: 8px; }
             .dir-list a { color: #0f766e; text-decoration: none; }
             .dir-list img { width: 20px; height: 22px; image-rendering: auto; flex: 0 0 auto; }
+            #readme { line-height: 1.55; overflow-wrap: anywhere; margin: 18px 0; }
+            #readme pre { background: #000; color: #6c5d53; border: 1px dotted #6c5d53; border-radius: 5px; padding: 12px; overflow-x: auto; white-space: pre-wrap; }
+            #readme code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+            #readme table { border-collapse: collapse; }
+            #readme th, #readme td { border: 1px dotted #e5e7eb; padding: 6px 8px; }
             .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
           </style>
           STYLE
@@ -262,6 +276,9 @@ jobs:
               printf '      <li><a href="../">.. (up)</a></li>\n'
               printf '      <li><a href="./%s">site root</a></li>\n' "${up_prefix}"
               printf '    </ul>\n'
+              if [[ -n "${readme_file}" ]]; then
+                printf '    <article id="readme">Loading %s...</article>\n' "$(html_escape "${readme_file}")"
+              fi
               printf '    <ul class="dir-list">\n'
 
               while IFS= read -r -d '' child_dir; do
@@ -280,6 +297,36 @@ jobs:
               done < <(find "${dir}" -mindepth 1 -maxdepth 1 -type f ! -name 'index.html' ! -name '.DS_Store' ! -name 'Thumbs.db' -print0 | sort -z)
 
               printf '    </ul>\n'
+              if [[ -n "${readme_file}" ]]; then
+                if [[ "${readme_kind}" == "md" ]]; then
+                  printf '<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>\n'
+                  printf '<script>\n'
+                  printf '  (async function(){\n'
+                  printf '    const t=document.getElementById("readme");\n'
+                  printf '    try {\n'
+                  printf '      const r=await fetch("./README.md",{cache:"no-store"});\n'
+                  printf '      if(!r.ok) throw new Error("HTTP "+r.status);\n'
+                  printf '      const md=await r.text();\n'
+                  printf '      t.innerHTML=marked.parse(md);\n'
+                  printf '    } catch(e) { t.textContent="Failed to load README.md: "+e.message; }\n'
+                  printf '  })();\n'
+                  printf '</script>\n'
+                else
+                  printf '<script>\n'
+                  printf '  (async function(){\n'
+                  printf '    const t=document.getElementById("readme");\n'
+                  printf '    try {\n'
+                  printf '      const r=await fetch("./README.txt",{cache:"no-store"});\n'
+                  printf '      if(!r.ok) throw new Error("HTTP "+r.status);\n'
+                  printf '      const text=await r.text();\n'
+                  printf '      const pre=document.createElement("pre");\n'
+                  printf '      pre.textContent=text;\n'
+                  printf '      t.replaceChildren(pre);\n'
+                  printf '    } catch(e) { t.textContent="Failed to load README.txt: "+e.message; }\n'
+                  printf '  })();\n'
+                  printf '</script>\n'
+                fi
+              fi
               printf '  </section>\n'
               printf '</main>\n'
               printf '<script>document.title = %s;</script>\n' "$(jq -nr --arg v "[ vados-dev ] :: ${title}" '$v|@json')"
@@ -313,6 +360,11 @@ jobs:
               .dir-list li { margin: 6px 0; word-break: break-word; display: flex; align-items: center; gap: 8px; }
               .dir-list a { color: #0f766e; text-decoration: none; }
               .dir-list img { width: 20px; height: 22px; image-rendering: auto; flex: 0 0 auto; }
+              #readme { line-height: 1.55; overflow-wrap: anywhere; margin: 18px 0; }
+              #readme pre { background: #0b1020; color: #e5e7eb; border-radius: 8px; padding: 12px; overflow-x: auto; white-space: pre-wrap; }
+              #readme code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+              #readme table { border-collapse: collapse; }
+              #readme th, #readme td { border: 1px solid #e5e7eb; padding: 6px 8px; }
               .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
             </style>
           </head>
