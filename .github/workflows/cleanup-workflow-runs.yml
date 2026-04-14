@@ -18,7 +18,7 @@ on:
         description: "Delete all runs of this cleanup workflow (for full purge)"
         required: false
         type: boolean
-        default: false
+        default: true
 
 jobs:
   cleanup:
