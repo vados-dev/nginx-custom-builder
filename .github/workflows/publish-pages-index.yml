@@ -257,7 +257,8 @@ jobs:
           <style>
             .dir-list { margin: 0; padding: 0; list-style: none; }
             .dir-list li { margin: 6px 0; word-break: break-word; display: flex; align-items: center; gap: 8px; }
-            .dir-list a, .dir-list a:visited, .dir-list a:hover, .dir-list a:focus-visible { color: #ff0000 !important; text-decoration: none; }
+            .dir-list a, .dir-list a:visited, { color: #ff0000 !important; text-decoration: none; }
+            .dir-list a:hover, .dir-list a:focus-visible { color: #ff0000 !important; text-decoration: underline; }
             #readme a, #readme a:visited, #readme a:hover, #readme a:focus-visible { color: #ff0000 !important; }
             .dir-list img { width: 20px; height: 22px; image-rendering: auto; flex: 0 0 auto; }
             #readme { line-height: 1.55; overflow-wrap: anywhere; margin: 18px 0; }
