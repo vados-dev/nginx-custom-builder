@@ -111,7 +111,7 @@ jobs:
               h1 { margin: 0 0 12px; font-size: 28px; }
               .muted { color: #6c5d53; margin-bottom: 16px; }
               .links { margin: 0 0 18px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 10px; }
-              .links a, .links a:visited, .links a:hover, .links a:focus-visible { text-decoration: none; border: 1px dotted #6c5d53; border-radius: 5px; padding: 8px 10px; color: #ff0000 !important; background: transparent; }
+              .links a, .links a:visited, .links a:hover, .links a:focus-visible { text-decoration: underline; border: 1px dotted #6c5d53; border-radius: 5px; padding: 8px 10px; color: #ff0000 !important; background: transparent; }
               .quick { margin: 0 0 18px; padding: 0; list-style: none; }
               .quick li { margin: 6px 0; }
               .quick a, .quick a:visited, .quick a:hover, .quick a:focus-visible { color: #ff0000 !important; text-decoration: none; }
@@ -141,7 +141,7 @@ jobs:
               h1 { margin: 0 0 12px; font-size: 28px; }
               .muted { color: #6b7280; margin-bottom: 16px; }
               .links { margin: 0 0 18px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 10px; }
-              .links a, .links a:visited, .links a:hover, .links a:focus-visible { text-decoration: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; color: #ff0000 !important; background: #f9fafb; }
+              .links a, .links a:visited, .links a:hover, .links a:focus-visible { text-decoration: underline; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; color: #ff0000 !important; background: #f9fafb; }
               .quick { margin: 0 0 18px; padding: 0; list-style: none; }
               .quick li { margin: 6px 0; }
               .quick a, .quick a:visited, .quick a:hover, .quick a:focus-visible { color: #ff0000 !important; text-decoration: none; }
@@ -358,7 +358,7 @@ jobs:
               .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; }
               .muted { color: #6b7280; margin-bottom: 16px; }
               .links { margin: 0 0 18px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 10px; }
-              .links a, .links a:visited, .links a:hover, .links a:focus-visible { text-decoration: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; color: #ff0000 !important; background: #f9fafb; }
+              .links a, .links a:visited, .links a:hover, .links a:focus-visible { text-decoration: underline; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; color: #ff0000 !important; background: #f9fafb; }
               .dir-list { margin: 0; padding: 0; list-style: none; }
               .dir-list li { margin: 6px 0; word-break: break-word; display: flex; align-items: center; gap: 8px; }
               .dir-list a, .dir-list a:visited, .dir-list a:hover, .dir-list a:focus-visible { color: #ff0000 !important; text-decoration: none; }
