@@ -1,10 +1,6 @@
-Alpine APK repository layout
-Channels:
+Alpine APK repository
 Channels:
 - stable
 - mainline
-Architectures:
-- x86_64
-- aarch64
-Expected path pattern:
-- repo/alpine/v3.20/<channel>/<arch>/
+Example repositories line:
+- https://vados-dev.github.io/nginx-rpmbuild/repo/alpine/v3.20/mainline
