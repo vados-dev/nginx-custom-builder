@@ -1,5 +1,6 @@
 Alpine APK repository layout
 Channels:
+Channels:
 - stable
 - mainline
 Architectures:
