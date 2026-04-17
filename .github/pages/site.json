@@ -1,5 +1,5 @@
 {
-  "projectTitle": "nginx-rpmbuild",
+  "projectTitle": "nginx-custom-builder",
   "titlePrefix": "[ vados-dev ] :: ",
   "subtitle": "Автогенерируемая страница из README.md (ветка gh-pages).",
   "links": [

@@ -37,7 +37,7 @@ jobs:
             tar -xf SOURCES/gh-pages.tar.gz -C /tmp/html-assets || true
           fi
 
-          project_title="$(jq -r '.projectTitle // "nginx-rpmbuild"' /tmp/site.json)"
+          project_title="$(jq -r '.projectTitle // "nginx-custom-builder"' /tmp/site.json)"
           title_prefix_json="$(jq -c '.titlePrefix // "[ vados-dev ] :: "' /tmp/site.json)"
           subtitle="$(jq -r '.subtitle // "Автогенерируемая страница из README.md (ветка gh-pages)."' /tmp/site.json)"
 

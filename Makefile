@@ -1,4 +1,4 @@
-CI_IMAGE ?= reg.vados.ru/nginx-rpmbuild-ci:lts
+CI_IMAGE ?= reg.vados.ru/nginx-custom-builder-ci:lts
 CI_PROJECT ?= nginxci
 CI_SERVICE ?= nginx-ci-runner
 CI_WORKDIR ?= /work

@@ -1,6 +1,6 @@
 services:
   nginx-ci-runner:
-    image: reg.vados.ru/nginx-rpmbuild-ci:lts
+    image: reg.vados.ru/nginx-custom-builder-ci:lts
     build:
       context: .
       dockerfile: Dockerfile.ci
