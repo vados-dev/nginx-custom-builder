@@ -1,10 +1,10 @@
-# Nginx-custom-builder for CentOS 10
+# Nginx-rpmbuild for CentOS 10
 
 ## Обновлённый [nginx-rpmbuild](https://github.com/archsh/nginx-rpmbuild)
 
 ### Описание
 
-Инструмент для сборки `rpm` пакета [Nginx](http://nginx.org/) и alpine apk, с возможностью подключения и сборки кастомных модулей.
+Инструмент для сборки `rpm` пакета [Nginx](http://nginx.org/), с возможностью подключения и сборки кастомных модулей.
 
 ### За основу взяты
 
@@ -109,8 +109,8 @@ sudo dnf upgrade "nginx*"
 ### Пример для Alpine `3.20` и `mainline`
 
 ```sh
-echo "https://vados-dev.github.io/nginx-rpmbuild/repo/alpine/v3.20/mainline" >> /etc/apk/repositories
-wget -O /etc/apk/keys/nginx_signing.rsa.pub https://vados-dev.github.io/nginx-rpmbuild/repo/alpine/keys/nginx_signing.rsa.pub
+echo "https://vados-dev.github.io/nginx-custom-builder/repo/alpine/v3.20/mainline" >> /etc/apk/repositories
+wget -O /etc/apk/keys/nginx_signing.rsa.pub https://vados-dev.github.io/nginx-custom-builder/repo/alpine/keys/nginx_signing.rsa.pub
 apk update
 apk add nginx
 ```
@@ -121,10 +121,10 @@ apk add nginx
 crontab -e
 
 # mainline: еженедельно
-17 3 * * 1 /usr/bin/flock -n /tmp/nginx-check-mainline.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-rpmbuild && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=mainline -f force_build=false >> /home/git/projects/nginx-rpmbuild/.github/cron-mainline.log 2>&1'
+17 3 * * 1 /usr/bin/flock -n /tmp/nginx-check-mainline.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-custom-builder && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=mainline -f force_build=false >> /home/git/projects/nginx-custom-builder/.github/cron-mainline.log 2>&1'
 
 # stable: еженедельно без пересечения с mainline
-27 3 * * 1 /usr/bin/flock -n /tmp/nginx-check-stable.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-rpmbuild && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=stable -f force_build=false >> /home/git/projects/nginx-rpmbuild/.github/cron-stable.log 2>&1'
+27 3 * * 1 /usr/bin/flock -n /tmp/nginx-check-stable.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-custom-builder && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=stable -f force_build=false >> /home/git/projects/nginx-custom-builder/.github/cron-stable.log 2>&1'
 
 crontab -l
 ```
