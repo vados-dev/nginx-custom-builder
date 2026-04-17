@@ -363,87 +363,97 @@ jobs:
 
       - name: Publish DNF repository to gh-pages
         if: ${{ inputs.publish_dnf_repo }}
-        shell: bash
-        env:
-          GH_REPO: ${{ github.repository }}
-          GH_TOKEN: ${{ env.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${GH_TOKEN:-}" ]]; then
-            echo "GITHUB token is empty, skip DNF publish."
-            exit 0
-          fi
+        uses: ./.github/workflows/publish-pages-index.yml
+#        with:
+#          nginx_channel: ${{ needs.detect.outputs.channel }}
+#          build_args: ${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}
+#          disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
+#        secrets: inherit
 
-          publish_root="/tmp/gh-pages-publish"
-          remote_url="https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
-          channel="${{ inputs.nginx_channel }}"
-          source_root="/tmp/dnf-repo/repo"
-          os_token="$(cat /tmp/dnf-repo/OS_TOKEN)"
-          release_token="$(cat /tmp/dnf-repo/RELEASE_TOKEN)"
-          arch_token="$(cat /tmp/dnf-repo/ARCH_TOKEN)"
+#        shell: bash
+#        env:
+#          GH_REPO: ${{ github.repository }}
+#          GH_TOKEN: ${{ env.GITHUB_TOKEN }}
+#        run: |
+#          set -euo pipefail
+#          if [[ -z "${GH_TOKEN:-}" ]]; then
+#            echo "GITHUB token is empty, skip DNF publish."
+#            exit 0
+#          fi
 
-          rm -rf "${publish_root}"
-          mkdir -p "${publish_root}"
-          cd "${publish_root}"
+#          publish_root="/tmp/gh-pages-publish"
+#          remote_url="https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
+#          channel="${{ inputs.nginx_channel }}"
+#          source_root="/tmp/dnf-repo/repo"
+#          source_root="/tmp/dnf-repo/repo"
+#          source_root="/tmp/dnf-repo/repo"
+#          os_token="$(cat /tmp/dnf-repo/OS_TOKEN)"
+#          release_token="$(cat /tmp/dnf-repo/RELEASE_TOKEN)"
+#          arch_token="$(cat /tmp/dnf-repo/ARCH_TOKEN)"
 
-          git init
-          git checkout -b gh-pages
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git remote add origin "${remote_url}"
+#          rm -rf "${publish_root}"
+#          mkdir -p "${publish_root}"
+#          cd "${publish_root}"
 
-          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
-            git fetch --depth 1 origin gh-pages
-            git reset --hard FETCH_HEAD
-          fi
+#          git init
+#          git checkout -b gh-pages
+#          git config user.name "github-actions[bot]"
+#          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+#          git remote add origin "${remote_url}"
 
-          mkdir -p repo
-          rm -rf "repo/${channel}" "repo/${os_token}/${release_token}/${channel}"
-          cp -a "${source_root}/${channel}" "repo/${channel}"
-          mkdir -p "repo/${os_token}/${release_token}"
-          cp -a "${source_root}/${os_token}/${release_token}/${channel}" "repo/${os_token}/${release_token}/${channel}"
-          if [[ -f "${GITHUB_WORKSPACE}/SOURCES/RPM-GPG-KEY-nginx" ]]; then
-            cp -f "${GITHUB_WORKSPACE}/SOURCES/RPM-GPG-KEY-nginx" "repo/RPM-GPG-KEY-nginx"
-          fi
+#          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+#            git fetch --depth 1 origin gh-pages
+#            git reset --hard FETCH_HEAD
+#          fi
 
-          {
-            echo "DNF repository for ${GH_REPO}"
-            echo "Legacy path format:"
-            echo "- repo/mainline/x86_64"
-            echo "- repo/stable/x86_64"
-            echo "Structured path format:"
-            echo "- repo/${os_token}/${release_token}/${channel}/${arch_token}"
-            echo "- repo/${os_token}/${release_token}/${channel}/SRPMS"
-          } > repo/README.txt
+#          mkdir -p repo
+#          rm -rf "repo/${channel}" "repo/${os_token}/${release_token}/${channel}"
+#          cp -a "${source_root}/${channel}" "repo/${channel}"
+#          mkdir -p "repo/${os_token}/${release_token}"
+#          cp -a "${source_root}/${os_token}/${release_token}/${channel}" "repo/${os_token}/${release_token}/${channel}"
+#          if [[ -f "${GITHUB_WORKSPACE}/SOURCES/RPM-GPG-KEY-nginx" ]]; then
+#            cp -f "${GITHUB_WORKSPACE}/SOURCES/RPM-GPG-KEY-nginx" "repo/RPM-GPG-KEY-nginx"
+#          fi
 
-          if [[ "${{ inputs.publish_alpine_structure }}" == "true" ]]; then
-            alpine_v="v${{ inputs.alpine_version }}"
-            for arch in x86_64 aarch64; do
-              mkdir -p "repo/alpine/${alpine_v}/stable/${arch}"
-              mkdir -p "repo/alpine/${alpine_v}/mainline/${arch}"
-              touch "repo/alpine/${alpine_v}/stable/${arch}/.keep"
-              touch "repo/alpine/${alpine_v}/mainline/${arch}/.keep"
-            done
-            {
-              echo "Alpine APK repository layout"
-              echo "Channels:"
-              echo "- stable"
-              echo "- mainline"
-              echo "Architectures:"
-              echo "- x86_64"
-              echo "- aarch64"
-              echo "Expected path pattern:"
-              echo "- repo/alpine/${alpine_v}/<channel>/<arch>/"
-            } > "repo/alpine/${alpine_v}/README.txt"
-          fi
+#          {
+#            echo "DNF repository for ${GH_REPO}"
+#            echo "Legacy path format:"
+#            echo "- repo/mainline/x86_64"
+#            echo "- repo/stable/x86_64"
+#            echo "Structured path format:"
+#            echo "- repo/${os_token}/${release_token}/${channel}/${arch_token}"
+#            echo "- repo/${os_token}/${release_token}/${channel}/SRPMS"
+#          } > repo/README.txt
 
-          git add repo
-          if git diff --cached --quiet; then
-            echo "No DNF repo changes to publish."
-            exit 0
-          fi
-          git commit -m "repo: publish ${channel} nginx ${NGINX_VERSION} (run ${GITHUB_RUN_ID})"
-          git push origin gh-pages
+#          if [[ "${{ inputs.publish_alpine_structure }}" == "true" ]]; then
+#            alpine_v="v${{ inputs.alpine_version }}"
+#            for arch in x86_64 aarch64; do
+#              mkdir -p "repo/alpine/${alpine_v}/stable/${arch}"
+#              mkdir -p "repo/alpine/${alpine_v}/mainline/${arch}"
+#              touch "repo/alpine/${alpine_v}/stable/${arch}/.keep"
+#              touch "repo/alpine/${alpine_v}/mainline/${arch}/.keep"
+#            done
+#            {
+#              echo "Alpine APK repository layout"
+#              echo "Channels:"
+#              echo "Channels:"
+#              echo "- stable"
+#              echo "- mainline"
+#              echo "Architectures:"
+#              echo "- x86_64"
+#              echo "- aarch64"
+#              echo "Expected path pattern:"
+#              echo "- repo/alpine/${alpine_v}/<channel>/<arch>/"
+#            } > "repo/alpine/${alpine_v}/README.txt"
+#          fi
+
+#          git add repo
+#          if git diff --cached --quiet; then
+#            echo "No DNF repo changes to publish."
+#            exit 0
+#          fi
+#          git commit -m "repo: publish ${channel} nginx ${NGINX_VERSION} (run ${GITHUB_RUN_ID})"
+#          git push origin gh-pages
 
 #      - name: Upload artifacts
 #        env: RPM_VER=${{ env.NGINX_VERSION }}
