@@ -1,10 +1,10 @@
-# Nginx-rpmbuild for CentOS 10
+# Nginx-custom-builder for CentOS 10
 
 ## Обновлённый [nginx-rpmbuild](https://github.com/archsh/nginx-rpmbuild)
 
 ### Описание
 
-Инструмент для сборки `rpm` пакета [Nginx](http://nginx.org/), с возможностью подключения и сборки кастомных модулей.
+Инструмент для сборки `rpm` пакета [Nginx](http://nginx.org/) и alpine apk, с возможностью подключения и сборки кастомных модулей.
 
 ### За основу взяты
 
