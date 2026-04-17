@@ -191,6 +191,8 @@ jobs:
           git commit -m "repo: publish alpine ${alpine_v}/${CHANNEL} (run ${GITHUB_RUN_ID})"
           git push origin gh-pages
           
-      - name: Publish pages index to gh-pages
-        if: ${{ inputs.publish_alpine_repo }}
-        uses: ./.github/workflows/publish-pages-index.yml
+  publish-pages-index:
+    if: ${{ inputs.publish_alpine_repo }}
+    needs: sync-alpine-repo
+    uses: ./.github/workflows/publish-pages-index.yml
+    secrets: inherit
