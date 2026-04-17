@@ -29,7 +29,7 @@ on:
         required: true
         default: false
         type: boolean
-      publish_repo:
+      publish_alpine_repo:
         description: "Publish Alpine repo to gh-pages"
         required: true
         default: true
@@ -133,7 +133,7 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
       - name: Publish Alpine repo to gh-pages
-        if: ${{ inputs.publish_repo }}
+        if: ${{ inputs.publish_alpine_repo }}
         shell: bash
         env:
           GH_REPO: ${{ github.repository }}
@@ -190,3 +190,7 @@ jobs:
           fi
           git commit -m "repo: publish alpine ${alpine_v}/${CHANNEL} (run ${GITHUB_RUN_ID})"
           git push origin gh-pages
+          
+      - name: Publish pages index to gh-pages
+        if: ${{ inputs.publish_alpine_repo }}
+        uses: ./.github/workflows/publish-pages-index.yml
