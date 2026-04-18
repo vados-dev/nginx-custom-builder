@@ -34,7 +34,8 @@ define MODULE_PREBUILD_acme
 	echo '[source.crates-io]' > .cargo/config.toml \&\& \
 	echo 'replace-with = "vendored-sources"' >> .cargo/config.toml \&\& \
 	echo '[source.vendored-sources]' >> .cargo/config.toml \&\& \
-	echo 'directory = "extra/nginx-acme-$(NGINX_ACME_VERSION)-vendor"' >> .cargo/config.toml
+	echo 'directory = "extra/nginx-acme-$(NGINX_ACME_VERSION)-vendor"' >> .cargo/config.toml \&\& \
+        find extra/nginx-acme-$(NGINX_ACME_VERSION)-vendor -name Cargo.toml -exec cp {} {}.orig \; 
 endef
 export MODULE_PREBUILD_acme
 
