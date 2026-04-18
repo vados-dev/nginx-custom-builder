@@ -88,11 +88,7 @@ jobs:
             gd-dev \
             cmark-dev \
             clang \
-            pkgconf \
-            luajit2 \
-            ngx_devel_kit \
-            opentracing-cpp \
-            thrift
+            pkgconf
 
       - name: Checkout
         uses: actions/checkout@v6
