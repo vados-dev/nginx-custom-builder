@@ -93,10 +93,23 @@ jobs:
             libxslt1-dev \
             libcmark-dev \
             pkg-config \
-            rustc \
-            cargo \
             clang \
             perl
+
+      - name: Install modern Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          export RUSTUP_HOME=/opt/rustup
+          export CARGO_HOME=/opt/cargo
+          mkdir -p "${RUSTUP_HOME}" "${CARGO_HOME}"
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --profile minimal --default-toolchain stable
+          echo "${CARGO_HOME}/bin" >> "${GITHUB_PATH}"
+          echo "RUSTUP_HOME=${RUSTUP_HOME}" >> "${GITHUB_ENV}"
+          echo "CARGO_HOME=${CARGO_HOME}" >> "${GITHUB_ENV}"
+          "${CARGO_HOME}/bin/rustc" --version
+          "${CARGO_HOME}/bin/cargo" --version
 
       - name: Checkout
         uses: actions/checkout@v6
