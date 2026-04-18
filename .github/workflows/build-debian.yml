@@ -101,6 +101,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Prepare contrib directories
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p contrib/tarballs
+
       - name: Resolve nginx version for channel
         id: resolve
         shell: bash
