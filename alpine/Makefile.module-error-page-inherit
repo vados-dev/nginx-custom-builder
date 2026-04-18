@@ -1,29 +1,29 @@
-MODULES+=	nginx-error-page-inherit
+MODULES+=	error-page-inherit
 
 MODULE_SUMMARY_error_page_inherit=	enable support to error_page_inherit directive in nginx.conf
 
-MODULE_CONTRIB_DEPS_error_page_inherit=       nginx-error-page-inherit
+MODULE_CONTRIB_DEPS_error-page-inherit=	nginx-error-page-inherit
 
 include $(CONTRIB)/src/nginx-error-page-inherit/version
 
 MODULE_NAME_error_page_inherit=	ngx_http_error_page_inherit_module
 
-MODULE_VERSION_error_page_inherit=	NGINX_ERROR_PAGE_INHERIT_VERSION
+MODULE_VERSION_error_page_inherit=	$(NGINX_ERROR_PAGE_INHERIT_VERSION)
 MODULE_RELEASE_error_page_inherit=	1
 
 MODULE_VERSION_PREFIX_error_page_inherit=$(BASE_VERSION)+
 
 #MODULE_VERSION_PREFIX_error_page_inherit=$(MODULE_TARGET_PREFIX)
 
-MODULE_SOURCES_error_page_inherit=    nginx-error-page-inherit-$(NGINX_ERROR_PAGE_INHERIT_VERSION).tar.gz
+MODULE_SOURCES_error_page_inherit=	ngx_http_error_page_inherit_module-$(NGINX_ERROR_PAGE_INHERIT_VERSION).tar.gz
 
-MODULE_CONFARGS_error_page_inherit=	--add-dynamic-module=$(MODULE_NAME_error_page_inherit)
+MODULE_CONFARGS_error_page_inherit=	--add-dynamic-module=$(MODSRC_PREFIX)$(MODULE_NAME_error_page_inherit)
 
-.deps-module-nginx-error-page-inherit:
-        cd $(CONTRIB) && make .sum-nginx-error-page-inherit
-        touch $@
+.deps-module-error-page-inherit:
+	cd $(CONTRIB) && make .sum-nginx-error-page-inherit
+	touch $@
 
-prerequisites-for-module-nginx-error-page-inherit:
+prerequisites-for-module-error-page-inherit:
 
 define MODULE_POST_error_page_inherit
 cat <<BANNER

@@ -1,0 +1,224 @@
+name: Build Debian DEB
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      nginx_channel:
+        description: "nginx source channel"
+        required: true
+        default: "mainline"
+        type: choice
+        options:
+          - stable
+          - mainline
+      enabled_modules:
+        description: "Space-separated module list override for DEB build"
+        required: true
+        default: "acme error-page-inherit include-server markdown-filter njs"
+        type: string
+      publish_deb_repo:
+        description: "Publish DEB repository to gh-pages"
+        required: true
+        default: true
+        type: boolean
+      debian_suite:
+        description: "Debian suite path in repo"
+        required: true
+        default: "bookworm"
+        type: string
+  workflow_call:
+    inputs:
+      nginx_channel:
+        description: "nginx source channel"
+        required: false
+        default: "mainline"
+        type: string
+      enabled_modules:
+        description: "Space-separated module list override for DEB build"
+        required: false
+        default: "acme error-page-inherit include-server markdown-filter njs"
+        type: string
+      publish_deb_repo:
+        description: "Publish DEB repository to gh-pages"
+        required: false
+        default: true
+        type: boolean
+      debian_suite:
+        description: "Debian suite path in repo"
+        required: false
+        default: "bookworm"
+        type: string
+
+jobs:
+  build:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.repository.owner.id == github.event.sender.id }}
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      GITHUB_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
+    container: debian:bookworm
+
+    steps:
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates \
+            curl \
+            git \
+            mercurial \
+            devscripts \
+            fakeroot \
+            debhelper \
+            dpkg-dev \
+            quilt \
+            lsb-release \
+            build-essential \
+            libxml2-utils \
+            xsltproc \
+            gnupg \
+            apt-utils \
+            file \
+            zlib1g-dev \
+            libssl-dev \
+            libpcre2-dev \
+            libpcre3-dev \
+            libedit-dev \
+            libgd-dev \
+            libxslt1-dev \
+            libcmark-dev \
+            pkg-config \
+            rustc \
+            cargo \
+            clang \
+            perl
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Resolve nginx version for channel
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          channel="${{ inputs.nginx_channel }}"
+          version_string="$(curl -fsSL "https://version.nginx.com/nginx/${channel}")"
+          nginx_version="${version_string%%-*}"
+          if [[ -z "${nginx_version}" ]]; then
+            echo "Failed to resolve nginx version for channel: ${channel}" >&2
+            exit 1
+          fi
+          sed -i -E "s/^NGINX_VERSION[[:space:]]*:=.*/NGINX_VERSION := ${nginx_version}/" contrib/src/nginx/version
+          echo "nginx_version=${nginx_version}" >> "${GITHUB_OUTPUT}"
+          echo "NGINX_VERSION=${nginx_version}" >> "${GITHUB_ENV}"
+
+      - name: Build Debian module packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          modules="${{ inputs.enabled_modules }}"
+          if [[ -n "${modules}" ]]; then
+            make -C debian modules ENABLED_MODULES="${modules}"
+          else
+            make -C debian modules
+          fi
+
+      - name: Upload DEB artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-packages-${{ inputs.nginx_channel }}
+          path: |
+            *.deb
+            *.changes
+            *.buildinfo
+
+      - name: Build APT repository metadata
+        if: ${{ inputs.publish_deb_repo }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          channel="${{ inputs.nginx_channel }}"
+          suite="${{ inputs.debian_suite }}"
+          arch="$(dpkg --print-architecture)"
+          repo_root="/tmp/deb-repo/repo/debian/${suite}/${channel}"
+          bin_dir="${repo_root}/binary-${arch}"
+
+          mkdir -p "${bin_dir}"
+          cp -f ./*.deb "${bin_dir}/"
+
+          (
+            cd "${bin_dir}"
+            dpkg-scanpackages . /dev/null > Packages
+            gzip -9c Packages > Packages.gz
+          )
+
+          (
+            cd "${repo_root}"
+            apt-ftparchive release . > Release
+          )
+
+      - name: Publish DEB repository to gh-pages
+        if: ${{ inputs.publish_deb_repo }}
+        shell: bash
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ env.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${GH_TOKEN:-}" ]]; then
+            echo "GITHUB token is empty, skip DEB publish."
+            exit 0
+          fi
+
+          channel="${{ inputs.nginx_channel }}"
+          suite="${{ inputs.debian_suite }}"
+          publish_root="/tmp/gh-pages-publish"
+          source_root="/tmp/deb-repo/repo/debian/${suite}/${channel}"
+          remote_url="https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
+
+          rm -rf "${publish_root}"
+          mkdir -p "${publish_root}"
+          cd "${publish_root}"
+
+          git init
+          git checkout -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "${remote_url}"
+
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git fetch --depth 1 origin gh-pages
+            git reset --hard FETCH_HEAD
+          fi
+
+          mkdir -p "repo/debian/${suite}"
+          rm -rf "repo/debian/${suite}/${channel}"
+          cp -a "${source_root}" "repo/debian/${suite}/${channel}"
+
+          {
+            echo "Debian APT repository"
+            echo "Suite: ${suite}"
+            echo "Channels: stable, mainline"
+            echo "Path pattern: repo/debian/${suite}/<channel>/binary-<arch>/"
+          } > "repo/debian/${suite}/README.txt"
+
+          git add repo/debian
+          if git diff --cached --quiet; then
+            echo "No DEB repo changes to publish."
+            exit 0
+          fi
+
+          git commit -m "repo: publish debian ${suite}/${channel} nginx ${NGINX_VERSION} (run ${GITHUB_RUN_ID})"
+          git push origin gh-pages
+
+  publish-pages-index:
+    if: ${{ inputs.publish_deb_repo }}
+    needs: build
+    uses: ./.github/workflows/publish-pages-index.yml
+    secrets: inherit

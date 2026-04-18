@@ -54,6 +54,10 @@ MODULES=
 
 -include Makefile.module-*
 
+DISCOVERED_MODULES := $(strip $(MODULES))
+ENABLED_MODULES ?= acme error-page-inherit include-server markdown-filter njs
+MODULES := $(strip $(filter $(ENABLED_MODULES),$(DISCOVERED_MODULES)))
+
 BASE_CONFIGURE_ARGS=\
 	--prefix=/etc/nginx \
 	--sbin-path=/usr/sbin/nginx \

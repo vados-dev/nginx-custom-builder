@@ -34,6 +34,66 @@ on:
         required: true
         default: false
         type: boolean
+      modules_common:
+        description: "Common modules for all platforms (space-separated)"
+        required: true
+        default: "error-page-inherit include-server markdown-filter"
+        type: string
+      modules_rpm_extra:
+        description: "Extra modules for RPM"
+        required: true
+        default: "acme njs"
+        type: string
+      modules_deb_extra:
+        description: "Extra modules for Debian"
+        required: true
+        default: "acme njs"
+        type: string
+      modules_alpine_extra:
+        description: "Extra modules for Alpine"
+        required: true
+        default: ""
+        type: string
+      modules_rpm_override:
+        description: "Override RPM modules completely"
+        required: false
+        default: ""
+        type: string
+      modules_deb_override:
+        description: "Override Debian modules completely"
+        required: false
+        default: ""
+        type: string
+      modules_alpine_override:
+        description: "Override Alpine modules completely"
+        required: false
+        default: ""
+        type: string
+      publish_dnf_repo:
+        description: "Publish DNF repo to gh-pages"
+        required: true
+        default: true
+        type: boolean
+      publish_deb_repo:
+        description: "Publish DEB repo to gh-pages"
+        required: true
+        default: true
+        type: boolean
+      publish_alpine_repo:
+        description: "Publish APK repo to gh-pages"
+        required: true
+        default: true
+        type: boolean
+      debian_suite:
+        description: "Debian suite path in repo"
+        required: true
+        default: "bookworm"
+        type: string
+      alpine_version:
+        description: "Alpine major.minor for repo path, e.g. 3.20"
+        required: true
+        default: "3.20"
+        type: string
 
 jobs:
   detect:
@@ -188,12 +248,109 @@ jobs:
             -d "chat_id=${TG_CHAT_ID}" \
             -d "text=${message}"
 
-  build:
+  resolve-modules:
     if: ${{ needs.detect.outputs.should_build == 'true' }}
     needs: detect
+    runs-on: ubuntu-latest
+    outputs:
+      rpm_modules: ${{ steps.resolve.outputs.rpm_modules }}
+      deb_modules: ${{ steps.resolve.outputs.deb_modules }}
+      alpine_modules: ${{ steps.resolve.outputs.alpine_modules }}
+    steps:
+      - name: Resolve module sets
+        id: resolve
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          IN_COMMON: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_common || 'error-page-inherit include-server markdown-filter' }}
+          IN_RPM_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_rpm_extra || 'acme njs' }}
+          IN_DEB_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_deb_extra || 'acme njs' }}
+          IN_ALPINE_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_alpine_extra || '' }}
+          IN_RPM_OVERRIDE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_rpm_override || '' }}
+          IN_DEB_OVERRIDE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_deb_override || '' }}
+          IN_ALPINE_OVERRIDE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_alpine_override || '' }}
+        run: |
+          set -euo pipefail
+
+          normalize_modules() {
+            local raw="$1"
+            if [[ -z "${raw//[[:space:]]/}" ]]; then
+              echo ""
+              return
+            fi
+            echo "$raw" | xargs -n1 | awk 'NF && !seen[$0]++' | xargs
+          }
+
+          common="$(normalize_modules "${IN_COMMON}")"
+          rpm_extra="$(normalize_modules "${IN_RPM_EXTRA}")"
+          deb_extra="$(normalize_modules "${IN_DEB_EXTRA}")"
+          alpine_extra="$(normalize_modules "${IN_ALPINE_EXTRA}")"
+
+          rpm_modules="$(normalize_modules "${common} ${rpm_extra}")"
+          deb_modules="$(normalize_modules "${common} ${deb_extra}")"
+          alpine_modules="$(normalize_modules "${common} ${alpine_extra}")"
+
+          rpm_override="$(normalize_modules "${IN_RPM_OVERRIDE}")"
+          deb_override="$(normalize_modules "${IN_DEB_OVERRIDE}")"
+          alpine_override="$(normalize_modules "${IN_ALPINE_OVERRIDE}")"
+
+          if [[ -n "${rpm_override}" ]]; then
+            rpm_modules="${rpm_override}"
+          fi
+          if [[ -n "${deb_override}" ]]; then
+            deb_modules="${deb_override}"
+          fi
+          if [[ -n "${alpine_override}" ]]; then
+            alpine_modules="${alpine_override}"
+          fi
+
+          echo "rpm_modules=${rpm_modules}" >> "${GITHUB_OUTPUT}"
+          echo "deb_modules=${deb_modules}" >> "${GITHUB_OUTPUT}"
+          echo "alpine_modules=${alpine_modules}" >> "${GITHUB_OUTPUT}"
+
+          echo "Resolved modules:"
+          echo "- RPM: ${rpm_modules}"
+          echo "- DEB: ${deb_modules}"
+          echo "- Alpine: ${alpine_modules}"
+
+  build-rpm:
+    if: ${{ needs.detect.outputs.should_build == 'true' }}
+    needs:
+      - detect
+      - resolve-modules
     uses: ./.github/workflows/build.yml
     with:
       nginx_channel: ${{ needs.detect.outputs.channel }}
       build_args: ${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}
       disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
+      enabled_modules: ${{ needs['resolve-modules'].outputs.rpm_modules }}
+      publish_dnf_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_dnf_repo || true }}
+      alpine_version: ${{ github.event_name == 'workflow_dispatch' && inputs.alpine_version || '3.20' }}
+      publish_alpine_structure: true
+    secrets: inherit
+
+  build-debian:
+    if: ${{ needs.detect.outputs.should_build == 'true' }}
+    needs:
+      - detect
+      - resolve-modules
+    uses: ./.github/workflows/build-debian.yml
+    with:
+      nginx_channel: ${{ needs.detect.outputs.channel }}
+      enabled_modules: ${{ needs['resolve-modules'].outputs.deb_modules }}
+      publish_deb_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_deb_repo || true }}
+      debian_suite: ${{ github.event_name == 'workflow_dispatch' && inputs.debian_suite || 'bookworm' }}
+    secrets: inherit
+
+  build-alpine:
+    if: ${{ needs.detect.outputs.should_build == 'true' }}
+    needs:
+      - detect
+      - resolve-modules
+    uses: ./.github/workflows/build-custom-alpine.yml
+    with:
+      nginx_channel: ${{ needs.detect.outputs.channel }}
+      alpine_version: ${{ github.event_name == 'workflow_dispatch' && inputs.alpine_version || '3.20' }}
+      enabled_modules: ${{ needs['resolve-modules'].outputs.alpine_modules }}
+      publish_alpine_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_alpine_repo || true }}
     secrets: inherit

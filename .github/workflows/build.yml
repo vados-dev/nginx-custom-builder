@@ -27,6 +27,11 @@ on:
         required: true
         default: true
         type: boolean
+      enabled_modules:
+        description: "Space-separated module list override for RPM build"
+        required: false
+        default: "acme error-page-inherit include-server markdown-filter njs"
+        type: string
       publish_dnf_repo:
         description: "Publish DNF repository to gh-pages"
         required: true
@@ -64,6 +69,11 @@ on:
         required: false
         default: true
         type: boolean
+      enabled_modules:
+        description: "Space-separated module list override for RPM build"
+        required: false
+        default: "acme error-page-inherit include-server markdown-filter njs"
+        type: string
       publish_dnf_repo:
         description: "Publish DNF repository to gh-pages"
         required: false
@@ -174,7 +184,12 @@ jobs:
           cp -f "/tmp/nginx-srpm/${tarball}" "SOURCES/${tarball}"
 
           sed -i -E "s/^BASE_VERSION[[:space:]]*=.*/BASE_VERSION=\t${ver}/" SPECS/Makefile
-          make -C SPECS nginx.spec specs
+          enabled_modules="${{ inputs.enabled_modules }}"
+          if [[ -n "${enabled_modules}" ]]; then
+            make -C SPECS nginx.spec specs ENABLED_MODULES="${enabled_modules}"
+          else
+            make -C SPECS nginx.spec specs
+          fi
 
           echo "nginx_version=${ver}" >> "$GITHUB_OUTPUT"
           echo "source_repo=${source_repo}" >> "$GITHUB_OUTPUT"
@@ -369,6 +384,7 @@ jobs:
             - nginx version: ${{ env.NGINX_VERSION }}
             - rpmbuild arguments: ${{ inputs.build_args }}
             - debug packages disabled: ${{ inputs.disable_debug_packages }}
+            - enabled modules: ${{ inputs.enabled_modules }}
         continue-on-error: true
 
       - name: Build DNF repository metadata

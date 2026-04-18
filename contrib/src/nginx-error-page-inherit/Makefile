@@ -5,12 +5,12 @@ NGINX_ERROR_PAGE_INHERIT_URL := $(GITHUB)/vados-dev/ngx_http_error_page_inherit_
 
 PKGS += nginx-error-page-inherit
 
-$(TARBALLS)/nginx-error-page-inherit-$(NGINX_ERROR_PAGE_INHERIT_VERSION).tar.gz:
+$(TARBALLS)/ngx_http_error_page_inherit_module-$(NGINX_ERROR_PAGE_INHERIT_VERSION).tar.gz:
 	$(call download_pkg,$(NGINX_ERROR_PAGE_INHERIT_URL),nginx-error-page-inherit)
 
-.sum-nginx-error-page-inherit: nginx-error-page-inherit-$(NGINX_ERROR_PAGE_INHERIT_VERSION).tar.gz
+.sum-nginx-error-page-inherit: ngx_http_error_page_inherit_module-$(NGINX_ERROR_PAGE_INHERIT_VERSION).tar.gz
 
-nginx-error-page-inherit: nginx-error-page-inherit-$(NGINX_ERROR_PAGE_INHERIT_VERSION).tar.gz .sum-nginx-error-page-inherit
+nginx-error-page-inherit: ngx_http_error_page_inherit_module-$(NGINX_ERROR_PAGE_INHERIT_VERSION).tar.gz .sum-nginx-error-page-inherit
 	$(UNPACK)
 	$(MOVE)
 

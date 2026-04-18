@@ -2,6 +2,10 @@ MODULES+=	include-server
 
 MODULE_SUMMARY_include_server=	enable support to include_server directive in nginx.conf
 
+MODULE_CONTRIB_DEPS_include-server=	ngx_http_include_server_module
+
+include $(foreach dep,$(MODULE_CONTRIB_DEPS_include-server),$(CONTRIB)/src/$(dep)/version)
+
 MODULE_NAME_include_server=	ngx_http_include_server_module
 
 MODULE_VERSION_include_server=	0.01
@@ -9,8 +13,12 @@ MODULE_RELEASE_include_server=	1
 
 MODULE_VERSION_PREFIX_include_server=$(BASE_VERSION)+
 
-MODULE_SOURCES_include_server=	https://github.com/RekGRpth/$(MODULE_NAME_include_server).git
-MODULE_CONFARGS_include_server=	--add-dynamic-module=$(MODULE_NAME_include_server)
+MODULE_SOURCES_include_server=	ngx_http_include_server_module-$(NGX_HTTP_INCLUDE_SERVER_MODULE_GITHASH).tar.gz
+MODULE_CONFARGS_include_server=	--add-dynamic-module=$(MODSRC_PREFIX)$(MODULE_NAME_include_server)
+
+.deps-module-include-server:
+	cd $(CONTRIB) && make .sum-ngx_http_include_server_module
+	touch $@
 
 define MODULE_POST_include_server
 cat <<BANNER

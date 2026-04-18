@@ -137,6 +137,10 @@ ci-specs-clean:
 
 help: default
 	@make -C SPECS/
+
+fetch:
+	@$(MAKE) -C contrib fetch
+
 %:
 	@make -C SPECS/ $@
 
@@ -227,4 +231,5 @@ tag:
 	ci-build ci-push ci-deploy ci-rm ci-ps ci-shell ci-check ci-rpm \
 	ci-check-mainline ci-check-stable ci-check-all \
 	ci-rpm-mainline ci-rpm-stable ci-artifacts ci-specs-clean help \
+	fetch \
 	version-check version-check-njs release release-njs revert commit tag

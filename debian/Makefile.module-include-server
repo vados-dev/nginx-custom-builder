@@ -2,6 +2,10 @@ MODULES+=	include-server
 
 MODULE_SUMMARY_include_server=	enable support to include_server derective in nginx.conf.
 
+MODULE_CONTRIB_DEPS_include-server=	ngx_http_include_server_module
+
+include $(foreach dep,$(MODULE_CONTRIB_DEPS_include-server),$(CONTRIB)/src/$(dep)/version)
+
 
 MODULE_VERSION_include_server=	0.01
 MODULE_RELEASE_include_server=	1
@@ -16,9 +20,9 @@ MODULE_NAME_include_server=	ngx_http_include_server_module
 
 MODULE_PACKAGE_LICENSE_include_server=	MIT
 
-MODULE_SOURCES_include_server=	$(GITHUB)/$(MODULE_NAME_include_server).git
+MODULE_SOURCES_include_server=	ngx_http_include_server_module-$(NGX_HTTP_INCLUDE_SERVER_MODULE_GITHASH).tar.gz
 
-MODULE_CONFARGS_include_server=	--add-dynamic-module=$(MODULE_NAME_include_server)
+MODULE_CONFARGS_include_server=	--add-dynamic-module=$(MODSRC_PREFIX)$(MODULE_NAME_include_server)
 
 # include-server
 
