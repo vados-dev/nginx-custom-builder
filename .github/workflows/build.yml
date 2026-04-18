@@ -130,7 +130,8 @@ jobs:
             libxslt-devel \
             perl-devel \
             perl-ExtUtils-Embed \
-            cmark-devel
+            cmark-devel \
+            mercurial
 
       - name: Prepare sources from nginx SRPM
         id: prepare

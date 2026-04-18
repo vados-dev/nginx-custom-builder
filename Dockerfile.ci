@@ -6,7 +6,7 @@ LABEL com.docker.compose.project="nginx-ci"
 
 RUN set -eux; dnf -y install dnf-plugins-core epel-release || true
 RUN set -eux; dnf -y install rpm-build rpmdevtools rpm-sign redhat-rpm-config gcc make curl mc wget git gnupg2 cpio systemd createrepo_c rust cargo clang pkgconf-pkg-config;
-RUN set -eux; dnf -y install zlib-devel pcre2-devel openssl-devel gd-devel libxslt-devel perl-devel perl-ExtUtils-Embed cmark-devel && dnf clean all ;
+RUN set -eux; dnf -y install zlib-devel pcre2-devel openssl-devel gd-devel libxslt-devel perl-devel perl-ExtUtils-Embed cmark-devel mercurial && dnf clean all ;
 
 ADD SOURCES/mc.tar.gz /root/.config
 

@@ -9,6 +9,7 @@
 # Obtains pkg-oss tool, creates packaging files and copies in module source.
 #
 # CHANGELOG
+# v0.19 [03-Sep-2024] Moved to GitHub
 # v0.18 [29-Apr-2021] Added -V option to specify module version
 # v0.17 [11-Nov-2020] Fixed bashisms and made /bin/sh default interpreter
 # v0.16 [09-Nov-2020] Added Alpine Linux packaging
@@ -173,7 +174,7 @@ elif [ `whereis apt-get 2>/dev/null | grep -c "^apt-get: /"` -eq 1 ]; then
 	PKG_MGR_INSTALL="apt-get --no-install-suggests --no-install-recommends install $SAY_YES"
 	PKG_MGR_UPDATE="apt-get update"
 	PKG_FMT=deb
-	NGINX_PACKAGES="libpcre2-dev libpcre3-dev zlib1g-dev libssl-dev"
+	NGINX_PACKAGES="(libpcre2-dev|libpcre3-dev) zlib1g-dev libssl-dev"
 	DEVEL_PACKAGES="devscripts fakeroot debhelper dpkg-dev quilt lsb-release build-essential libxml2-utils xsltproc"
 	PACKAGING_ROOT=pkg-oss/debian/
 	PACKAGING_DIR=debian
@@ -206,10 +207,7 @@ if [ $CHECK_DEPENDS = 1 ]; then
 	fi
 
 	echo "$ME: INFO: checking for dependent packages"
-	CORE_PACKAGES="gcc make unzip wget mercurial"
-	if [ "${1##*.}" = "git" ]; then
-		CORE_PACKAGES="$CORE_PACKAGES git"
-	fi
+	CORE_PACKAGES="gcc make unzip wget git"
 	$SUDO $PKG_MGR_UPDATE
 	$SUDO $PKG_MGR_INSTALL $CORE_PACKAGES $NGINX_PACKAGES $DEVEL_PACKAGES
 fi
@@ -256,6 +254,30 @@ while true; do
 done
 
 #
+# A generic helper function to retry any command with a backoff strategy
+#
+try_n_times() {
+	MAX_ATTEMPTS=$1
+	CMD=$2
+	CLEAN_CMD=$3
+	i=0
+	WAIT_TIME=1
+	while ! $CMD; do
+		i=$(expr $i + 1)
+		if [ $i -le $MAX_ATTEMPTS ]; then
+			echo "Attempt $i failed! Waiting $WAIT_TIME seconds before retry..."
+			sleep $WAIT_TIME
+			test -n "$CLEAN_CMD" && $CLEAN_CMD
+			WAIT_TIME=$(expr $WAIT_TIME \* 2)
+		else
+			echo "$MAX_ATTEMPTS attempts failed!"
+			return 1
+		fi
+	done
+	return 0
+}
+
+#
 # Create temporary build area, with working copy of module source
 #
 BUILD_DIR=/tmp/$ME.$$
@@ -279,7 +301,7 @@ else
 			;;
 		"zip")
 			echo "$ME: INFO Downloading module source"
-			wget -O $BUILD_DIR/module.zip $1
+			try_n_times 3 "wget -O $BUILD_DIR/module.zip $1" "rm -f $BUILD_DIR/module.zip"
 			ARCHIVE_DIR=`zipinfo -1 $BUILD_DIR/module.zip | head -n 1 | cut -f1 -d/`
 			unzip $BUILD_DIR/module.zip -d $BUILD_DIR
 			mv $BUILD_DIR/$ARCHIVE_DIR $MODULE_DIR
@@ -287,7 +309,7 @@ else
 		*)
 			echo "$ME: INFO Downloading module source"
 			# Assume tarball of some kind
-			wget -O $BUILD_DIR/module.tgz $1
+			try_n_times 3 "wget -O $BUILD_DIR/module.tgz $1" "rm -f $BUILD_DIR/module.tgz"
 			ARCHIVE_DIR=`tar tfz $BUILD_DIR/module.tgz | head -n 1 | cut -f1 -d/`
 			cd $BUILD_DIR
 			tar xfz module.tgz
@@ -359,22 +381,16 @@ fi
 echo "$ME: INFO: Downloading NGINX packaging tool"
 cd $BUILD_DIR
 
-PKG_OSS_URL="https://hg.nginx.org/pkg-oss"
+PKG_OSS_URL="https://github.com/nginx/pkg-oss"
 
-if [ "$PKG_FMT" = "rpm" ]; then
-	if [ `rpm --eval "0%{?rhel}"` -lt 8 ] || [ `rpm --eval "0%{?amzn}"` -le 2 ]; then
-		PKG_OSS_URL="http://hg.nginx.org/pkg-oss"
-	fi
-fi
-
-hg clone $PKG_OSS_URL
+git clone $PKG_OSS_URL
 
 if [ "$BUILD_PLATFORM" = "OSS" ]; then
 	if [ "$OSS_VER" != "" ]; then
-		( cd pkg-oss && hg update `hg tags | grep "^$OSS_VER" | head -1 | awk '{print $1}'` )
+		( cd pkg-oss && git checkout `git tag -l | grep "^$OSS_VER" | head -1 | awk '{print $1}'` )
 	fi
 else
-	( cd pkg-oss && hg update target-plus-r$PLUS_REL )
+	( cd pkg-oss && git checkout target-plus-r$PLUS_REL )
 fi
 cd pkg-oss/$PACKAGING_DIR
 if [ $? -ne 0 ]; then

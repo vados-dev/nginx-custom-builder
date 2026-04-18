@@ -48,7 +48,7 @@ NPROC=		$(shell getconf _NPROCESSORS_ONLN)
 MODSRC_PREFIX=	extra/
 BUILD_DIR=	$$(BUILDDIR_nginx)
 
-BASE_MODULES=	geoip image-filter njs otel perl xslt
+BASE_MODULES=	acme geoip image-filter njs otel perl xslt
 
 MODULES=
 
@@ -61,8 +61,8 @@ BASE_CONFIGURE_ARGS=\
 	--conf-path=/etc/nginx/nginx.conf \
 	--error-log-path=/var/log/nginx/error.log \
 	--http-log-path=/var/log/nginx/access.log \
-	--pid-path=/var/run/nginx.pid \
-	--lock-path=/var/run/nginx.lock \
+	--pid-path=/run/nginx.pid \
+	--lock-path=/run/nginx.lock \
 	--http-client-body-temp-path=/var/cache/nginx/client_temp \
 	--http-proxy-temp-path=/var/cache/nginx/proxy_temp \
 	--http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
@@ -111,6 +111,8 @@ BASE_CONFIGURE_ARGS+= \
 	--with-stream_proxy_protocol_vendor_module
 endif
 
+include $(CONTRIB)/attestation.mak
+
 export CR=\\n
 
 modname = $(shell echo $1 | tr '-' '_')
@@ -139,7 +141,7 @@ modules:	$(addprefix module-, $(MODULES))
 
 rules:	rules-base $(addprefix rules-module-, $(MODULES))
 
-base:	rules-base
+base:	rules-base attest-base
 	@echo "===> Building base package" ; \
 	$(SHELL) -c "cd debuild-base/$(SRCDIR) ; export DEB_BUILD_OPTIONS=parallel=$(NPROC) ; time -p debuild -us -uc" && \
 	find debuild-base/ -maxdepth 1 -type f -exec cp {} ../../ \; && \
@@ -191,7 +193,6 @@ rules-base: $(BASE_SRC) nginx.deb-changelog
 			$(DOCS)/EULA-DEVELOPER \
 			$(DOCS)/EULA-SUBSCRIPTION \
 			$(DOCS)/CHANGES \
-			$(DOCS)/nginx-modules-reference.pdf \
 			debuild-base/$(SRCDIR)/debian/ ; \
 		cp $(CONTRIB)/tarballs/dashboard.html debuild-base/$(SRCDIR)/debian/ ; \
 		( cd debuild-base/$(SRCDIR) && \
@@ -208,12 +209,12 @@ rules-base: $(BASE_SRC) nginx.deb-changelog
 	ln -s debuild-base/$(SRCDIR)/debian/rules rules-base ; \
 	}
 
-module-%: rules-module-% check-compat-%
+module-%: rules-module-% check-compat-% attest-module-%
 	@if [ -e nginx-$@.skip ]; then \
 	    echo "---> Skipping nginx-$@ package (`cat nginx-$@.skip`)" ; \
 	else \
 	    echo "===> Building nginx-$@ package" ; \
-	    $(SHELL) -c "cd debuild-$@/$(SRCDIR) ; export DEB_BUILD_OPTIONS=parallel=$(NPROC) ; time -p debuild -us -uc" && \
+	    $(SHELL) -c "cd debuild-$@/$(SRCDIR) ; export DEB_BUILD_OPTIONS=parallel=$(NPROC) ; time -p debuild --preserve-envvar PATH --preserve-envvar RUSTUP_HOME -us -uc" && \
 	    find debuild-$@/ -maxdepth 1 -type f -exec cp {} ../../ \; && \
 	    ln -s debuild-$@/$(SRCDIR)/debian/$(MODULE_PACKAGE_PREFIX)-$*/usr/lib/nginx/modules $@ ; \
 	fi;
@@ -342,6 +343,9 @@ rules-module-%: $(BASE_SRC) nginx-module-%.deb-changelog .deps-module-%
 	}
 
 .deps-module-%:
+	if [ -n "$(MODULE_CONTRIB_DEPS_$*)" ]; then \
+	   cd $(CONTRIB) && make $(foreach dep,$(MODULE_CONTRIB_DEPS_$*),.sum-$(dep)); \
+	fi; \
 	touch $@
 
 nginx-tests:
@@ -368,9 +372,6 @@ test: base nginx-tests
 	if [ -d $$pwd/module-perl ]; then \
 		globals="$$globals env PERL5LIB=$$pwd/debuild-module-perl/$(SRCDIR)/debian/build-nginx/objs/src/http/modules/perl:$$pwd/debuild-module-perl/$(SRCDIR)/debian/build-nginx/objs/src/http/modules/perl/blib/arch;" ; \
 	fi ; \
-	if [ -d $$pwd/module-opentracing ]; then \
-		export LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:$$pwd/debuild-module-opentracing/$(SRCDIR)/debian/build-nginx/extra/opentracing-cpp-$(OPENTRACING_CPP_VERSION)/usr/local/lib ; \
-	fi ; \
 	if [ -d $$pwd/module-lua ]; then \
 		globals_http="lua_package_path '$$pwd/debuild-module-lua/$(SRCDIR)/debian/extra/lua-resty-core-$(LUA_RESTY_CORE_VERSION)/lib/?.lua;$$pwd/debuild-module-lua/$(SRCDIR)/debian/extra/lua-resty-lrucache-$(LUA_RESTY_LRUCACHE_VERSION)/lib/?.lua;;';" ; \
 		globals_stream="$$globals_http" ; \
@@ -390,9 +391,6 @@ test-debug: base nginx-tests
 	done ; \
 	if [ -d $$pwd/module-perl ]; then \
 		globals="$$globals env PERL5LIB=$$pwd/debuild-module-perl/$(SRCDIR)/debian/build-nginx-debug/objs/src/http/modules/perl:$$pwd/debuild-module-perl/$(SRCDIR)/debian/build-nginx/objs/src/http/modules/perl/blib/arch;" ; \
-	fi ; \
-	if [ -d $$pwd/module-opentracing ]; then \
-		export LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:$$pwd/debuild-module-opentracing/$(SRCDIR)/debian/build-nginx-debug/extra/opentracing-cpp-$(OPENTRACING_CPP_VERSION)/usr/local/lib ; \
 	fi ; \
 	if [ -d $$pwd/module-lua ]; then \
 		globals_http="lua_package_path '$$pwd/debuild-module-lua/$(SRCDIR)/debian/extra/lua-resty-core-$(LUA_RESTY_CORE_VERSION)/lib/?.lua;$$pwd/debuild-module-lua/$(SRCDIR)/debian/extra/lua-resty-lrucache-$(LUA_RESTY_LRUCACHE_VERSION)/lib/?.lua;;';" ; \
@@ -466,6 +464,7 @@ check-modules:
 clean:
 	@rm -rf base module-* rules-base rules-module-* debuild-base debuild-module-* nginx-tests $(BASE_SRC) .deps-module-*
 	@rm -f nginx.deb-changelog nginx-*.deb-changelog nginx-module-*.deb-changelog nginx-module-*.skip
+	@rm -f attest-base attest-module-*
 
 .PHONY:	default list list-base list-all-modules list-base-modules all modules rules test test-debug check-modules clean
 
