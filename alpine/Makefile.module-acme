@@ -28,7 +28,8 @@ echo '[source.crates-io]' > .cargo/config.toml \&\& \
 echo 'replace-with = "vendored-sources"' >> .cargo/config.toml \&\& \
 echo '[source.vendored-sources]' >> .cargo/config.toml \&\& \
 echo 'directory = "../nginx-acme-$(NGINX_ACME_VERSION)-vendor"' >> .cargo/config.toml \&\& \
-        find ../nginx-acme-$(NGINX_ACME_VERSION)-vendor -name Cargo.toml -exec sh -c 'test -f "$1.orig" || cp "$1" "$1.orig"' _ {} \\; 
+        find ../nginx-acme-$(NGINX_ACME_VERSION)-vendor -name Cargo.toml -exec sh -c 'test -f "$1.orig" || cp "$1" "$1.orig"' sh {} \\; \&\& \
+        sed -i '/Cargo\.toml\.orig/d' ../nginx-acme-$(NGINX_ACME_VERSION)-vendor/.cargo-checksum.json 
 endef
 export MODULE_PREBUILD_acme
 
