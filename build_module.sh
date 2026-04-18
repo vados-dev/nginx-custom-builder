@@ -207,7 +207,10 @@ if [ $CHECK_DEPENDS = 1 ]; then
 	fi
 
 	echo "$ME: INFO: checking for dependent packages"
-	CORE_PACKAGES="gcc make unzip wget git"
+	CORE_PACKAGES="gcc make unzip wget mercurial"
+	if [ "${1##*.}" = "git" ]; then
+		CORE_PACKAGES="$CORE_PACKAGES git"
+	fi
 	$SUDO $PKG_MGR_UPDATE
 	$SUDO $PKG_MGR_INSTALL $CORE_PACKAGES $NGINX_PACKAGES $DEVEL_PACKAGES
 fi
