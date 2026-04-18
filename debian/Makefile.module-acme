@@ -36,7 +36,7 @@ define MODULE_PREBUILD_acme
 	echo '[source.vendored-sources]' >> .cargo/config.toml \&\& \
 	echo 'directory = "extra/nginx-acme-$(NGINX_ACME_VERSION)-vendor"' >> .cargo/config.toml \&\& \
         find extra/nginx-acme-$(NGINX_ACME_VERSION)-vendor -name Cargo.toml -exec sh -c 'test -f "$$$$0.orig" || cp "$$$$0" "$$$$0.orig"' {} \\; \&\& \
-        sed -i '/Cargo\.toml\.orig/d' extra/nginx-acme-$(NGINX_ACME_VERSION)-vendor/.cargo-checksum.json 
+        [ -f extra/nginx-acme-$(NGINX_ACME_VERSION)-vendor/.cargo-checksum.json ] \&\& sed -i '/Cargo\.toml\.orig/d' extra/nginx-acme-$(NGINX_ACME_VERSION)-vendor/.cargo-checksum.json 
 endef
 export MODULE_PREBUILD_acme
 
