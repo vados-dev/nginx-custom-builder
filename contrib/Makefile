@@ -28,17 +28,17 @@ endif
 GIT ?= $(error git not found)
 
 ifeq ($(shell curl --version >/dev/null 2>&1 || echo FAIL),)
-download = curl -f -L -- "$(1)" > "$@"
+download = (mkdir -p "$(dir $@)" && curl -f -L -- "$(1)" > "$@")
 else ifeq ($(shell wget --version >/dev/null 2>&1 || echo FAIL),)
-download = (rm -f $@.tmp && \
-	wget --passive -c -p -O $@.tmp "$(1)" && \
-	touch $@.tmp && \
-	mv $@.tmp $@ )
+download = (mkdir -p "$(dir $@)" && rm -f $@.tmp && \
+		wget --passive -c -p -O $@.tmp "$(1)" && \
+		touch $@.tmp && \
+		mv $@.tmp $@ )
 else ifeq ($(shell which fetch >/dev/null 2>&1 || echo FAIL),)
-download = (rm -f $@.tmp && \
-	fetch -p -o $@.tmp "$(1)" && \
-	touch $@.tmp && \
-	mv $@.tmp $@)
+download = (mkdir -p "$(dir $@)" && rm -f $@.tmp && \
+		fetch -p -o $@.tmp "$(1)" && \
+		touch $@.tmp && \
+		mv $@.tmp $@)
 else
 download = $(error Neither curl nor wget nor fetch found)
 endif
