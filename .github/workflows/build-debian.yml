@@ -92,7 +92,6 @@ jobs:
             libgd-dev \
             libxslt1-dev \
             libcmark-dev \
-            cmark-devel \
             pkg-config \
             clang \
             perl
