@@ -32,3 +32,6 @@ SOURCES/nginx-*.tar.gz
 
 # local build results
 .ci-home/
+
+# codex
+.codex

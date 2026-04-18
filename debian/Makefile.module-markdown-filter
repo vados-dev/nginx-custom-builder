@@ -8,7 +8,7 @@ include $(foreach dep,$(MODULE_CONTRIB_DEPS_markdown-filter),$(CONTRIB)/src/$(de
 
 NAME_markdown_filter=		ngx_markdown_filter_module
 
-MODULE_VERSION_markdown_filter=		0.1.7
+MODULE_VERSION_markdown_filter=		$(NGX_MARKDOWN_FILTER_MODULE_VERSION)
 MODULE_RELEASE_markdown_filter=		1
 
 MODULE_VERSION_PREFIX_markdown_filter=	$(MODULE_TARGET_PREFIX)

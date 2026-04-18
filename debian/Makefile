@@ -48,20 +48,17 @@ NPROC=		$(shell getconf _NPROCESSORS_ONLN)
 MODSRC_PREFIX=	extra/
 BUILD_DIR=	$$(BUILDDIR_nginx)
 
-BASE_MODULES=	image-filter njs otel perl xslt
+BASE_MODULES=	otel
 
-# Unified module selection point:
-# - module metadata stays in Makefile.module-*
-# - enabled set is controlled only here.
-MODULES?=
+MODULES	?=
 
 -include Makefile.module-*
 
 DISCOVERED_MODULES := $(strip $(MODULES))
-ENABLED_MODULES ?= acme error-page-inherit include-server markdown-filter njs
+ENABLED_MODULES ?=	image-filter perl xslt markdown-filter acme njs error-page-inherit include-server
 MODULES := $(strip $(filter $(ENABLED_MODULES),$(DISCOVERED_MODULES)))
 
-STANDARD_CONFIGURE_ARGS=\
+STANDARD_CONFIGURE_MODULES=\
 	--with-compat \
 	--with-file-aio \
 	--with-threads \

@@ -6,7 +6,7 @@ MODULE_CONTRIB_DEPS_error-page-inherit=	nginx-error-page-inherit
 
 include $(foreach dep,$(MODULE_CONTRIB_DEPS_error-page-inherit),$(CONTRIB)/src/$(dep)/version)
 
-MODULE_VERSION_error_page_inherit=	0.01
+MODULE_VERSION_error_page_inherit=	$(NGINX_ERROR_PAGE_INHERIT_VERSION)
 MODULE_RELEASE_error_page_inherit=	1
 
 MODULE_VERSION_PREFIX_error_page_inherit=$(MODULE_TARGET_PREFIX)
