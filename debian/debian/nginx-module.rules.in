@@ -79,7 +79,6 @@ endif
 
 build-arch.%: config.status.%
 	dh_testdir
-	dh_prep
 ifeq ($(META_MODULE), 0)
 	$(MAKE) -j$(NUMJOBS) -C $(BUILDDIR_$*) modules
 endif
