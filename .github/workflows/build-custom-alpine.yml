@@ -117,15 +117,22 @@ jobs:
           echo "nginx_version=${nginx_version}" >> "${GITHUB_OUTPUT}"
           echo "NGINX_VERSION=${nginx_version}" >> "${GITHUB_ENV}"
 
+      - name: Prepare non-root builder
+        shell: bash
+        run: |
+          set -euo pipefail
+          adduser -D -h /home/builder builder || true
+          chown -R builder:builder /home/builder "${GITHUB_WORKSPACE}" /github/home
+
       - name: Build Alpine module packages
         shell: bash
         run: |
           set -euo pipefail
           modules="${{ inputs.enabled_modules }}"
           if [[ -n "${modules}" ]]; then
-            make -C alpine modules ENABLED_MODULES="${modules}"
+            su builder -s /bin/bash -c "cd \"${GITHUB_WORKSPACE}\" && make -C alpine modules ENABLED_MODULES='${modules}'"
           else
-            make -C alpine modules
+            su builder -s /bin/bash -c "cd \"${GITHUB_WORKSPACE}\" && make -C alpine modules"
           fi
 
       - name: Collect APK artifacts
@@ -133,7 +140,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/apk-build-artifacts
-          find "${HOME}/packages" -type f -name '*.apk' -exec cp -f {} /tmp/apk-build-artifacts/ \;
+          find /home/builder/packages -type f -name '*.apk' -exec cp -f {} /tmp/apk-build-artifacts/ \;
           if ! compgen -G '/tmp/apk-build-artifacts/*.apk' > /dev/null; then
             echo "No APK artifacts produced" >&2
             exit 1
@@ -164,8 +171,8 @@ jobs:
           )
 
           mkdir -p /tmp/apk-repo/repo/alpine/keys
-          if [[ -f "${HOME}/.abuild/abuild-key.rsa.pub" ]]; then
-            cp -f "${HOME}/.abuild/abuild-key.rsa.pub" /tmp/apk-repo/repo/alpine/keys/
+          if [[ -f "/home/builder/.abuild/abuild-key.rsa.pub" ]]; then
+            cp -f /home/builder/.abuild/abuild-key.rsa.pub /tmp/apk-repo/repo/alpine/keys/
           fi
 
       - name: Publish APK repository to gh-pages

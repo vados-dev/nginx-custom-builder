@@ -162,15 +162,15 @@ $(BASE_SRC):
 abuild-base: $(BASE_SRC)
 	@echo "===> Creating $@"
 	@{ \
-	set -e ; \
-	mkdir -p abuild-base ; \
-	cp $(BASE_SRC) abuild-base/ ; \
-	cp alpine$(BASE_SUFFIX)/* abuild-base/ ; \
-	patches=`find $(CONTRIB)/src/nginx$(BASE_SUFFIX)/ \
-		-type f -name '*.patch' -printf  "%f\n" | sort |tr "\\n" " "` ; \
-	for patch in $$patches; do \
-		cp -v $(CONTRIB)/src/nginx$(BASE_SUFFIX)/$$patch abuild-base/ ; \
-	done ;\
+		set -e ; \
+		mkdir -p abuild-base ; \
+		cp $(BASE_SRC) abuild-base/ ; \
+		cp alpine$(BASE_SUFFIX)/* abuild-base/ ; \
+		patches=`find $(CONTRIB)/src/nginx$(BASE_SUFFIX)/ \
+			-type f -name '*.patch' | sed -e 's#.*/##' | sort |tr "\\n" " "` ; \
+		for patch in $$patches; do \
+			cp -v $(CONTRIB)/src/nginx$(BASE_SUFFIX)/$$patch abuild-base/ ; \
+		done ;\
 	cp $(DOCS)/nginx.copyright abuild-base/COPYRIGHT ; \
 	if [ -f ../SOURCES/nginx.tar.gz ]; then \
 		cp ../SOURCES/nginx.tar.gz abuild-base/nginx.tar.gz ; \
