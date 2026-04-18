@@ -87,8 +87,6 @@ jobs:
             perl-dev \
             gd-dev \
             cmark-dev \
-            rust \
-            cargo \
             clang \
             pkgconf
 
@@ -124,15 +122,27 @@ jobs:
           adduser -D -h /home/builder builder || true
           chown -R builder:builder /home/builder "${GITHUB_WORKSPACE}" /github/home
 
+      - name: Install modern Rust toolchain for builder
+        shell: bash
+        run: |
+          set -euo pipefail
+          su builder -s /bin/bash -c '
+            set -euo pipefail
+            curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs \
+              | sh -s -- -y --profile minimal --default-toolchain stable
+            /home/builder/.cargo/bin/rustc --version
+            /home/builder/.cargo/bin/cargo --version
+          '
+
       - name: Build Alpine module packages
         shell: bash
         run: |
           set -euo pipefail
           modules="${{ inputs.enabled_modules }}"
           if [[ -n "${modules}" ]]; then
-            su builder -s /bin/bash -c "cd \"${GITHUB_WORKSPACE}\" && make -C alpine modules ENABLED_MODULES='${modules}'"
+            su builder -s /bin/bash -c "export PATH=\"/home/builder/.cargo/bin:\$PATH\"; cd \"${GITHUB_WORKSPACE}\" && make -C alpine modules ENABLED_MODULES='${modules}'"
           else
-            su builder -s /bin/bash -c "cd \"${GITHUB_WORKSPACE}\" && make -C alpine modules"
+            su builder -s /bin/bash -c "export PATH=\"/home/builder/.cargo/bin:\$PATH\"; cd \"${GITHUB_WORKSPACE}\" && make -C alpine modules"
           fi
 
       - name: Collect APK artifacts
