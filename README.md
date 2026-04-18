@@ -37,10 +37,53 @@
 
 ## GitHub Actions: авто-проверка и Telegram
 
-### В репозитории настроены два workflow
+### Какие workflow сейчас используются
 
-- `.github/workflows/check-version.yml` - проверяет новую версию nginx по расписанию (каждые 6 часов), отправляет уведомление в Telegram и запускает сборку при изменении версии.
-- `.github/workflows/build.yml` - ручная и автоматическая сборка RPM (используется также как reusable workflow).
+- `.github/workflows/check-version.yml` — оркестратор:
+  1. Проверяет новую версию nginx для `stable/mainline`.
+  2. Пишет state в `.github/version-state/nginx-<channel>.txt`.
+  3. Отправляет уведомление в Telegram.
+  4. Запускает 3 сборки параллельно:
+     - RPM: `.github/workflows/build.yml`
+     - DEB: `.github/workflows/build-debian.yml`
+     - APK (кастомные модули): `.github/workflows/build-custom-alpine.yml`
+- `.github/workflows/build-alpine.yml` — отдельный workflow зеркалирования upstream Alpine-пакетов nginx.org (не сборка кастомных модулей).
+
+### Входные параметры `check-version.yml`
+
+Базовые:
+
+- `nginx_channel`: `mainline|stable`
+- `build_args`: `-bb|-ba` (для RPM)
+- `disable_debug_packages`: выключение debug/debuginfo пакетов RPM
+- `force_build`: собрать даже если версия nginx не изменилась
+
+Профили модулей:
+
+- `modules_common`: общий набор для всех платформ
+- `modules_rpm_extra`: доп.модули только для RPM
+- `modules_deb_extra`: доп.модули только для Debian
+- `modules_alpine_extra`: доп.модули только для Alpine
+
+Override модулей (полная замена профиля):
+
+- `modules_rpm_override`
+- `modules_deb_override`
+- `modules_alpine_override`
+
+Публикация:
+
+- `publish_dnf_repo`
+- `publish_deb_repo`
+- `publish_alpine_repo`
+- `debian_suite` (по умолчанию `bookworm`)
+- `alpine_version` (по умолчанию `3.20`)
+
+Логика модулей:
+
+- если `*_override` пуст, итоговый набор = `modules_common + modules_<platform>_extra`
+- если `*_override` задан, используется только override-набор для этой платформы
+- по умолчанию Alpine профиль минимальный (под Docker-сценарий), RPM/DEB — шире
 
 ### Нужные secrets в `Settings -> Secrets and variables -> Actions`
 
@@ -97,20 +140,28 @@ sudo dnf makecache
 sudo dnf upgrade "nginx*"
 ```
 
-## Alpine (APK) repo for Docker
+## Debian (APT) repo from GitHub Pages
 
-Для Alpine добавлен workflow `.github/workflows/build-alpine.yml`.
-Он синхронизирует пакеты `stable/mainline` из `nginx.org` в `gh-pages`:
+`build-debian.yml` публикует репозиторий в:
+
+- `repo/debian/<suite>/<channel>/binary-<arch>/Packages`
+- `repo/debian/<suite>/<channel>/binary-<arch>/Packages.gz`
+- `repo/debian/<suite>/<channel>/Release`
+
+## Alpine (APK) custom repo for Docker
+
+`build-custom-alpine.yml` публикует кастомно собранные APK в:
 
 - `repo/alpine/v<alpine-version>/<channel>/<arch>/APKINDEX.tar.gz`
-- `repo/alpine/keys/nginx_signing.rsa.pub`
-По умолчанию публикуется только последняя версия каждого пакета, `*-dbg` исключены.
+- `repo/alpine/v<alpine-version>/<channel>/<arch>/*.apk`
+- `repo/alpine/keys/*.pub` (если ключ сборщика доступен)
 
 ### Пример для Alpine `3.20` и `mainline`
 
 ```sh
 echo "https://vados-dev.github.io/nginx-custom-builder/repo/alpine/v3.20/mainline" >> /etc/apk/repositories
-wget -O /etc/apk/keys/nginx_signing.rsa.pub https://vados-dev.github.io/nginx-custom-builder/repo/alpine/keys/nginx_signing.rsa.pub
+# если опубликован публичный ключ сборки:
+# wget -O /etc/apk/keys/<builder-key>.pub https://vados-dev.github.io/nginx-custom-builder/repo/alpine/keys/<builder-key>.pub
 apk update
 apk add nginx
 ```
@@ -121,10 +172,10 @@ apk add nginx
 crontab -e
 
 # mainline: еженедельно
-17 3 * * 1 /usr/bin/flock -n /tmp/nginx-check-mainline.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-custom-builder && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=mainline -f force_build=false >> /home/git/projects/nginx-custom-builder/.github/cron-mainline.log 2>&1'
+17 3 * * 1 /usr/bin/flock -n /tmp/nginx-check-mainline.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-custom-builder && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=mainline -f build_args=-bb -f disable_debug_packages=true -f force_build=false -f modules_common="error-page-inherit include-server markdown-filter" -f modules_rpm_extra="acme njs" -f modules_deb_extra="acme njs" -f modules_alpine_extra="" -f publish_dnf_repo=true -f publish_deb_repo=true -f publish_alpine_repo=true -f debian_suite=bookworm -f alpine_version=3.20 >> /home/git/projects/nginx-custom-builder/.github/cron-mainline.log 2>&1'
 
 # stable: еженедельно без пересечения с mainline
-27 3 * * 1 /usr/bin/flock -n /tmp/nginx-check-stable.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-custom-builder && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=stable -f force_build=false >> /home/git/projects/nginx-custom-builder/.github/cron-stable.log 2>&1'
+27 3 * * 1 /usr/bin/flock -n /tmp/nginx-check-stable.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-custom-builder && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=stable -f build_args=-bb -f disable_debug_packages=true -f force_build=false -f modules_common="error-page-inherit include-server markdown-filter" -f modules_rpm_extra="acme njs" -f modules_deb_extra="acme njs" -f modules_alpine_extra="" -f publish_dnf_repo=true -f publish_deb_repo=true -f publish_alpine_repo=true -f debian_suite=bookworm -f alpine_version=3.20 >> /home/git/projects/nginx-custom-builder/.github/cron-stable.log 2>&1'
 
 crontab -l
 ```

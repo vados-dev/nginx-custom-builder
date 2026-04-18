@@ -48,9 +48,12 @@ NPROC=		$(shell getconf _NPROCESSORS_ONLN)
 MODSRC_PREFIX=	extra/
 BUILD_DIR=	$$(BUILDDIR_nginx)
 
-BASE_MODULES=	acme geoip image-filter njs otel perl xslt
+BASE_MODULES=	image-filter njs otel perl xslt
 
-MODULES=
+# Unified module selection point:
+# - module metadata stays in Makefile.module-*
+# - enabled set is controlled only here.
+MODULES?=
 
 -include Makefile.module-*
 
@@ -58,22 +61,7 @@ DISCOVERED_MODULES := $(strip $(MODULES))
 ENABLED_MODULES ?= acme error-page-inherit include-server markdown-filter njs
 MODULES := $(strip $(filter $(ENABLED_MODULES),$(DISCOVERED_MODULES)))
 
-BASE_CONFIGURE_ARGS=\
-	--prefix=/etc/nginx \
-	--sbin-path=/usr/sbin/nginx \
-	--modules-path=/usr/lib/nginx/modules \
-	--conf-path=/etc/nginx/nginx.conf \
-	--error-log-path=/var/log/nginx/error.log \
-	--http-log-path=/var/log/nginx/access.log \
-	--pid-path=/run/nginx.pid \
-	--lock-path=/run/nginx.lock \
-	--http-client-body-temp-path=/var/cache/nginx/client_temp \
-	--http-proxy-temp-path=/var/cache/nginx/proxy_temp \
-	--http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
-	--http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp \
-	--http-scgi-temp-path=/var/cache/nginx/scgi_temp \
-	--user=nginx \
-	--group=nginx \
+STANDARD_CONFIGURE_ARGS=\
 	--with-compat \
 	--with-file-aio \
 	--with-threads \
@@ -99,6 +87,27 @@ BASE_CONFIGURE_ARGS=\
 	--with-stream_realip_module \
 	--with-stream_ssl_module \
 	--with-stream_ssl_preread_module
+
+EXTRA_BASE_CONFIGURE_ARGS?=
+
+BASE_CONFIGURE_ARGS=\
+	--prefix=/etc/nginx \
+	--sbin-path=/usr/sbin/nginx \
+	--modules-path=/usr/lib/nginx/modules \
+	--conf-path=/etc/nginx/nginx.conf \
+	--error-log-path=/var/log/nginx/error.log \
+	--http-log-path=/var/log/nginx/access.log \
+	--pid-path=/run/nginx.pid \
+	--lock-path=/run/nginx.lock \
+	--http-client-body-temp-path=/var/cache/nginx/client_temp \
+	--http-proxy-temp-path=/var/cache/nginx/proxy_temp \
+	--http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
+	--http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp \
+	--http-scgi-temp-path=/var/cache/nginx/scgi_temp \
+	--user=nginx \
+	--group=nginx \
+	$(STANDARD_CONFIGURE_MODULES) \
+	$(EXTRA_BASE_CONFIGURE_ARGS)
 
 ifeq ($(BASE_TARGET), plus)
 BASE_CONFIGURE_ARGS+= \
