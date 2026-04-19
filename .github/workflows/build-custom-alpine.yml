@@ -55,13 +55,14 @@ on:
 jobs:
   build:
     if: ${{ github.event_name != 'workflow_dispatch' || github.event.repository.owner.id == github.event.sender.id }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       GITHUB_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
     container: alpine:${{ inputs.alpine_version }}
 
     steps:
+#      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Install build dependencies
         shell: sh
         run: |
@@ -88,7 +89,11 @@ jobs:
             gd-dev \
             cmark-dev \
             clang \
-            pkgconf
+            pkgconf \
+            coreutils \
+            findutils \
+            make \
+            rustup
 
       - name: Checkout
         uses: actions/checkout@v6
