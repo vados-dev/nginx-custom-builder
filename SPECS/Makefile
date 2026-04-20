@@ -109,7 +109,7 @@ BASE_CONFIGURE_ARGS=\
 
 export CR=\\n
 
-modname = $(shell basename "$1" | sed -e 's#^nginx-module-##' -e 's#\.spec$$##' | tr '-' '_')
+modname = $(shell basename "$(1)" | sed -e 's#^nginx-module-##' -e 's#\.spec$$##' | tr '-' '_')
 
 default:
 	@echo "valid targets: all clean cln tree base $(addprefix module-, $(MODULES)) test test-debug"
@@ -199,7 +199,7 @@ nginx-module-%.spec:
 	i=100 ; \
 	sources= ; \
 	prepsources= ; \
-	for src in $(MODULE_SOURCES_$(call modname, $*)); do \
+	for src in $(MODULE_SOURCES_$(call modname,$*)); do \
 		is_archive=0 ; \
 		case "$${src}" in \
 			http://*.tar|https://*.tar|http://*.tar.gz|https://*.tar.gz|http://*.tgz|https://*.tgz|http://*.tar.bz2|https://*.tar.bz2|http://*.tbz2|https://*.tbz2|http://*.tar.xz|https://*.tar.xz|http://*.txz|https://*.txz) \
@@ -235,7 +235,7 @@ nginx-module-%.spec:
 	i=100 ; \
 	patches= ; \
 	preppatches= ; \
-	for src in $(MODULE_PATCHES_$(call modname, $*)); do \
+	for src in $(MODULE_PATCHES_$(call modname,$*)); do \
 		dn=`dirname "$${src}"` ; \
 		bdn=`basename "$${dn}"` ; \
 		pn="$${bdn}_`basename "$${src}"`" ; \
@@ -262,10 +262,10 @@ nginx-module-%.spec:
 	if [ "$(MODULE_TARGET)" = "plus" ]; then \
 		pkgname=`echo $${pkgname} | sed -e "s#^nginx-#nginx-plus-#"` ; \
 	fi ; \
-	if [ -z "$(MODULE_PACKAGE_LICENSE_$(call modname, $*))" ]; then \
+	if [ -z "$(MODULE_PACKAGE_LICENSE_$(call modname,$*))" ]; then \
 		tmplic=`mktemp -d` ; \
 		found_license="" ; \
-		for src in $(MODULE_SOURCES_$(call modname, $*)); do \
+		for src in $(MODULE_SOURCES_$(call modname,$*)); do \
 			work="$${tmplic}/scan" ; \
 			rm -rf "$${work}" ; \
 			mkdir -p "$${work}" ; \
@@ -301,33 +301,33 @@ nginx-module-%.spec:
 			[ -n "$${found_license}" ] && break ; \
 		done ; \
 		if [ -n "$${found_license}" ]; then \
-			echo "WARNING: MODULE_PACKAGE_LICENSE_$(call modname, $*) is empty (found: $${found_license})" >&2 ; \
+			echo "WARNING: MODULE_PACKAGE_LICENSE_$(call modname,$*) is empty (found: $${found_license})" >&2 ; \
 		fi ; \
 		rm -rf "$${tmplic}" ; \
 	fi ; \
-	definitions=`echo "$$MODULE_DEFINITIONS_$(call modname, $*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
-	prebuild=`echo "$$MODULE_PREBUILD_$(call modname, $*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
-	preinstall=`echo "$$MODULE_PREINSTALL_$(call modname, $*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
-	buildenv=`echo "$$MODULE_ENV_$(call modname, $*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
-	files=`echo "$$MODULE_FILES_$(call modname, $*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
-	post=`echo "$$MODULE_POST_$(call modname, $*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
+	definitions=`echo "$$MODULE_DEFINITIONS_$(call modname,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
+	prebuild=`echo "$$MODULE_PREBUILD_$(call modname,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
+	preinstall=`echo "$$MODULE_PREINSTALL_$(call modname,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
+	buildenv=`echo "$$MODULE_ENV_$(call modname,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
+	files=`echo "$$MODULE_FILES_$(call modname,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
+	post=`echo "$$MODULE_POST_$(call modname,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
 	cat $(MODULE_SPEC_TEMPLATE) | sed \
 		-e "s#%%NAME%%#$${pkgname}#g" \
-		-e "s#%%MODULE_PACKAGE_VENDOR%%#$(if $(strip $(MODULE_PACKAGE_VENDOR_$(call modname, $*))),$(strip $(MODULE_PACKAGE_VENDOR_$(call modname, $*))),$(PACKAGE_VENDOR))#g" \
-		-e "s#%%MODULE_PACKAGE_URL%%#$(if $(strip $(MODULE_PACKAGE_URL_$(call modname, $*))),$(strip $(MODULE_PACKAGE_URL_$(call modname, $*))),$(PACKAGE_URL))#g" \
-		-e "s#%%MODULE_PACKAGE_LICENSE%%#$(if $(strip $(MODULE_PACKAGE_LICENSE_$(call modname, $*))),$(strip $(MODULE_PACKAGE_LICENSE_$(call modname, $*))),$(PACKAGE_LICENSE))#g" \
-		-e "s#%%SUMMARY%%#$(MODULE_SUMMARY_PREFIX) $(MODULE_SUMMARY_$(call modname, $*))#g" \
-		-e "s#%%SHORT_SUMMARY%%#$(MODULE_SUMMARY_$(call modname, $*))#g" \
+		-e "s#%%MODULE_PACKAGE_VENDOR%%#$(if $(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(PACKAGE_VENDOR))#g" \
+		-e "s#%%MODULE_PACKAGE_URL%%#$(if $(strip $(MODULE_PACKAGE_URL_$(call modname,$*))),$(strip $(MODULE_PACKAGE_URL_$(call modname,$*))),$(PACKAGE_URL))#g" \
+		-e "s#%%MODULE_PACKAGE_LICENSE%%#$(if $(strip $(MODULE_PACKAGE_LICENSE_$(call modname,$*))),$(strip $(MODULE_PACKAGE_LICENSE_$(call modname,$*))),$(PACKAGE_LICENSE))#g" \
+		-e "s#%%SUMMARY%%#$(MODULE_SUMMARY_PREFIX) $(MODULE_SUMMARY_$(call modname,$*))#g" \
+		-e "s#%%SHORT_SUMMARY%%#$(MODULE_SUMMARY_$(call modname,$*))#g" \
 		-e "s#%%TARGET_VERSION%%#$(TARGET_VERSION)#g" \
 		-e "s#%%MAIN_VERSION%%#$(BASE_VERSION)#g" \
 		-e "s#%%MAIN_RELEASE%%#$(BASE_RELEASE)#g" \
 		-e "s#%%BASE_VERSION%%#$(BASE_VERSION)#g" \
 		-e "s#%%BASE_RELEASE%%#$(BASE_RELEASE)#g" \
-		-e "s#%%MODULE_VERSION_PREFIX%%#$(MODULE_VERSION_PREFIX_$(call modname, $*))#g" \
-		-e "s#%%VERSION%%#$(MODULE_VERSION_$(call modname, $*))#g" \
-		-e "s#%%RELEASE%%#$(MODULE_RELEASE_$(call modname, $*))#g" \
+		-e "s#%%MODULE_VERSION_PREFIX%%#$(MODULE_VERSION_PREFIX_$(call modname,$*))#g" \
+		-e "s#%%VERSION%%#$(MODULE_VERSION_$(call modname,$*))#g" \
+		-e "s#%%RELEASE%%#$(MODULE_RELEASE_$(call modname,$*))#g" \
 		-e "s#%%BASE_CONFIGURE_ARGS%%#$(BASE_CONFIGURE_ARGS)#g" \
-		-e "s#%%MODULE_CONFIGURE_ARGS%%#$(MODULE_CONFARGS_$(call modname, $*))#g" \
+		-e "s#%%MODULE_CONFIGURE_ARGS%%#$(MODULE_CONFARGS_$(call modname,$*))#g" \
 		-e "s#%%COPYRIGHT_SOURCE%%#$${copyright_source}#g" \
 		-e "s#%%MODULE_SOURCES%%#$${sources}#g" \
 		-e "s#%%MODULE_PATCHES%%#$${patches}#g" \
