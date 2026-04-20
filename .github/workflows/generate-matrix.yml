@@ -102,13 +102,13 @@ jobs:
           custom_modules="${event_custom:-}"
           show_available="${event_show:-false}"
 
-          debian_modules="$(make -C debian list-all-modules | awk '{print $1}' | xargs || true)"
+          debian_modules="$(make --no-print-directory -C debian list-all-modules | awk '{print $1}' | xargs || true)"
           debian_modules="$(normalize_modules "${debian_modules}")"
 
-          alpine_modules="$(make -C alpine list-all-modules | awk '{print $1}' | xargs || true)"
+          alpine_modules="$(make --no-print-directory -C alpine list-all-modules | awk '{print $1}' | xargs || true)"
           alpine_modules="$(normalize_modules "${alpine_modules}")"
 
-          redhat_modules="$(make -C SPECS list-all-modules | awk '{print $1}' | xargs || true)"
+          redhat_modules="$(make --no-print-directory -C SPECS list-all-modules | awk '{print $1}' | xargs || true)"
           redhat_modules="$(normalize_modules "${redhat_modules}")"
 
           ubuntu_modules=""
@@ -346,4 +346,4 @@ jobs:
       - name: List what has been built
         if: ${{ !cancelled() }}
         run: |
-          find RPMS -type f | xargs ls -ld
+          find "$HOME/rpmbuild/RPMS" -type f -print0 | xargs -0r ls -ld
