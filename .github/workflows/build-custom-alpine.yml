@@ -89,11 +89,23 @@ jobs:
             gd-dev \
             cmark-dev \
             clang \
+            clang-libclang \
             pkgconf \
             coreutils \
             findutils \
             make \
             rustup
+
+      - name: Resolve libclang path
+        shell: sh
+        run: |
+          set -eu
+          libclang_path="$(find /usr/lib -type f -name 'libclang.so*' | head -n1 || true)"
+          if [ -z "${libclang_path}" ]; then
+            echo "Unable to find libclang shared library under /usr/lib" >&2
+            exit 1
+          fi
+          echo "LIBCLANG_PATH=$(dirname "${libclang_path}")" >> "${GITHUB_ENV}"
 
       - name: Checkout
         uses: actions/checkout@v6
@@ -145,9 +157,9 @@ jobs:
           set -euo pipefail
           modules="${{ inputs.enabled_modules }}"
           if [[ -n "${modules}" ]]; then
-            su builder -s /bin/bash -c "export PATH=\"/home/builder/.cargo/bin:\$PATH\"; cd \"${GITHUB_WORKSPACE}\" && make -C alpine modules ENABLED_MODULES='${modules}'"
+            su builder -s /bin/bash -c "export PATH=\"/home/builder/.cargo/bin:\$PATH\"; export LIBCLANG_PATH=\"${LIBCLANG_PATH}\"; cd \"${GITHUB_WORKSPACE}\" && make -C alpine modules ENABLED_MODULES='${modules}'"
           else
-            su builder -s /bin/bash -c "export PATH=\"/home/builder/.cargo/bin:\$PATH\"; cd \"${GITHUB_WORKSPACE}\" && make -C alpine modules"
+            su builder -s /bin/bash -c "export PATH=\"/home/builder/.cargo/bin:\$PATH\"; export LIBCLANG_PATH=\"${LIBCLANG_PATH}\"; cd \"${GITHUB_WORKSPACE}\" && make -C alpine modules"
           fi
 
       - name: Collect APK artifacts

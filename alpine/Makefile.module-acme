@@ -27,8 +27,7 @@ mkdir -p .cargo \&\& \
 echo '[source.crates-io]' > .cargo/config.toml \&\& \
 echo 'replace-with = "vendored-sources"' >> .cargo/config.toml \&\& \
 echo '[source.vendored-sources]' >> .cargo/config.toml \&\& \
-echo 'directory = "../nginx-acme-$(NGINX_ACME_VERSION)-vendor"' >> .cargo/config.toml \&\& \
-find ../nginx-acme-$(NGINX_ACME_VERSION)-vendor -name Cargo.toml -exec cp {} {}.orig \;
+echo 'directory = "../nginx-acme-$(NGINX_ACME_VERSION)-vendor"' >> .cargo/config.toml
 endef
 export MODULE_PREBUILD_acme
 
