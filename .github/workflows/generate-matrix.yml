@@ -1,9 +1,42 @@
-name: GitHub CI
+name: Generate Matrix
 
 on:
   pull_request:
   push:
   workflow_dispatch:
+    inputs:
+      module_mode:
+        description: "How to select modules for matrix targets"
+        required: true
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - custom
+      custom_modules:
+        description: "Space-separated module list when module_mode=custom"
+        required: false
+        default: ""
+        type: string
+      show_available_modules:
+        description: "Print available modules from debian/list-all-modules"
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      module_mode:
+        required: false
+        default: "auto"
+        type: string
+      custom_modules:
+        required: false
+        default: ""
+        type: string
+      show_available_modules:
+        required: false
+        default: false
+        type: boolean
 
 defaults:
   run:
@@ -30,27 +63,146 @@ jobs:
       matrix-alpine: ${{ steps.set-matrix.outputs.matrix-alpine }}
       matrix-ubuntu: ${{ steps.set-matrix.outputs.matrix-ubuntu }}
       matrix-redhat: ${{ steps.set-matrix.outputs.matrix-redhat }}
+      selected-modules: ${{ steps.resolve-targets.outputs.selected_modules }}
+      targets-alpine: ${{ steps.resolve-targets.outputs.targets_alpine }}
+      targets-ubuntu: ${{ steps.resolve-targets.outputs.targets_ubuntu }}
+      targets-redhat: ${{ steps.resolve-targets.outputs.targets_redhat }}
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
-      - name: Figure out what targets we're building for
-        working-directory: debian
+      - name: Resolve module targets
+        id: resolve-targets
         run: |
-          targets=""
-          for target in $(make list-all-modules | cut -d ' ' -f 1); do
-            targets="$targets module-$target";
-          done
-          echo targets="base $targets" >> "$GITHUB_ENV"
+          normalize_modules() {
+            local raw="$1"
+            if [[ -z "${raw//[[:space:]]/}" ]]; then
+              echo ""
+              return
+            fi
+            echo "$raw" | xargs -n1 | awk 'NF && !seen[$0]++' | xargs
+          }
 
-      - name: set-matrix
+          intersection_modules() {
+            local selected="$1"
+            local available="$2"
+            local result=""
+            for mod in ${selected}; do
+              if grep -qw "${mod}" <<< "${available}"; then
+                result="${result} ${mod}"
+              fi
+            done
+            normalize_modules "${result}"
+          }
+
+          event_mode="$(jq -r '.inputs.module_mode // empty' "${GITHUB_EVENT_PATH}")"
+          event_custom="$(jq -r '.inputs.custom_modules // empty' "${GITHUB_EVENT_PATH}")"
+          event_show="$(jq -r '.inputs.show_available_modules // empty' "${GITHUB_EVENT_PATH}")"
+
+          module_mode="${event_mode:-auto}"
+          custom_modules="${event_custom:-}"
+          show_available="${event_show:-false}"
+
+          debian_modules="$(make -C debian list-all-modules | awk '{print $1}' | xargs || true)"
+          debian_modules="$(normalize_modules "${debian_modules}")"
+
+          alpine_modules="$(make -C alpine list-all-modules | awk '{print $1}' | xargs || true)"
+          alpine_modules="$(normalize_modules "${alpine_modules}")"
+
+          redhat_modules="$(make -C SPECS list-all-modules | awk '{print $1}' | xargs || true)"
+          redhat_modules="$(normalize_modules "${redhat_modules}")"
+
+          ubuntu_modules=""
+          for mod in ${debian_modules}; do
+            if [[ -f "docs/nginx-module-${mod}.xml" ]]; then
+              ubuntu_modules="${ubuntu_modules} ${mod}"
+            fi
+          done
+          ubuntu_modules="$(normalize_modules "${ubuntu_modules}")"
+
+          all_modules="$(normalize_modules "${debian_modules} ${alpine_modules} ${redhat_modules}")"
+
+          if [[ -z "${all_modules}" ]]; then
+            echo "No modules discovered across debian/alpine/redhat" >&2
+            exit 1
+          fi
+
+          if [[ "${show_available}" == "true" ]]; then
+            echo "Available modules (global): ${all_modules}"
+            echo "Available modules (ubuntu docs-backed): ${ubuntu_modules}"
+            echo "Available modules (alpine): ${alpine_modules}"
+            echo "Available modules (redhat): ${redhat_modules}"
+          fi
+
+          selected_modules=""
+          case "${module_mode}" in
+            auto)
+              selected_modules="${all_modules}"
+              ;;
+            custom)
+              selected_modules="$(normalize_modules "${custom_modules}")"
+              if [[ -z "${selected_modules}" ]]; then
+                echo "module_mode=custom requires non-empty custom_modules" >&2
+                exit 1
+              fi
+              invalid_modules=""
+              for mod in ${selected_modules}; do
+                if ! grep -qw "${mod}" <<< "${all_modules}"; then
+                  invalid_modules="${invalid_modules} ${mod}"
+                fi
+              done
+              if [[ -n "${invalid_modules//[[:space:]]/}" ]]; then
+                echo "Unknown modules requested:${invalid_modules}" >&2
+                echo "Available modules: ${all_modules}" >&2
+                exit 1
+              fi
+              ;;
+            *)
+              echo "Unsupported module_mode: ${module_mode}" >&2
+              exit 1
+              ;;
+          esac
+
+          selected_alpine="$(intersection_modules "${selected_modules}" "${alpine_modules}")"
+          selected_ubuntu="$(intersection_modules "${selected_modules}" "${ubuntu_modules}")"
+          selected_redhat="$(intersection_modules "${selected_modules}" "${redhat_modules}")"
+
+          targets_alpine="base"
+          for mod in ${selected_alpine}; do
+            targets_alpine="${targets_alpine} module-${mod}"
+          done
+
+          targets_ubuntu="base"
+          for mod in ${selected_ubuntu}; do
+            targets_ubuntu="${targets_ubuntu} module-${mod}"
+          done
+
+          targets_redhat="base"
+          for mod in ${selected_redhat}; do
+            targets_redhat="${targets_redhat} module-${mod}"
+          done
+
+          targets_alpine="$(normalize_modules "${targets_alpine}")"
+          targets_ubuntu="$(normalize_modules "${targets_ubuntu}")"
+          targets_redhat="$(normalize_modules "${targets_redhat}")"
+
+          echo "selected_modules=${selected_modules}" >> "${GITHUB_OUTPUT}"
+          echo "targets_alpine=${targets_alpine}" >> "${GITHUB_OUTPUT}"
+          echo "targets_ubuntu=${targets_ubuntu}" >> "${GITHUB_OUTPUT}"
+          echo "targets_redhat=${targets_redhat}" >> "${GITHUB_OUTPUT}"
+          echo "Resolved matrix targets (alpine): ${targets_alpine}"
+          echo "Resolved matrix targets (ubuntu): ${targets_ubuntu}"
+          echo "Resolved matrix targets (redhat): ${targets_redhat}"
+
+      - name: Set matrix
         id: set-matrix
+        env:
+          TARGETS_ALPINE: ${{ steps.resolve-targets.outputs.targets_alpine }}
+          TARGETS_UBUNTU: ${{ steps.resolve-targets.outputs.targets_ubuntu }}
+          TARGETS_REDHAT: ${{ steps.resolve-targets.outputs.targets_redhat }}
         run: |
-          for os in alpine ubuntu; do
-            jq -nRr '"matrix-" + $os +"=" + ( { include: [ $ARGS.positional[] | {target: . } ] } | tojson)' --arg os "$os" --args $targets >> "$GITHUB_OUTPUT"
-          done
-          for os in redhat; do
-            jq -nRr '"matrix-" + $os +"=" + ( { include: [ $ARGS.positional[] | {target: . } ] } | tojson)' --arg os "$os" --args ${targets/ module-geoip/} >> "$GITHUB_OUTPUT"
-          done
+          jq -nRr '"matrix-alpine=" + ({ include: [ $ARGS.positional[] | {target: .} ] } | tojson)' --args ${TARGETS_ALPINE} >> "${GITHUB_OUTPUT}"
+          jq -nRr '"matrix-ubuntu=" + ({ include: [ $ARGS.positional[] | {target: .} ] } | tojson)' --args ${TARGETS_UBUNTU} >> "${GITHUB_OUTPUT}"
+          jq -nRr '"matrix-redhat=" + ({ include: [ $ARGS.positional[] | {target: .} ] } | tojson)' --args ${TARGETS_REDHAT} >> "${GITHUB_OUTPUT}"
 
   alpine:
     needs: generate-matrix
@@ -166,6 +318,7 @@ jobs:
             make \
             rpm-build \
             which \
+            wget \
             xz \
             'dnf-command(config-manager)'
           dnf config-manager --set-enabled crb
@@ -186,7 +339,7 @@ jobs:
               spec="nginx-${{ matrix.target }}.spec"
               ;;
           esac
-          make "$spec"
+          make "${spec}"
           dnf -y builddep "./${spec}"
           make "${{ matrix.target }}"
 

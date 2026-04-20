@@ -94,6 +94,29 @@ on:
         required: true
         default: "3.20"
         type: string
+      run_generate_matrix:
+        description: "Run generate-matrix workflow after version/module resolve"
+        required: true
+        default: true
+        type: boolean
+      matrix_module_mode:
+        description: "Module selection mode for generate-matrix"
+        required: true
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - custom
+      matrix_modules_override:
+        description: "Space-separated module list for generate-matrix when mode=custom"
+        required: false
+        default: ""
+        type: string
+      show_available_matrix_modules:
+        description: "Print available modules in generate-matrix logs"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   detect:
@@ -312,6 +335,65 @@ jobs:
           echo "- RPM: ${rpm_modules}"
           echo "- DEB: ${deb_modules}"
           echo "- Alpine: ${alpine_modules}"
+
+  resolve-matrix-modules:
+    if: ${{ needs.detect.outputs.should_build == 'true' }}
+    needs:
+      - detect
+      - resolve-modules
+    runs-on: ubuntu-latest
+    outputs:
+      matrix_modules: ${{ steps.resolve.outputs.matrix_modules }}
+    steps:
+      - name: Resolve matrix module set
+        id: resolve
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          MODE_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.matrix_module_mode || 'auto' }}
+          OVERRIDE_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.matrix_modules_override || '' }}
+          RPM_MODULES: ${{ needs['resolve-modules'].outputs.rpm_modules }}
+          DEB_MODULES: ${{ needs['resolve-modules'].outputs.deb_modules }}
+          ALPINE_MODULES: ${{ needs['resolve-modules'].outputs.alpine_modules }}
+        run: |
+          set -euo pipefail
+
+          normalize_modules() {
+            local raw="$1"
+            if [[ -z "${raw//[[:space:]]/}" ]]; then
+              echo ""
+              return
+            fi
+            echo "$raw" | xargs -n1 | awk 'NF && !seen[$0]++' | xargs
+          }
+
+          union_modules="$(normalize_modules "${RPM_MODULES} ${DEB_MODULES} ${ALPINE_MODULES}")"
+          mode="${MODE_INPUT}"
+          override="$(normalize_modules "${OVERRIDE_INPUT}")"
+
+          matrix_modules="${union_modules}"
+          if [[ "${mode}" == "custom" ]]; then
+            if [[ -z "${override}" ]]; then
+              echo "matrix_module_mode=custom requires non-empty matrix_modules_override" >&2
+              exit 1
+            fi
+            matrix_modules="${override}"
+          fi
+
+          echo "matrix_modules=${matrix_modules}" >> "${GITHUB_OUTPUT}"
+          echo "Resolved matrix modules: ${matrix_modules}"
+
+  generate-matrix-checks:
+    if: ${{ needs.detect.outputs.should_build == 'true' && (github.event_name != 'workflow_dispatch' || inputs.run_generate_matrix) }}
+    needs:
+      - detect
+      - resolve-modules
+      - resolve-matrix-modules
+    uses: ./.github/workflows/generate-matrix.yml
+    with:
+      module_mode: custom
+      custom_modules: ${{ needs['resolve-matrix-modules'].outputs.matrix_modules }}
+      show_available_modules: ${{ github.event_name == 'workflow_dispatch' && inputs.show_available_matrix_modules || false }}
 
   build-rpm:
     if: ${{ needs.detect.outputs.should_build == 'true' }}

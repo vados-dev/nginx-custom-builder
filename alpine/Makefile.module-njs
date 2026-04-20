@@ -10,7 +10,7 @@ MODULE_RELEASE_njs=	1
 
 MODULE_SOURCES_njs= \
 					njs-$(NJS_VERSION).tar.gz \
-					quickjs-$(QUICKJS_VERSION).tar.xz
+					quickjs-$(QUICKJS_VERSION)-$(QUICKJS_GITHASH).tar.gz
 
 MODULE_CONFARGS_njs=	--add-dynamic-module=$(MODSRC_PREFIX)njs-$(NJS_VERSION)/nginx
 
@@ -31,7 +31,7 @@ endef
 export MODULE_ADD_CONTROL_TAGS_njs
 
 define MODULE_PREBUILD_njs
-	cd ../quickjs-$(QUICKJS_VERSION) \&\& \
+	cd ../quickjs-$(QUICKJS_GITHASH) \&\& \
 	make $$_make_opts install PREFIX=$$builddir/prebuilt/ \&\& \
 	cd ../njs-$(NJS_VERSION) \&\& \
 	sed -i.bak 's,-lquickjs.lto ,-lquickjs.lto -latomic ,g' auto/quickjs \&\& \

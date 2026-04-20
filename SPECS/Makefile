@@ -113,6 +113,7 @@ modname = $(shell basename "$1" | sed -e 's#^nginx-module-##' -e 's#\.spec$$##' 
 
 default:
 	@echo "valid targets: all clean cln tree base $(addprefix module-, $(MODULES)) test test-debug"
+	@echo "list targets: list list-all-modules"
 
 all:
 	@$(MAKE) clean
@@ -126,6 +127,16 @@ tree:
 	@echo "===> setuptree done"
 
 modules:	$(addprefix module-, $(MODULES))
+
+list-base:
+	@printf 'base\n'
+
+list-module-%:
+	@printf '%s\n' "$*"
+
+list-all-modules: $(addprefix list-module-, $(MODULES))
+
+list: list-base list-all-modules
 
 specs:
 	@rm -f nginx.spec nginx-module-*.spec
@@ -292,8 +303,8 @@ nginx-module-%.spec:
 	post=`echo "$$MODULE_POST_$(subst -,_,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
 	cat $(MODULE_SPEC_TEMPLATE) | sed \
 		-e "s#%%NAME%%#$${pkgname}#g" \
-		-e "s#%%MODULE_PACKAGE_VENDOR%%#$(MODULE_PACKAGE_VENDOR_$(subst -,_,$*))#g" \
-		-e "s#%%MODULE_PACKAGE_URL%%#$(MODULE_PACKAGE_URL_$(subst -,_,$*))#g" \
+		-e "s#%%MODULE_PACKAGE_VENDOR%%#$(if $(strip $(MODULE_PACKAGE_VENDOR_$(subst -,_,$*))),$(strip $(MODULE_PACKAGE_VENDOR_$(subst -,_,$*))),$(PACKAGE_VENDOR))#g" \
+		-e "s#%%MODULE_PACKAGE_URL%%#$(if $(strip $(MODULE_PACKAGE_URL_$(subst -,_,$*))),$(strip $(MODULE_PACKAGE_URL_$(subst -,_,$*))),$(PACKAGE_URL))#g" \
 		-e "s#%%MODULE_PACKAGE_LICENSE%%#$(if $(strip $(MODULE_PACKAGE_LICENSE_$(subst -,_,$*))),$(strip $(MODULE_PACKAGE_LICENSE_$(subst -,_,$*))),$(PACKAGE_LICENSE))#g" \
 		-e "s#%%SUMMARY%%#$(MODULE_SUMMARY_PREFIX) $(MODULE_SUMMARY_$(subst -,_,$*))#g" \
 		-e "s#%%SHORT_SUMMARY%%#$(MODULE_SUMMARY_$(subst -,_,$*))#g" \
@@ -538,7 +549,7 @@ detect-module-licenses:
 	fi ; \
 	}
 
-.PHONY:	default all modules specs stage-sources test test-debug clean cln detect-module-licenses
+.PHONY:	default all modules specs stage-sources test test-debug clean cln detect-module-licenses list list-base list-all-modules
 
 
 .SECONDARY:
