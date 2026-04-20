@@ -50,7 +50,14 @@ BUILD_DIR=	$$(BUILDDIR_nginx)
 
 BASE_MODULES=	otel
 
+<<<<<<< Updated upstream
 MODULES	?=
+=======
+# Unified module selection point:
+# - module metadata stays in Makefile.module-*
+# - enabled set is controlled only here.
+MODULES?=
+>>>>>>> Stashed changes
 
 -include Makefile.module-*
 
