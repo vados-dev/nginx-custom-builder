@@ -119,40 +119,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install build dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          dnf -y install dnf-plugins-core
-          dnf config-manager --set-enabled crb || true
-          dnf -y install epel-release || true
-          dnf -y install \
-            rpm-build \
-            rpmdevtools \
-            rpm-sign \
-            redhat-rpm-config \
-            gcc \
-            make \
-            curl \
-            git \
-            gnupg2 \
-            cpio \
-            systemd \
-            createrepo_c \
-            rust \
-            cargo \
-            clang \
-            pkgconf-pkg-config \
-            zlib-devel \
-            pcre2-devel \
-            openssl-devel \
-            gd-devel \
-            libxslt-devel \
-            perl-devel \
-            perl-ExtUtils-Embed \
-            cmark-devel \
-            mercurial
-
       - name: Prepare sources from nginx SRPM
         id: prepare
         shell: bash

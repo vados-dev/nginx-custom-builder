@@ -161,12 +161,6 @@ jobs:
       state_changed: ${{ steps.detect.outputs.state_changed }}
       detect_report: ${{ steps.detect.outputs.detect_report }}
     steps:
-      - name: Install git for checkout
-        shell: bash
-        run: |
-          set -euo pipefail
-          dnf -y install git
-
       - name: Checkout
         uses: actions/checkout@v6
 
@@ -180,16 +174,6 @@ jobs:
           echo "sha=${{ github.sha }}"
           echo "actor=${{ github.actor }}"
           echo "utc_now=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-
-      - name: Install check dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          for i in 1 2 3; do
-            dnf -y install dnf-plugins-core rpm git jq && break
-            echo "Retry dnf install ($i/3)" >&2
-            sleep 5
-          done
 
       - name: Detect latest source version
         id: detect
