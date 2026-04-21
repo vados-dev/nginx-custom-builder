@@ -52,7 +52,7 @@ MODULES=
 -include Makefile.module-*
 
 DISCOVERED_MODULES := $(strip $(MODULES))
-ENABLED_MODULES ?= acme error-page-inherit include-server markdown-filter
+ENABLED_MODULES ?= image-filter perl xslt markdown-filter acme njs error-page-inherit include-server
 MODULES := $(strip $(filter $(ENABLED_MODULES),$(DISCOVERED_MODULES)))
 
 BASE_CONFIGURE_ARGS=\

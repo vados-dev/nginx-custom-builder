@@ -94,6 +94,13 @@ jobs:
             normalize_modules "${result}"
           }
 
+          modules_from_makefiles() {
+            local dir="$1"
+            find "${dir}" -maxdepth 1 -type f -name 'Makefile.module-*' -printf '%f\n' \
+              | sed 's/^Makefile\.module-//' \
+              | xargs || true
+          }
+
           event_mode="$(jq -r '.inputs.module_mode // empty' "${GITHUB_EVENT_PATH}")"
           event_custom="$(jq -r '.inputs.custom_modules // empty' "${GITHUB_EVENT_PATH}")"
           event_show="$(jq -r '.inputs.show_available_modules // empty' "${GITHUB_EVENT_PATH}")"
@@ -102,24 +109,28 @@ jobs:
           custom_modules="${event_custom:-}"
           show_available="${event_show:-false}"
 
-          debian_modules="$(make --no-print-directory -C debian list-all-modules | awk '{print $1}' | xargs || true)"
-          debian_modules="$(normalize_modules "${debian_modules}")"
+          debian_default_modules="$(make --no-print-directory -C debian list-all-modules | awk '{print $1}' | xargs || true)"
+          debian_default_modules="$(normalize_modules "${debian_default_modules}")"
+          debian_all_modules="$(modules_from_makefiles debian)"
+          debian_all_modules="$(normalize_modules "${debian_all_modules}")"
 
-          alpine_modules="$(make --no-print-directory -C alpine list-all-modules | awk '{print $1}' | xargs || true)"
-          alpine_modules="$(normalize_modules "${alpine_modules}")"
+          alpine_default_modules="$(make --no-print-directory -C alpine list-all-modules | awk '{print $1}' | xargs || true)"
+          alpine_default_modules="$(normalize_modules "${alpine_default_modules}")"
+          alpine_all_modules="$(modules_from_makefiles alpine)"
+          alpine_all_modules="$(normalize_modules "${alpine_all_modules}")"
 
-          redhat_modules="$(make --no-print-directory -C SPECS list-all-modules | awk '{print $1}' | xargs || true)"
-          redhat_modules="$(normalize_modules "${redhat_modules}")"
+          redhat_default_modules="$(make --no-print-directory -C SPECS list-all-modules | awk '{print $1}' | xargs || true)"
+          redhat_default_modules="$(normalize_modules "${redhat_default_modules}")"
+          redhat_all_modules="$(modules_from_makefiles SPECS)"
+          redhat_all_modules="$(normalize_modules "${redhat_all_modules}")"
 
-          ubuntu_modules=""
-          for mod in ${debian_modules}; do
-            if [[ -f "docs/nginx-module-${mod}.xml" ]]; then
-              ubuntu_modules="${ubuntu_modules} ${mod}"
-            fi
-          done
-          ubuntu_modules="$(normalize_modules "${ubuntu_modules}")"
+          # Keep Ubuntu module discovery aligned with Debian Makefile modules.
+          # docs/nginx-module-*.xml is incomplete for custom modules.
+          ubuntu_default_modules="${debian_default_modules}"
+          ubuntu_all_modules="${debian_all_modules}"
 
-          all_modules="$(normalize_modules "${debian_modules} ${alpine_modules} ${redhat_modules}")"
+          default_modules="$(normalize_modules "${debian_default_modules} ${alpine_default_modules} ${redhat_default_modules}")"
+          all_modules="$(normalize_modules "${debian_all_modules} ${alpine_all_modules} ${redhat_all_modules}")"
 
           if [[ -z "${all_modules}" ]]; then
             echo "No modules discovered across debian/alpine/redhat" >&2
@@ -127,16 +138,20 @@ jobs:
           fi
 
           if [[ "${show_available}" == "true" ]]; then
+            echo "Default modules (global): ${default_modules}"
             echo "Available modules (global): ${all_modules}"
-            echo "Available modules (ubuntu docs-backed): ${ubuntu_modules}"
-            echo "Available modules (alpine): ${alpine_modules}"
-            echo "Available modules (redhat): ${redhat_modules}"
+            echo "Default modules (ubuntu): ${ubuntu_default_modules}"
+            echo "Available modules (ubuntu): ${ubuntu_all_modules}"
+            echo "Default modules (alpine): ${alpine_default_modules}"
+            echo "Available modules (alpine): ${alpine_all_modules}"
+            echo "Default modules (redhat): ${redhat_default_modules}"
+            echo "Available modules (redhat): ${redhat_all_modules}"
           fi
 
           selected_modules=""
           case "${module_mode}" in
             auto)
-              selected_modules="${all_modules}"
+              selected_modules="${default_modules}"
               ;;
             custom)
               selected_modules="$(normalize_modules "${custom_modules}")"
@@ -162,9 +177,9 @@ jobs:
               ;;
           esac
 
-          selected_alpine="$(intersection_modules "${selected_modules}" "${alpine_modules}")"
-          selected_ubuntu="$(intersection_modules "${selected_modules}" "${ubuntu_modules}")"
-          selected_redhat="$(intersection_modules "${selected_modules}" "${redhat_modules}")"
+          selected_alpine="$(intersection_modules "${selected_modules}" "${alpine_all_modules}")"
+          selected_ubuntu="$(intersection_modules "${selected_modules}" "${ubuntu_all_modules}")"
+          selected_redhat="$(intersection_modules "${selected_modules}" "${redhat_all_modules}")"
 
           targets_alpine="base"
           for mod in ${selected_alpine}; do

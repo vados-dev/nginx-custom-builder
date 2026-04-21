@@ -4,6 +4,7 @@
 
 include $(dir $(abspath $(lastword $(MAKEFILE_LIST))))/version
 NGINX_ACME_URL := $(GITHUB)/nginx/nginx-acme/releases/download/v$(NGINX_ACME_VERSION)/nginx-acme-$(NGINX_ACME_VERSION).tar.gz
+NGINX_ACME_VENDOR_URL := $(CONTRIB_NGINX)/nginx-acme/nginx-acme-$(NGINX_ACME_VERSION)-vendor.tar.gz
 
 CARGO := $(shell command -v cargo 2> /dev/null)
 
@@ -37,8 +38,10 @@ cargo_vendor_archive = \
 	rm -rf $${TMP_DIR} ; \
 	mv $${name}.tar.gz $(TARBALLS)/ ;
 
-nginx-acme-$(NGINX_ACME_VERSION)-vendor.tar.gz: nginx-acme-$(NGINX_ACME_VERSION).tar.gz
-	$(call cargo_vendor_archive,$<)
+$(TARBALLS)/nginx-acme-$(NGINX_ACME_VERSION)-vendor.tar.gz: $(TARBALLS)/nginx-acme-$(NGINX_ACME_VERSION).tar.gz
+	$(call download,$(NGINX_ACME_VENDOR_URL)) || \
+	( test -n "$(CARGO)" && $(call cargo_vendor_archive,$<) ) || \
+	( echo "Unable to fetch nginx-acme vendor tarball and cargo is unavailable to generate it" >&2 ; false )
 
 nginx-acme: nginx-acme-$(NGINX_ACME_VERSION).tar.gz .sum-nginx-acme
 	$(UNPACK)
