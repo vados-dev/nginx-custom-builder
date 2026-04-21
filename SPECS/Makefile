@@ -209,7 +209,7 @@ nginx-module-%.spec:
 				s="`printf "src=%%{SOURCE%d}; file=$${src##*/}; curl -fL \"$${src}\" -o \"$${file}\"; tar -xf \"$${file}\"" $${i}`" ;; \
 			*.tar|*.tar.gz|*.tgz|*.tar.bz2|*.tbz2|*.tar.xz|*.txz) \
 				if [ -f "$(CONTRIB)/tarballs/$${src}" ]; then \
-					ln -sf "$(CONTRIB)/tarballs/$${src}" "$(SRCPATH)/$${src}" ; \
+					cp -f "$(CONTRIB)/tarballs/$${src}" "$(SRCPATH)/$${src}" ; \
 				elif [ ! -f "$(SRCPATH)/$${src}" ]; then \
 					echo "local source missing: $${src}" >&2 ; \
 					exit 1 ; \
