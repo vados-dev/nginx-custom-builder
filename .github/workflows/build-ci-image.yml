@@ -3,6 +3,7 @@ name: Build CI Image
 permissions:
   contents: write
   packages: write
+  workflows: write
 
 on:
   workflow_dispatch:
