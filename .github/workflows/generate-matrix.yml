@@ -11,7 +11,7 @@ on:
       module_mode:
         description: "How to select modules for matrix targets"
         required: true
-        default: "auto"
+        default: "custom"
         type: choice
         options:
           - auto
@@ -19,7 +19,7 @@ on:
       custom_modules:
         description: "Space-separated module list when module_mode=custom"
         required: false
-        default: ""
+        default: "image-filter perl xslt markdown-filter acme njs error-page-inherit include-server"
         type: string
       show_available_modules:
         description: "Print available modules from debian/list-all-modules"
@@ -34,7 +34,7 @@ on:
         type: string
       custom_modules:
         required: false
-        default: ""
+        default: "image-filter perl xslt markdown-filter acme njs error-page-inherit include-server"
         type: string
       show_available_modules:
         required: false
@@ -106,8 +106,19 @@ jobs:
           event_custom="$(jq -r '.inputs.custom_modules // empty' "${GITHUB_EVENT_PATH}")"
           event_show="$(jq -r '.inputs.show_available_modules // empty' "${GITHUB_EVENT_PATH}")"
 
-          module_mode="${event_mode:-auto}"
+          default_custom_modules="image-filter perl xslt markdown-filter acme njs error-page-inherit include-server"
+          module_mode="${event_mode:-}"
           custom_modules="${event_custom:-}"
+          if [[ -z "${module_mode}" ]]; then
+            if [[ "${GITHUB_EVENT_NAME:-}" == "push" ]]; then
+              module_mode="custom"
+            else
+              module_mode="auto"
+            fi
+          fi
+          if [[ -z "${custom_modules//[[:space:]]/}" ]]; then
+            custom_modules="${default_custom_modules}"
+          fi
           show_available="${event_show:-false}"
 
           debian_default_modules="$(make --no-print-directory -C debian list-all-modules | awk '{print $1}' | xargs || true)"
