@@ -1,10 +1,3 @@
-Alpine APK repository layout
-Channels:
-Channels:
-- stable
-- mainline
-Architectures:
-- x86_64
-- aarch64
-Expected path pattern:
-- repo/alpine/v3.20/<channel>/<arch>/
+Custom Alpine APK repository
+Channels: stable, mainline
+Path pattern: repo/alpine/v3.20/<channel>/<arch>/
