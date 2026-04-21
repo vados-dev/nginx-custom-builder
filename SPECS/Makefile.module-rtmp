@@ -1,0 +1,34 @@
+MODULES+=	rtmp
+
+MODULE_SUMMARY_rtmp=	3rd-party RTMP dynamic module
+
+MODULE_CONTRIB_DEPS_rtmp=	nginx-rtmp-module
+
+include $(foreach dep,$(MODULE_CONTRIB_DEPS_rtmp),$(CONTRIB)/src/$(dep)/version)
+
+MODULE_VERSION_rtmp=	$(NGINX_RTMP_MODULE_VERSION)
+MODULE_RELEASE_rtmp=	1
+
+MODULE_VERSION_PREFIX_rtmp=$(MODULE_TARGET_PREFIX)
+
+MODULE_SOURCES_rtmp=	nginx-rtmp-module-$(NGINX_RTMP_MODULE_VERSION).tar.gz
+
+MODULE_CONFARGS_rtmp=	--add-dynamic-module=nginx-rtmp-module-$(NGINX_RTMP_MODULE_VERSION)
+
+define MODULE_POST_rtmp
+cat <<BANNER
+----------------------------------------------------------------------
+
+The $(MODULE_SUMMARY_rtmp) for $(MODULE_SUMMARY_PREFIX) has been installed.
+To enable this module, add the following to /etc/nginx/nginx.conf
+and reload nginx:
+
+    load_module modules/ngx_rtmp_module.so;
+
+Please refer to the module documentation for further details:
+https://github.com/arut/nginx-rtmp-module
+
+----------------------------------------------------------------------
+BANNER
+endef
+export MODULE_POST_rtmp

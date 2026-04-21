@@ -107,9 +107,12 @@ BASE_CONFIGURE_ARGS=\
 	$(STANDARD_CONFIGURE_MODULES) \
 	$(EXTRA_BASE_CONFIGURE_ARGS)
 
+include $(CONTRIB)/attestation.mak
+
 export CR=\\n
 
-modname = $(shell basename "$(1)" | sed -e 's#^nginx-module-##' -e 's#\.spec$$##' | tr '-' '_')
+modname = $(shell echo $1 | tr '-' '_')
+#modname = $(shell basename "$(1)" | sed -e 's#^nginx-module-##' -e 's#\.spec$$##' | tr '-' '_')
 
 default:
 	@echo "valid targets: all clean cln tree base $(addprefix module-, $(MODULES)) test test-debug"
@@ -129,12 +132,15 @@ tree:
 modules:	$(addprefix module-, $(MODULES))
 
 list-base:
-	@printf 'base\n'
+	@printf "%-20s\t%s\n" nginx $(BASE_VERSION)-$(BASE_RELEASE)
 
 list-module-%:
-	@printf '%s\n' "$*"
+	@printf "%-20s\t%s\n" $* $(MODULE_VERSION_$(call modname, $*))-$(MODULE_RELEASE_$(call modname, $*))
+#	@printf '%s\n' "$*"
 
 list-all-modules: $(addprefix list-module-, $(MODULES))
+
+list-base-modules: $(addprefix list-module-, $(BASE_MODULES))
 
 list: list-base list-all-modules
 

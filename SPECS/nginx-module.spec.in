@@ -1,65 +1,74 @@
 #
-%global debug_package %{nil}
-%global _debuginfo_subpackages 0
-
 %define nginx_user nginx
 %define nginx_group nginx
 
-%if 0%{?rhel} || 0%{?amzn}
+%define __arch_install_post   /usr/lib/rpm/check-rpaths   /usr/lib/rpm/check-buildroot
+
+%if 0%{?rhel} || 0%{?amzn} || 0%{?fedora}
 %define _group System Environment/Daemons
+%if 0%{?amzn} == 2
+BuildRequires: openssl11-devel
+%else
 BuildRequires: openssl-devel
 %endif
+%endif
 
-%if 0%{?suse_version} == 1315
+%if 0%{?suse_version} >= 1315
 %define _group Productivity/Networking/Web/Servers
 BuildRequires: libopenssl-devel
+%define _debugsource_template %{nil}
 %endif
 
-%if 0%{?rhel} == 7
-BuildRequires: redhat-lsb-core
+%if (0%{?rhel} == 7) && (0%{?amzn} == 0)
 %define epoch 1
 Epoch: %{epoch}
-%define os_minor %(lsb_release -rs | cut -d '.' -f 2)
-%if %{os_minor} >= 4
-%define dist .el7_4
-%else
 %define dist .el7
 %endif
+
+%if (0%{?rhel} == 7) && (0%{?amzn} == 2)
+%define epoch 1
+Epoch: %{epoch}
 %endif
 
 %if 0%{?rhel} == 8
 %define epoch 1
 Epoch: %{epoch}
+%define _debugsource_template %{nil}
 %endif
 
 %if 0%{?rhel} == 9
-%define epoch 2
+%define epoch 1
 Epoch: %{epoch}
+%define _debugsource_template %{nil}
 %endif
 
 %if 0%{?rhel} == 10
-%define epoch 2
+%define epoch 1
 Epoch: %{epoch}
+%define _debugsource_template %{nil}
+%endif
+
+%if 0%{?fedora}
+%define _debugsource_template %{nil}
+%global _hardened_build 1
 %endif
 
 %%MODULE_DEFINITIONS%%
 
 %define base_version %%BASE_VERSION%%
 %define base_release %%BASE_RELEASE%%%{?dist}.ngx
-%define main_version %%MAIN_VERSION%%
-%define main_release %%MAIN_RELEASE%%
 
 %define bdir %{_builddir}/%{name}-%{base_version}
 
 Summary: %%SUMMARY%%
 Name: %%NAME%%
-Version: %%MODULE_VERSION_PREFIX%%%%VERSION%%
+Version: %%VERSION_PREFIX%%%%VERSION%%
 Release: %%RELEASE%%%{?dist}.ngx
-Vendor: %%MODULE_PACKAGE_VENDOR%%
+Vendor: %%PACKAGE_VENDOR%%
 URL: %%MODULE_PACKAGE_URL%%
 Group: %{_group}
 
-Source0: nginx-%{main_version}.tar.gz
+Source0: https://nginx.org/download/nginx-%{base_version}.tar.gz
 Source1: %%COPYRIGHT_SOURCE%%
 %%MODULE_SOURCES%%
 
@@ -67,23 +76,31 @@ Source1: %%COPYRIGHT_SOURCE%%
 
 License: %%MODULE_PACKAGE_LICENSE%%
 
-BuildRoot: %{_tmppath}/%{name}-%{main_version}-%{main_release}-root
+BuildRoot: %{_tmppath}/%{name}-%{base_version}-%{base_release}-root
 BuildRequires: zlib-devel
 BuildRequires: pcre2-devel
-Requires: nginx = %{?epoch:%{epoch}:}%%MAIN_VERSION%%-%%MAIN_RELEASE%%%{?dist}.ngx
+Requires: nginx-r%{base_version}
+Provides: %{name}-r%{base_version}
 
 %description
 nginx %%SHORT_SUMMARY%%.
 
+%if ( 0%{?suse_version} && 0%{?suse_version} < 1600 )
+%debug_package
+%endif
+
 %define WITH_CC_OPT $(echo %{optflags} $(pcre2-config --cflags))
-%define WITH_LD_OPT -Wl,-z,relro -Wl,-z,now
+%define WITH_LD_OPT -Wl,-z,relro -Wl,-z,now -Wl,-as-needed
 
 %define BASE_CONFIGURE_ARGS $(echo "%%BASE_CONFIGURE_ARGS%%")
 %define MODULE_CONFIGURE_ARGS $(echo "%%MODULE_CONFIGURE_ARGS%%")
 
 %prep
-%setup -qcTn %{name}-%{main_version}
+%setup -qcTn %{name}-%{base_version}
 tar --strip-components=1 -zxf %{SOURCE0}
+
+ln -s . nginx%{?base_suffix}
+
 %%MODULE_PREP_SOURCES%%
 %%MODULE_PREP_PATCHES%%
 
@@ -92,17 +109,18 @@ tar --strip-components=1 -zxf %{SOURCE0}
 cd %{bdir}
 %%MODULE_ENV%%
 ./configure %{BASE_CONFIGURE_ARGS} %{MODULE_CONFIGURE_ARGS} \
-	--with-cc-opt="%{WITH_CC_OPT}" \
-	--with-ld-opt="%{WITH_LD_OPT}" \
+	--with-cc-opt="%{WITH_CC_OPT} %%MODULE_CC_OPT_DEBUG%%" \
+	--with-ld-opt="%{WITH_LD_OPT} %%MODULE_LD_OPT_DEBUG%%" \
 	--with-debug
 make %{?_smp_mflags} modules
 for so in `find %{bdir}/objs/ -type f -name "*.so"`; do
-debugso=`echo $so | sed -e "s|.so|-debug.so|"`
+debugso=`echo $so | sed -e 's|\.so$|-debug.so|'`
 mv $so $debugso
 done
+%%MODULE_ENV%%
 ./configure %{BASE_CONFIGURE_ARGS} %{MODULE_CONFIGURE_ARGS} \
-	--with-cc-opt="%{WITH_CC_OPT}" \
-	--with-ld-opt="%{WITH_LD_OPT}"
+	--with-cc-opt="%{WITH_CC_OPT} %%MODULE_CC_OPT%%" \
+	--with-ld-opt="%{WITH_LD_OPT} %%MODULE_LD_OPT%%"
 make %{?_smp_mflags} modules
 
 %install
@@ -110,7 +128,7 @@ cd %{bdir}
 %{__rm} -rf $RPM_BUILD_ROOT
 %{__mkdir} -p $RPM_BUILD_ROOT%{_datadir}/doc/%%NAME%%
 %{__install} -m 644 -p %{SOURCE1} \
-    $RPM_BUILD_ROOT%{_datadir}/doc/%%NAME%%/
+    $RPM_BUILD_ROOT%{_datadir}/doc/%%NAME%%/COPYRIGHT
 
 %%MODULE_PREINSTALL%%
 
@@ -119,6 +137,15 @@ for so in `find %{bdir}/objs/ -maxdepth 1 -type f -name "*.so"`; do
 %{__install} -m755 $so \
    $RPM_BUILD_ROOT%{_libdir}/nginx/modules/
 done
+
+%check
+%{__rm} -rf $RPM_BUILD_ROOT/usr/src
+cd %{bdir}
+grep -v 'usr/src' debugfiles.list > debugfiles.list.new && mv debugfiles.list.new debugfiles.list
+cat /dev/null > debugsources.list
+%if 0%{?suse_version} >= 1500
+cat /dev/null > debugsourcefiles.list
+%endif
 
 %clean
 %{__rm} -rf $RPM_BUILD_ROOT
