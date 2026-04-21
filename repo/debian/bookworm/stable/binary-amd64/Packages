@@ -1,0 +1,296 @@
+Package: nginx-module-acme
+Version: 1.30.0+0.3.1-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 8452
+Depends: libc6 (>= 2.34), libgcc-s1 (>= 4.2), nginx-r1.30.0
+Provides: nginx-module-acme-r1.30.0
+Filename: ./nginx-module-acme_1.30.0+0.3.1-1~bookworm_amd64.deb
+Size: 2110444
+MD5sum: 6f21aac180e5c6cf63df1adf2fd4c752
+SHA1: 2be880992d029fd74977c2e9ec7b2a76b922fe30
+SHA256: 043773db074ffef9e3bf8c9d902b10fe1398f1a35584cd240c284e72374cab4a
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx nginx-acme
+ nginx-acme for nginx
+
+Package: nginx-module-acme-dbg
+Source: nginx-module-acme
+Version: 1.30.0+0.3.1-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 10475
+Depends: nginx (= 1.30.0-1~bookworm), nginx-module-acme (= 1.30.0+0.3.1-1~bookworm)
+Filename: ./nginx-module-acme-dbg_1.30.0+0.3.1-1~bookworm_amd64.deb
+Size: 8429548
+MD5sum: ed7ab87aefd4f1bc93d80e2e7e8021cf
+SHA1: e6257fdef25606c06a927128f62a2be31974023c
+SHA256: 65d9ad1cc2d586208897e024c9d61bb2826e9c86b4af87f6626c5f3988b87dfc
+Section: debug
+Priority: optional
+Homepage: https://nginx.org/
+Description: debug symbols for the nginx-module-acme
+ nginx-acme for nginx (debug symbols)
+Build-Ids: 611882e7533f1f3c02bdf26f1eb777fe20945382 99a79c50ba6e64b913e2fe9acd4e14826ecd6bcb
+
+Package: nginx-module-error-page-inherit
+Version: 1.30.0+0.0.1-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 115
+Depends: nginx-r1.30.0
+Provides: nginx-module-error-page-inherit-r1.30.0
+Filename: ./nginx-module-error-page-inherit_1.30.0+0.0.1-1~bookworm_amd64.deb
+Size: 78012
+MD5sum: bc6add90de54f3ee5613cdafdb24b46e
+SHA1: 7cfa257e0a3e3f66b28155b94c93757c4d3f5c1f
+SHA256: e510dada359b3cdedc3da912bee921f58986ae57372e78604f292c35a95cda2e
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx enable support to error_page_inherit derective in nginx.conf.
+ enable support to error_page_inherit derective in nginx.conf. for nginx
+
+Package: nginx-module-error-page-inherit-dbg
+Source: nginx-module-error-page-inherit
+Version: 1.30.0+0.0.1-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 156
+Depends: nginx (= 1.30.0-1~bookworm), nginx-module-error-page-inherit (= 1.30.0+0.0.1-1~bookworm)
+Filename: ./nginx-module-error-page-inherit-dbg_1.30.0+0.0.1-1~bookworm_amd64.deb
+Size: 127540
+MD5sum: ff3180c0a7003aef3a74bbdb713e1385
+SHA1: df300f609933e16714c3c95a1606f9a32412cb83
+SHA256: 6efd63ec69da6525625176420d74ebdf3345ec194b89e378d2cf531c1ad53e40
+Section: debug
+Priority: optional
+Homepage: https://nginx.org/
+Description: debug symbols for the nginx-module-error-page-inherit
+ enable support to error_page_inherit derective in nginx.conf. for nginx (debug symbols)
+Build-Ids: 48e83470c978a3d9a7595d4c360911c8e24429a6 ed5249f29180f2d5408f37f89df93d8420438a05
+
+Package: nginx-module-image-filter
+Version: 1.30.0-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 140
+Depends: libc6 (>= 2.14), libgd3 (>= 2.1.0~alpha~), nginx-r1.30.0
+Provides: nginx-module-image-filter-r1.30.0
+Filename: ./nginx-module-image-filter_1.30.0-1~bookworm_amd64.deb
+Size: 88912
+MD5sum: 4a4ec4eb9be91e08eb8ffb034974abe7
+SHA1: 189a85bc46bd4b4214bbafcb0deb38a59cad68b7
+SHA256: 70052c7c490527705bd288e24514282a872a3a19998de660492507febe61c49a
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx image filter dynamic module
+ image filter dynamic module for nginx
+
+Package: nginx-module-image-filter-dbg
+Source: nginx-module-image-filter
+Version: 1.30.0-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 192
+Depends: nginx (= 1.30.0-1~bookworm), nginx-module-image-filter (= 1.30.0-1~bookworm)
+Filename: ./nginx-module-image-filter-dbg_1.30.0-1~bookworm_amd64.deb
+Size: 162632
+MD5sum: 5d3f7a631e0c64ee08ebec75aa15bb43
+SHA1: 5b1007699d984dde6ca7ff69b60d448f3b3d1ddb
+SHA256: 3b10675a47f85d525ca644e12787e1e5b6ce74a7bb6c77c5ca7fba61c59badfa
+Section: debug
+Priority: optional
+Homepage: https://nginx.org/
+Description: debug symbols for the nginx-module-image-filter
+ image filter dynamic module for nginx (debug symbols)
+Build-Ids: 7a83d728ae87b9a5db900258171970674af18767 87a5877c2c102b6a8fa0f815ba6c9117adfb62b4
+
+Package: nginx-module-include-server
+Version: 1.30.0+0.0.1-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 115
+Depends: nginx-r1.30.0
+Provides: nginx-module-include-server-r1.30.0
+Filename: ./nginx-module-include-server_1.30.0+0.0.1-1~bookworm_amd64.deb
+Size: 78180
+MD5sum: 2111af645ee353488c20838280a951e6
+SHA1: 07fb42d9aeac2ea8af7285a42387031a64d6afe9
+SHA256: e2ad737798ccd83f2fd7a45e571dfefa8cca9f44c6bab2f45a96ce3a2f750169
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx enable support to include_server derective in nginx.conf.
+ enable support to include_server derective in nginx.conf. for nginx
+
+Package: nginx-module-include-server-dbg
+Source: nginx-module-include-server
+Version: 1.30.0+0.0.1-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 126
+Depends: nginx (= 1.30.0-1~bookworm), nginx-module-include-server (= 1.30.0+0.0.1-1~bookworm)
+Filename: ./nginx-module-include-server-dbg_1.30.0+0.0.1-1~bookworm_amd64.deb
+Size: 102728
+MD5sum: 29588ca493afc95d21989f6e0e30d254
+SHA1: f0128ba3a164f2d517082bfeaae92f44de6da1b9
+SHA256: dd03c7042f4c174dfceba4a282210ca40e198ce2f652d5e7d8f30c116e742cf8
+Section: debug
+Priority: optional
+Homepage: https://nginx.org/
+Description: debug symbols for the nginx-module-include-server
+ enable support to include_server derective in nginx.conf. for nginx (debug symbols)
+Build-Ids: c8712d745551f4e3107b210b087a3f6cef3d168b e8e22aaa44fb6bea404aa59b767d3217f4234628
+
+Package: nginx-module-markdown-filter
+Version: 1.30.0+0.1.7-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 115
+Depends: libc6 (>= 2.33), libcmark0.30.2 (>= 0.30.2), nginx-r1.30.0
+Provides: nginx-module-markdown-filter-r1.30.0
+Filename: ./nginx-module-markdown-filter_1.30.0+0.1.7-1~bookworm_amd64.deb
+Size: 79708
+MD5sum: 8135a7520a9d1c6665053e7024dc998b
+SHA1: 5df42e4ca6eb497b66349994c3e3883898faa858
+SHA256: 9abf9b57172ad01f6085d1b30c4ace7bf723af5ff67b09750d727702f6a31284
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx Dynamic module markdown filter for nginx
+ Dynamic module markdown filter for nginx for nginx
+
+Package: nginx-module-markdown-filter-dbg
+Source: nginx-module-markdown-filter
+Version: 1.30.0+0.1.7-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 164
+Depends: nginx (= 1.30.0-1~bookworm), nginx-module-markdown-filter (= 1.30.0+0.1.7-1~bookworm)
+Filename: ./nginx-module-markdown-filter-dbg_1.30.0+0.1.7-1~bookworm_amd64.deb
+Size: 135316
+MD5sum: 9398a8f9a49e883007e3e7b6153b5e92
+SHA1: b1224df9a6014eb7878a60bdf009ad7882b6dc4c
+SHA256: 2820b39ab4175a9a6517c0768ee024932c0f357cfc09791c514746301e06a444
+Section: debug
+Priority: optional
+Homepage: https://nginx.org/
+Description: debug symbols for the nginx-module-markdown-filter
+ Dynamic module markdown filter for nginx for nginx (debug symbols)
+Build-Ids: 0948444237058d1b52e616d6cc530addb0603baa d0ed55d60ae6938290c6aece34fb89f2537e6f72
+
+Package: nginx-module-njs
+Version: 1.30.0+0.9.6-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 10530
+Depends: libc6 (>= 2.35), libedit2 (>= 3.1-20130611-0), libpcre2-8-0 (>= 10.32), libssl3 (>= 3.0.0), libxml2 (>= 2.7.4), zlib1g (>= 1:1.1.4), nginx-r1.30.0
+Provides: nginx-module-njs-r1.30.0
+Filename: ./nginx-module-njs_1.30.0+0.9.6-1~bookworm_amd64.deb
+Size: 1334964
+MD5sum: c523d1547b2e9249c77bb67316eed9dd
+SHA1: 7abbcaecdfbcf85c278319a411ae7537e9476d3e
+SHA256: a7ece34f38ed2084f1108ac659d0c6c46a5fe1cc566951051f752e7b3b9051ed
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx njs dynamic modules
+ njs dynamic modules for nginx
+
+Package: nginx-module-njs-dbg
+Source: nginx-module-njs
+Version: 1.30.0+0.9.6-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 16278
+Depends: nginx (= 1.30.0-1~bookworm), nginx-module-njs (= 1.30.0+0.9.6-1~bookworm)
+Filename: ./nginx-module-njs-dbg_1.30.0+0.9.6-1~bookworm_amd64.deb
+Size: 15241116
+MD5sum: 922062aef7617bde3aa2d550d9699604
+SHA1: 913c47c0c1fa510980743752612cbbdfb70ad01d
+SHA256: 1f31450ec0d92d0d04ffcd0105304ad6beba56c861fcc1a46aa9947188ba5805
+Section: debug
+Priority: optional
+Homepage: https://nginx.org/
+Description: debug symbols for the nginx-module-njs
+ njs dynamic modules for nginx (debug symbols)
+Build-Ids: 05a8f533a2aa8a6f0d48428ea5f5de78c82558d9 5ed3a15dd5d575b8fbaadf5384549fd2b24eea1a 7b6d4cc28517e13c58394062bc8d899cbc37f482 a0af790fe205f3bce038148d9d6b6e5005f1be6c eaedf0adb7f5a22cee5dfd9f58146c47f1eb2967
+
+Package: nginx-module-perl
+Version: 1.30.0-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 187
+Depends: libc6 (>= 2.34), libperl5.36 (>= 5.36.0), nginx-r1.30.0, perl (>= 5.36.0-7+deb12u3), perlapi-5.36.0
+Provides: nginx-module-perl-r1.30.0
+Filename: ./nginx-module-perl_1.30.0-1~bookworm_amd64.deb
+Size: 97320
+MD5sum: 98027dd5c4cde8f11c33a5de8a83ff4b
+SHA1: 969638fcb4b98aa99e2aeab8ffbdf07dd006850a
+SHA256: cd78c5dfa53bee4db0a4ac16d5b5d3eb93f2da595f176ad9288c49484b427806
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx Perl dynamic module
+ Perl dynamic module for nginx
+
+Package: nginx-module-perl-dbg
+Source: nginx-module-perl
+Version: 1.30.0-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 297
+Depends: nginx (= 1.30.0-1~bookworm), nginx-module-perl (= 1.30.0-1~bookworm)
+Filename: ./nginx-module-perl-dbg_1.30.0-1~bookworm_amd64.deb
+Size: 264100
+MD5sum: 2144b333b5b46a9eee8f6a250cea055c
+SHA1: 1403842fa36d73ed7f3e9f874ea9b50fec1a4aff
+SHA256: f2d4273fd9461fc075c36daa56ecf157d7f13cf01b1d937e85a5c4a1f6e5c6de
+Section: debug
+Priority: optional
+Homepage: https://nginx.org/
+Description: debug symbols for the nginx-module-perl
+ Perl dynamic module for nginx (debug symbols)
+Build-Ids: 4693c73aa1178999554974387b602787ad5c0fa8 84b380261d3827670b4786ba2a3be9e8d2005094 dc1c6943e185986405b425f007bb73d26f24c7dc
+
+Package: nginx-module-xslt
+Version: 1.30.0-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 132
+Depends: libc6 (>= 2.14), libxml2 (>= 2.7.4), libxslt1.1 (>= 1.1.25), nginx-r1.30.0
+Provides: nginx-module-xslt-r1.30.0
+Filename: ./nginx-module-xslt_1.30.0-1~bookworm_amd64.deb
+Size: 86088
+MD5sum: e14059e3e5157ae847c8412b7a191555
+SHA1: a9c8e8b97d2cc9cca5427f151a7f8c131f19f032
+SHA256: fcf18850a2e46cbb6dfece8d473c1d9f3f62415947cac1744bdd2808a4e9e810
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx xslt dynamic module
+ xslt dynamic module for nginx
+
+Package: nginx-module-xslt-dbg
+Source: nginx-module-xslt
+Version: 1.30.0-1~bookworm
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 209
+Depends: nginx (= 1.30.0-1~bookworm), nginx-module-xslt (= 1.30.0-1~bookworm)
+Filename: ./nginx-module-xslt-dbg_1.30.0-1~bookworm_amd64.deb
+Size: 176468
+MD5sum: 30fb7106617efa16ff5940aba8a8975c
+SHA1: dd8c6fd2267aa69f1e99b9783a392ed5f4245fc7
+SHA256: 9dbf362f7b7656589284453168099c3599cb2a79cb60b4763bbcf6afbe9fd0d4
+Section: debug
+Priority: optional
+Homepage: https://nginx.org/
+Description: debug symbols for the nginx-module-xslt
+ xslt dynamic module for nginx (debug symbols)
+Build-Ids: 07145782a78100ec0b8c59f591bf8f9799443d4d ae671a6b896c2afb0254d1d264c9d5df26677948
+
