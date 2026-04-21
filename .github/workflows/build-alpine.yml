@@ -40,7 +40,6 @@ jobs:
     if: github.event.repository.owner.id == github.event.sender.id
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       GITHUB_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
     steps:
       - name: Checkout
