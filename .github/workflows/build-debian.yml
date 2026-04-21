@@ -19,6 +19,11 @@ on:
         required: true
         default: "acme error-page-inherit include-server markdown-filter njs"
         type: string
+      disable_debug_packages:
+        description: "Exclude debug packages from uploaded/published artifacts"
+        required: true
+        default: true
+        type: boolean
       publish_deb_repo:
         description: "Publish DEB repository to gh-pages"
         required: true
@@ -41,6 +46,11 @@ on:
         required: false
         default: "acme error-page-inherit include-server markdown-filter njs"
         type: string
+      disable_debug_packages:
+        description: "Exclude debug packages from uploaded/published artifacts"
+        required: false
+        default: true
+        type: boolean
       publish_deb_repo:
         description: "Publish DEB repository to gh-pages"
         required: false
@@ -138,15 +148,15 @@ jobs:
           echo "nginx_version=${nginx_version}" >> "${GITHUB_OUTPUT}"
           echo "NGINX_VERSION=${nginx_version}" >> "${GITHUB_ENV}"
 
-      - name: Build Debian module packages
+      - name: Build Debian packages
         shell: bash
         run: |
           set -euo pipefail
           modules="${{ inputs.enabled_modules }}"
           if [[ -n "${modules}" ]]; then
-            make -C debian modules ENABLED_MODULES="${modules}"
+            make -C debian base modules ENABLED_MODULES="${modules}"
           else
-            make -C debian modules
+            make -C debian base modules
           fi
 
       - name: Collect DEB artifacts
@@ -166,6 +176,10 @@ jobs:
           find . -maxdepth 1 -type f \
             \( -name "*.deb" -o -name "*.changes" -o -name "*.buildinfo" \) \
             -exec cp -f {} "${out_dir}/" \;
+
+          if [[ "${{ inputs.disable_debug_packages }}" == "true" ]]; then
+            rm -f "${out_dir}"/*-dbg_*.deb "${out_dir}"/*-dbgsym_*.deb "${out_dir}"/*.ddeb || true
+          fi
 
           echo "Collected DEB artifacts:"
           ls -la "${out_dir}" || true

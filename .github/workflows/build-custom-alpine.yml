@@ -24,6 +24,11 @@ on:
         required: true
         default: "error-page-inherit include-server markdown-filter"
         type: string
+      disable_debug_packages:
+        description: "Exclude *-dbg APK packages from uploaded/published artifacts"
+        required: true
+        default: true
+        type: boolean
       publish_alpine_repo:
         description: "Publish APK repository to gh-pages"
         required: true
@@ -46,6 +51,11 @@ on:
         required: false
         default: "error-page-inherit include-server markdown-filter"
         type: string
+      disable_debug_packages:
+        description: "Exclude *-dbg APK packages from uploaded/published artifacts"
+        required: false
+        default: true
+        type: boolean
       publish_alpine_repo:
         description: "Publish APK repository to gh-pages"
         required: false
@@ -168,6 +178,9 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/apk-build-artifacts
           find /home/builder/packages -type f -name '*.apk' -exec cp -f {} /tmp/apk-build-artifacts/ \;
+          if [[ "${{ inputs.disable_debug_packages }}" == "true" ]]; then
+            rm -f /tmp/apk-build-artifacts/*-dbg-*.apk || true
+          fi
           if ! compgen -G '/tmp/apk-build-artifacts/*.apk' > /dev/null; then
             echo "No APK artifacts produced" >&2
             exit 1

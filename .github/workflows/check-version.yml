@@ -499,6 +499,7 @@ jobs:
     with:
       nginx_channel: ${{ matrix.channel }}
       enabled_modules: ${{ needs['resolve-modules'].outputs.deb_modules }}
+      disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
       publish_deb_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_deb_repo || true }}
       debian_suite: ${{ github.event_name == 'workflow_dispatch' && inputs.debian_suite || 'bookworm' }}
     secrets: inherit
@@ -517,5 +518,6 @@ jobs:
       nginx_channel: ${{ matrix.channel }}
       alpine_version: ${{ github.event_name == 'workflow_dispatch' && inputs.alpine_version || '3.20' }}
       enabled_modules: ${{ needs['resolve-modules'].outputs.alpine_modules }}
+      disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
       publish_alpine_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_alpine_repo || true }}
     secrets: inherit
