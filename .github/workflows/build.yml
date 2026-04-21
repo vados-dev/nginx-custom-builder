@@ -130,11 +130,9 @@ jobs:
     if: ${{ github.event_name != 'workflow_dispatch' || github.event.repository.owner.id == github.event.sender.id }}
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       GITHUB_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
       RPM_GPG_PRIVATE_KEY: ${{ secrets.RPM_GPG_PRIVATE_KEY }}
     container: ${{ format('ghcr.io/vados-dev/nginx-custom-builder/ci:{0}', inputs.ci_container_image) }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v6

@@ -15,10 +15,17 @@ on:
           - stable
           - mainline
       alpine_version:
-        description: "Alpine major.minor, e.g. 3.20"
+        description: "Alpine major.minor for repo path"
         required: true
         default: "3.20"
-        type: string
+        type: choice
+        options:
+          - "3.23"
+          - "3.22"
+          - "3.21"
+          - "3.20"
+          - "3.19"
+          - "3.18"
       enabled_modules:
         description: "Space-separated module list override for APK build"
         required: true
@@ -70,7 +77,6 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       GITHUB_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
     container: alpine:${{ inputs.alpine_version }}
-
     steps:
 #      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Install build dependencies

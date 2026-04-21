@@ -36,10 +36,17 @@ on:
         default: false
         type: boolean
       alpine_version:
-        description: "Alpine major.minor for repo path, e.g. 3.20"
+        description: "Alpine major.minor for repo path"
         required: true
         default: "3.20"
-        type: string
+        type: choice
+        options:
+          - "3.23"
+          - "3.22"
+          - "3.21"
+          - "3.20"
+          - "3.19"
+          - "3.18"
       debian_suite:
         description: "Debian suite path in repo"
         required: true

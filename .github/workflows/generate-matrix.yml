@@ -481,7 +481,6 @@ jobs:
             xz \
             'dnf-command(config-manager)'
           dnf config-manager --set-enabled crb
-
       - name: Resolve nginx version for channel
         run: |
           channel="${{ matrix.channel }}"
