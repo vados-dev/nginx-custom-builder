@@ -145,14 +145,14 @@ on:
       ci_container_image:
         description: "Container image for detect/build-rpm jobs"
         required: false
-        default: "ghcr.io/vados-dev/nginx-custom-builder/ci:main"
+        default: "ghcr.io/vados-dev/nginx-custom-builder/ci:lts"
         type: string
 
 jobs:
   detect:
     if: ${{ github.event_name != 'schedule' || vars.CHECK_VERSION_CRON_ENABLED == 'true' }}
     runs-on: ubuntu-latest
-    container: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'ghcr.io/vados-dev/nginx-custom-builder/ci:main' }}
+    container: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'ghcr.io/vados-dev/nginx-custom-builder/ci:lts' }}
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     outputs:
@@ -499,7 +499,7 @@ jobs:
       publish_dnf_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_dnf_repo || true }}
       alpine_version: ${{ github.event_name == 'workflow_dispatch' && inputs.alpine_version || '3.20' }}
       publish_alpine_structure: true
-      ci_container_image: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'ghcr.io/vados-dev/nginx-custom-builder/ci:main' }}
+      ci_container_image: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'ghcr.io/vados-dev/nginx-custom-builder/ci:lts' }}
     secrets: inherit
 
   build-debian:

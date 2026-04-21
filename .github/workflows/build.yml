@@ -55,7 +55,7 @@ on:
       ci_container_image:
         description: "Container image for RPM build job"
         required: false
-        default: "ghcr.io/vados-dev/nginx-custom-builder/ci:main"
+        default: "ghcr.io/vados-dev/nginx-custom-builder/ci:lts"
         type: string
   workflow_call:
     inputs:
@@ -102,7 +102,7 @@ on:
       ci_container_image:
         description: "Container image for RPM build job"
         required: false
-        default: "ghcr.io/vados-dev/nginx-custom-builder/ci:main"
+        default: "ghcr.io/vados-dev/nginx-custom-builder/ci:lts"
         type: string
 
 jobs:
