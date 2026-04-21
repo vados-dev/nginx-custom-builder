@@ -99,16 +99,6 @@ on:
         required: true
         default: true
         type: boolean
-      rpm_repo_os:
-        description: "DNF repo OS path segment (e.g. centos)"
-        required: true
-        default: "centos"
-        type: string
-      rpm_repo_release:
-        description: "DNF repo release path segment (e.g. 10)"
-        required: true
-        default: "10"
-        type: string
       publish_deb_repo:
         description: "Publish DEB repo to gh-pages"
         required: true
@@ -491,8 +481,8 @@ jobs:
       disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
       enabled_modules: ${{ needs['resolve-modules'].outputs.rpm_modules }}
       publish_dnf_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_dnf_repo || true }}
-      rpm_repo_os: ${{ github.event_name == 'workflow_dispatch' && inputs.rpm_repo_os || 'centos' }}
-      rpm_repo_release: ${{ github.event_name == 'workflow_dispatch' && inputs.rpm_repo_release || '10' }}
+      rpm_repo_os: centos
+      rpm_repo_release: "10"
       alpine_version: ${{ github.event_name == 'workflow_dispatch' && inputs.alpine_version || '3.20' }}
       publish_alpine_structure: true
       ci_container_image: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'lts' }}
