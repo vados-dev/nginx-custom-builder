@@ -237,13 +237,24 @@ nginx-module-%.spec:
 	patches= ; \
 	preppatches= ; \
 	for src in $(MODULE_PATCHES_$(call modname,$*)); do \
-		dn=`dirname "$${src}"` ; \
+		patch_src="$${src}" ; \
+		patch_dir="" ; \
+		case "$${src}" in \
+			*::* ) \
+				patch_dir="$${src%%::*}" ; \
+				patch_src="$${src#*::}" ;; \
+		esac ; \
+		dn=`dirname "$${patch_src}"` ; \
 		bdn=`basename "$${dn}"` ; \
-		pn="$${bdn}_`basename "$${src}"`" ; \
-		cp -f "$${src}" "$(SRCPATH)/$${pn}" ; \
+		pn="$${bdn}_`basename "$${patch_src}"`" ; \
+		cp -f "$${patch_src}" "$(SRCPATH)/$${pn}" ; \
 		s="`printf "Patch%d: %s\n" $${i} $${pn}`" ; \
 		patches="$${patches}\n$${s}" ; \
-		s="`printf "%%patch%d -p1" $${i}`" ; \
+		if [ -n "$${patch_dir}" ]; then \
+			s="`printf "(cd %s \\&\\& %%{__patch} -p1 < %%{PATCH%d})" "$${patch_dir}" $${i}`" ; \
+		else \
+			s="`printf "%%patch%d -p1" $${i}`" ; \
+		fi ; \
 		preppatches="$${preppatches}\n$${s}" ; \
 		i=$$(($${i}+1)) ; \
 	done ; \

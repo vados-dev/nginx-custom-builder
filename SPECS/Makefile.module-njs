@@ -17,7 +17,7 @@ MODULE_SOURCES_njs=	\
 					njs-$(NJS_VERSION).tar.gz \
 					quickjs-$(QUICKJS_VERSION)-$(QUICKJS_GITHASH).tar.gz
 
-MODULE_PATCHES_njs= $(CONTRIB)/src/quickjs/quickjs.makefile.patch
+MODULE_PATCHES_njs= quickjs::$(CONTRIB)/src/quickjs/quickjs.makefile.patch
 
 MODULE_CONFARGS_njs=	--add-dynamic-module=njs-$(NJS_VERSION)/nginx
 
