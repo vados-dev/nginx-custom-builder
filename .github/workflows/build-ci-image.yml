@@ -1,25 +1,34 @@
 name: Build CI Image
 
 permissions:
-  contents: write
+  contents: read
   packages: write
 
 on:
   workflow_dispatch:
     inputs:
+      operation:
+        description: "Operation"
+        required: true
+        default: "build"
+        type: choice
+        options:
+          - build
+          - delete
       image_tag:
-        description: "Optional image tag override (e.g. v0.0.1b). Empty => auto-increment vX.Y.Z"
+        description: "Build mode: tag override (e.g. v0.0.1b). Empty => CI_IMAGE_VER or auto-increment"
         required: false
         default: ""
         type: string
-      push_latest:
-        description: "Also update :latest and :lts tags"
+      delete_tags:
+        description: "Delete mode: space/comma separated tags (e.g. v0.0.1b,sha-abc123)"
         required: false
-        default: true
-        type: boolean
+        default: ""
+        type: string
 
 jobs:
   build-and-push:
+    if: ${{ inputs.operation == 'build' }}
     runs-on: ubuntu-24.04
     outputs:
       image_ref: ${{ steps.meta.outputs.image_ref }}
@@ -36,6 +45,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          CI_IMAGE_VER: ${{ vars.CI_IMAGE_VER || '' }}
         run: |
           set -euo pipefail
           repo_lc="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
@@ -66,6 +76,8 @@ jobs:
 
           if [[ -n "${tag_input}" ]]; then
             tag="${tag_input}"
+          elif [[ -n "${CI_IMAGE_VER}" ]]; then
+            tag="${CI_IMAGE_VER}"
           else
             owner_lc="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
             repo_name="${GITHUB_REPOSITORY#*/}"
@@ -114,7 +126,6 @@ jobs:
             ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}
 
       - name: Push latest/lts tags
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.push_latest }}
         shell: bash
         run: |
           set -euo pipefail
@@ -122,49 +133,6 @@ jobs:
             -t "${{ steps.meta.outputs.image }}:latest" \
             -t "${{ steps.meta.outputs.image }}:lts" \
             "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}"
-
-      - name: Update default ci_container_image in check-version workflow
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        shell: bash
-        env:
-          PUSH_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || '' }}
-        run: |
-          set -euo pipefail
-          image_ref="${{ steps.meta.outputs.image_ref }}"
-          file=".github/workflows/check-version.yml"
-          tmp="$(mktemp)"
-          awk -v new_default="${image_ref}" '
-            BEGIN { in_block=0; updated=0 }
-            /^[[:space:]]*ci_container_image:[[:space:]]*$/ { in_block=1 }
-            {
-              if (in_block && $0 ~ /^[[:space:]]*default:[[:space:]]*"/ && !updated) {
-                sub(/default:[[:space:]]*"[^"]*"/, "default: \"" new_default "\"")
-                in_block=0
-                updated=1
-              }
-              print
-            }
-            END {
-              if (!updated) {
-                print "Failed to update ci_container_image default in " FILENAME > "/dev/stderr"
-                exit 1
-              }
-            }
-          ' "${file}" > "${tmp}"
-          mv "${tmp}" "${file}"
-
-          if ! git diff --quiet -- "${file}"; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add "${file}"
-            git commit -m "ci: set check-version default container to ${image_ref}"
-            if [[ -n "${PUSH_TOKEN}" ]]; then
-              git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-              git push origin "HEAD:${GITHUB_REF_NAME}"
-            else
-              echo "PUSH_TOKEN is empty; skipped auto-push of ${file}" >&2
-            fi
-          fi
 
       - name: Save image metadata
         shell: bash
@@ -204,7 +172,40 @@ jobs:
           echo "Use this image in workflows:"
           echo "  ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}"
           echo "  ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}"
-          if [[ "${{ inputs.push_latest }}" == "true" ]]; then
-            echo "  ${{ steps.meta.outputs.image }}:latest"
-            echo "  ${{ steps.meta.outputs.image }}:lts"
+          echo "  ${{ steps.meta.outputs.image }}:latest"
+          echo "  ${{ steps.meta.outputs.image }}:lts"
+
+  delete-image-tags:
+    if: ${{ inputs.operation == 'delete' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Delete requested tags from GHCR package
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
+          DELETE_TAGS: ${{ inputs.delete_tags }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${DELETE_TAGS// }" ]]; then
+            echo "delete_tags is empty" >&2
+            exit 1
           fi
+
+          owner_lc="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          package_name="${repo_name}/ci"
+          package_name_enc="${package_name//\//%2F}"
+          tags="$(echo "${DELETE_TAGS}" | tr ',' ' ' | xargs -n1 | sed '/^$/d' | sort -u)"
+
+          versions_json="$(gh api -H "Accept: application/vnd.github+json" "/users/${owner_lc}/packages/container/${package_name_enc}/versions?per_page=100")"
+          for tag in ${tags}; do
+            ids="$(jq -r --arg t "${tag}" '.[] | select((.metadata.container.tags // []) | index($t)) | .id' <<< "${versions_json}")"
+            if [[ -z "${ids}" ]]; then
+              echo "Tag not found: ${tag}"
+              continue
+            fi
+            for id in ${ids}; do
+              echo "Deleting tag ${tag} via package version id ${id}"
+              gh api -X DELETE -H "Accept: application/vnd.github+json" "/users/${owner_lc}/packages/container/${package_name_enc}/versions/${id}"
+            done
+          done
