@@ -304,10 +304,15 @@ rules-module-%: $(BASE_SRC) nginx-module-%.deb-changelog .deps-module-%
 	done ; \
 	( cd $${builddir}/$(SRCDIR) && find debian/ -type f -exec file --mime {} \; | fgrep 'charset=binary' | cut -d ':' -f 1 > include-binaries && mv include-binaries debian/source/ ) ; \
 	module_copyright="nginx-module-$${module_asis}.copyright" ; \
+	found_license=`find "$${builddir}/$(SRCDIR)/debian/extra" -maxdepth 5 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ; \
 	if [ -f "$(DOCS)/$${module_copyright}" ]; then \
 		cp -p "$(DOCS)/$${module_copyright}" "$${builddir}/$(SRCDIR)/debian/copyright" ; \
 	else \
-		cp -p "$(DOCS)/nginx.copyright" "$${builddir}/$(SRCDIR)/debian/copyright" ; \
+		if [ -n "$${found_license}" ] && [ -f "$${found_license}" ]; then \
+			cp -p "$${found_license}" "$${builddir}/$(SRCDIR)/debian/copyright" ; \
+		else \
+			printf '%s\n' 'MIT' > "$${builddir}/$(SRCDIR)/debian/copyright" ; \
+		fi ; \
 	fi ; \
 	definitions=`echo "$$MODULE_DEFINITIONS_$(call modname, $*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
 	addcontroltags=`echo "$$MODULE_ADD_CONTROL_TAGS_$(call modname, $*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \

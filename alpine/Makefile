@@ -252,11 +252,71 @@ abuild-module-%: $(BASE_SRC) .deps-module-%
 		sources="$${sources} $${pn}" ; \
 	done ; \
 	module_copyright="nginx-module-$${module_asis}.copyright" ; \
+	module_package_license="$(strip $(MODULE_PACKAGE_LICENSE_$(call modname, $*)))" ; \
+	tmplic=`mktemp -d` ; \
+	found_license="" ; \
+	for src in $(MODULE_SOURCES_$(call modname, $*)); do \
+		work="$${tmplic}/scan" ; \
+		rm -rf "$${work}" ; \
+		mkdir -p "$${work}" ; \
+		case "$${src}" in \
+			*.git) \
+				git clone --depth 1 "$${src}" "$${work}/src" >/dev/null 2>&1 || true ; \
+				[ -d "$${work}/src" ] && found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ;; \
+			http://*|https://*) \
+				case "$${src}" in \
+					*.git) \
+						git clone --depth 1 "$${src}" "$${work}/src" >/dev/null 2>&1 || true ; \
+						[ -d "$${work}/src" ] && found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ;; \
+					*.tar|*.tar.gz|*.tgz|*.tar.bz2|*.tbz2|*.tar.xz|*.txz) \
+						file="$${work}/$${src##*/}" ; \
+						curl -fsSL "$${src}" -o "$${file}" >/dev/null 2>&1 || true ; \
+						if [ -f "$${file}" ]; then \
+							mkdir -p "$${work}/src" ; \
+							tar -xf "$${file}" -C "$${work}/src" >/dev/null 2>&1 || true ; \
+							found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ; \
+						fi ;; \
+				esac ;; \
+			*) \
+				file="$(CONTRIB)/tarballs/$${src}" ; \
+				if [ -f "$${file}" ]; then \
+					case "$${file}" in \
+						*.tar|*.tar.gz|*.tgz|*.tar.bz2|*.tbz2|*.tar.xz|*.txz) \
+							mkdir -p "$${work}/src" ; \
+							tar -xf "$${file}" -C "$${work}/src" >/dev/null 2>&1 || true ; \
+							found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ;; \
+					esac ; \
+				fi ;; \
+		esac ; \
+		[ -n "$${found_license}" ] && break ; \
+	done ; \
+	if [ -z "$${module_package_license}" ]; then \
+		if [ -n "$${found_license}" ]; then \
+			if grep -qiE 'apache[[:space:]-]*2(\.0)?|apache license' "$${found_license}"; then \
+				module_package_license="Apache-2.0" ; \
+			elif grep -qiE 'mit license|permission is hereby granted, free of charge' "$${found_license}"; then \
+				module_package_license="MIT" ; \
+			elif grep -qiE 'bsd|redistribution and use in source and binary forms' "$${found_license}"; then \
+				module_package_license="BSD-2-Clause" ; \
+			elif grep -qiE 'gnu general public license|\\bgpl\\b' "$${found_license}"; then \
+				module_package_license="GPL-2.0-or-later" ; \
+			else \
+				module_package_license="LicenseRef-See-Source" ; \
+			fi ; \
+		else \
+			module_package_license="MIT" ; \
+		fi ; \
+	fi ; \
 	if [ -f $(DOCS)/$${module_copyright} ]; then \
 		cp -p $(DOCS)/$${module_copyright} $${builddir}/COPYRIGHT ; \
 	else \
-		cp -p $(DOCS)/nginx.copyright $${builddir}/COPYRIGHT ; \
+		if [ -n "$${found_license:-}" ] && [ -f "$${found_license}" ]; then \
+			cp -f "$${found_license}" $${builddir}/COPYRIGHT ; \
+		else \
+			printf '%s\n' 'MIT' > $${builddir}/COPYRIGHT ; \
+		fi ; \
 	fi ; \
+	rm -rf "$${tmplic}" ; \
 	postinstall_script=$${builddir}/nginx$(MODULE_SUFFIX)-module-$${module_asis}.post-install ; \
 	definitions=`echo "$$MODULE_DEFINITIONS_$(call modname, $*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
 	addcontroltags=`echo "$$MODULE_ADD_CONTROL_TAGS_$(call modname, $*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
@@ -267,8 +327,9 @@ abuild-module-%: $(BASE_SRC) .deps-module-%
 	sed $(APKBUILD_TEMPLATE) \
 		-e 's#%%PACKAGE_VENDOR%%#$(PACKAGE_VENDOR)#g' \
 		-e "s#%%MODULE%%#$${module_asis}#g" \
-		-e "s#%%SUMMARY%%#$(MODULE_SUMMARY_PREFIX) $(MODULE_SUMMARY_$(call modname, $*))#g" \
-		-e "s#%%BASE_VERSION%%#$(BASE_VERSION)#g" \
+			-e "s#%%SUMMARY%%#$(MODULE_SUMMARY_PREFIX) $(MODULE_SUMMARY_$(call modname, $*))#g" \
+			-e "s#%%MODULE_PACKAGE_LICENSE%%#$${module_package_license}#g" \
+			-e "s#%%BASE_VERSION%%#$(BASE_VERSION)#g" \
 		-e "s#%%BASE_RELEASE%%#$(BASE_RELEASE)#g" \
 		-e 's#%%BASE_CONFIGURE_ARGS%%#$(BASE_CONFIGURE_ARGS)#g' \
 		-e "s#%%PLUS_VERSION%%#$(PLUS_VERSION)#g" \
