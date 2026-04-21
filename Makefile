@@ -49,6 +49,7 @@ CI_IMAGE ?= reg.vados.ru/nginx-custom-builder-ci:lts
 CI_PROJECT ?= nginxci
 CI_SERVICE ?= nginx-ci-runner
 CI_WORKDIR ?= /work
+CI_BASE_IMAGE ?= almalinux:9
 CI_BUILD_ENGINE ?= buildx
 CI_BUILDX_BUILDER ?= nginx-custom-builder-ci
 CI_BUILDX_PLATFORMS ?= linux/amd64
@@ -78,7 +79,7 @@ ci-build:
 	@$(MAKE) ci-build-$(CI_BUILD_ENGINE)
 
 ci-build-compose:
-	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) build --progress=plain --no-cache
+	CI_BASE_IMAGE="$(CI_BASE_IMAGE)" docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) build --progress=plain --no-cache
 
 ci-buildx-bootstrap:
 	@if ! docker buildx inspect $(CI_BUILDX_BUILDER) >/dev/null 2>&1; then \
@@ -93,6 +94,7 @@ ci-build-buildx: ci-buildx-bootstrap
 		--builder $(CI_BUILDX_BUILDER) \
 		--progress=plain \
 		--platform $(CI_BUILDX_PLATFORMS) \
+		--build-arg CI_BASE_IMAGE=$(CI_BASE_IMAGE) \
 		--load \
 		-t $(CI_IMAGE) \
 		-f Dockerfile.ci \
@@ -103,6 +105,7 @@ ci-push-buildx: ci-buildx-bootstrap
 		--builder $(CI_BUILDX_BUILDER) \
 		--progress=plain \
 		--platform $(CI_BUILDX_PLATFORMS) \
+		--build-arg CI_BASE_IMAGE=$(CI_BASE_IMAGE) \
 		--push \
 		-t $(CI_IMAGE) \
 		-f Dockerfile.ci \

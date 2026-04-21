@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.ci
+      args:
+        CI_BASE_IMAGE: ${CI_BASE_IMAGE:-almalinux:9}
     command: ["bash", "-lc", "sleep infinity"]
     working_dir: /work
     volumes:
