@@ -187,7 +187,13 @@ nginx.spec:
 	}
 	@echo "===> $@ done!"
 
-module-%: nginx-module-%.spec stage-sources
+.deps-module-%:
+	@if [ -n "$(MODULE_CONTRIB_DEPS_$(call modname,$*))" ]; then \
+		cd $(CONTRIB) && make $(foreach dep,$(MODULE_CONTRIB_DEPS_$(call modname,$*)),.sum-$(dep)); \
+	fi ; \
+	touch $@
+
+module-%: nginx-module-%.spec .deps-module-% stage-sources
 	@echo "===> Building nginx-$@ package" ; \
 	$(MAKE) --no-print-directory stage-sources && \
 	$(SHELL) -c "time -p rpmbuild $(RPMBUILD_ARGS) $(RPMBUILD_EXTRA_DEFINES) nginx-$@.spec" && \
@@ -217,9 +223,6 @@ nginx-module-%.spec:
 			*.tar|*.tar.gz|*.tgz|*.tar.bz2|*.tbz2|*.tar.xz|*.txz) \
 				if [ -f "$(CONTRIB)/tarballs/$${src}" ]; then \
 					cp -f "$(CONTRIB)/tarballs/$${src}" "$(SRCPATH)/$${src}" ; \
-				elif [ ! -f "$(SRCPATH)/$${src}" ]; then \
-					echo "local source missing: $${src}" >&2 ; \
-					exit 1 ; \
 				fi ; \
 				s="`printf "Source%d: %s\n" $${i} $${src}`" ; \
 				sources="$${sources}\n$${s}" ; \

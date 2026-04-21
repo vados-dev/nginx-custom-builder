@@ -11,12 +11,12 @@ on:
       nginx_channel:
         description: "nginx source channel"
         required: true
-        default: "mainline"
+        default: "all"
         type: choice
         options:
-          - stable
-          - mainline
           - all
+          - mainline
+          - stable
       build_args:
         description: "rpmbuild arguments"
         required: true
