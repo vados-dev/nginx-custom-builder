@@ -29,7 +29,7 @@ on:
         required: true
         default: true
         type: boolean
-      publish_alpine_repo:
+      publish_repos:
         description: "Publish APK repository to gh-pages"
         required: true
         default: true
