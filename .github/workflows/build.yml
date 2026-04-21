@@ -37,6 +37,16 @@ on:
         required: true
         default: true
         type: boolean
+      rpm_repo_os:
+        description: "DNF repo OS path segment override (empty = auto-detect)"
+        required: false
+        default: ""
+        type: string
+      rpm_repo_release:
+        description: "DNF repo release path segment override (empty = auto-detect)"
+        required: false
+        default: ""
+        type: string
       alpine_version:
         description: "Alpine major.minor for apk repo layout, e.g. 3.20"
         required: true
@@ -84,6 +94,16 @@ on:
         required: false
         default: true
         type: boolean
+      rpm_repo_os:
+        description: "DNF repo OS path segment override (empty = auto-detect)"
+        required: false
+        default: ""
+        type: string
+      rpm_repo_release:
+        description: "DNF repo release path segment override (empty = auto-detect)"
+        required: false
+        default: ""
+        type: string
       alpine_version:
         description: "Alpine major.minor for apk repo layout, e.g. 3.20"
         required: false
@@ -399,6 +419,14 @@ jobs:
               ;;
           esac
           release_token="${VERSION_ID%%.*}"
+          repo_os_override="${{ inputs.rpm_repo_os }}"
+          repo_release_override="${{ inputs.rpm_repo_release }}"
+          if [[ -n "${repo_os_override}" ]]; then
+            os_token="${repo_os_override}"
+          fi
+          if [[ -n "${repo_release_override}" ]]; then
+            release_token="${repo_release_override}"
+          fi
           arch_token="$(uname -m)"
           channel="${{ inputs.nginx_channel }}"
 
