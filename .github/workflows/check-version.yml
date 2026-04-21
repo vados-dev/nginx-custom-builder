@@ -34,23 +34,47 @@ on:
         required: true
         default: false
         type: boolean
+      modules_mode:
+        description: "How to resolve module base set"
+        required: true
+        default: "repo-defaults"
+        type: choice
+        options:
+          - repo-defaults
+          - legacy-inputs
+          - explicit-global
+      modules_global_base:
+        description: "Base modules for explicit-global mode (space-separated)"
+        required: false
+        default: "image-filter perl xslt markdown-filter acme njs error-page-inherit include-server"
+        type: string
+      modules_add:
+        description: "Add modules to resolved base (space-separated)"
+        required: false
+        default: ""
+        type: string
+      modules_remove:
+        description: "Remove modules from resolved base (space-separated)"
+        required: false
+        default: ""
+        type: string
       modules_common:
-        description: "Common modules for all platforms (space-separated)"
+        description: "Legacy mode: common modules for all platforms (space-separated)"
         required: true
         default: "error-page-inherit include-server markdown-filter"
         type: string
       modules_rpm_extra:
-        description: "Extra modules for RPM"
+        description: "Legacy mode: extra modules for RPM"
         required: true
         default: "acme njs"
         type: string
       modules_deb_extra:
-        description: "Extra modules for Debian"
+        description: "Legacy mode: extra modules for Debian"
         required: true
         default: "acme njs"
         type: string
       modules_alpine_extra:
-        description: "Extra modules for Alpine"
+        description: "Legacy mode: extra modules for Alpine"
         required: true
         default: ""
         type: string
@@ -280,11 +304,18 @@ jobs:
       deb_modules: ${{ steps.resolve.outputs.deb_modules }}
       alpine_modules: ${{ steps.resolve.outputs.alpine_modules }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
       - name: Resolve module sets
         id: resolve
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
+          MODULES_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_mode || 'repo-defaults' }}
+          GLOBAL_BASE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_global_base || '' }}
+          GLOBAL_ADD: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_add || '' }}
+          GLOBAL_REMOVE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_remove || '' }}
           IN_COMMON: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_common || 'error-page-inherit include-server markdown-filter' }}
           IN_RPM_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_rpm_extra || 'acme njs' }}
           IN_DEB_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_deb_extra || 'acme njs' }}
@@ -304,14 +335,73 @@ jobs:
             echo "$raw" | xargs -n1 | awk 'NF && !seen[$0]++' | xargs
           }
 
-          common="$(normalize_modules "${IN_COMMON}")"
-          rpm_extra="$(normalize_modules "${IN_RPM_EXTRA}")"
-          deb_extra="$(normalize_modules "${IN_DEB_EXTRA}")"
-          alpine_extra="$(normalize_modules "${IN_ALPINE_EXTRA}")"
+          remove_modules() {
+            local base="$1"
+            local to_remove="$2"
+            local out=""
+            if [[ -z "${to_remove//[[:space:]]/}" ]]; then
+              echo "${base}"
+              return
+            fi
+            for mod in ${base}; do
+              if ! grep -qw "${mod}" <<< "${to_remove}"; then
+                out="${out} ${mod}"
+              fi
+            done
+            normalize_modules "${out}"
+          }
 
-          rpm_modules="$(normalize_modules "${common} ${rpm_extra}")"
-          deb_modules="$(normalize_modules "${common} ${deb_extra}")"
-          alpine_modules="$(normalize_modules "${common} ${alpine_extra}")"
+          mode="${MODULES_MODE}"
+
+          rpm_modules=""
+          deb_modules=""
+          alpine_modules=""
+
+          case "${mode}" in
+            repo-defaults)
+              deb_modules="$(make --no-print-directory -C debian list-all-modules | awk '{print $1}' | xargs || true)"
+              alpine_modules="$(make --no-print-directory -C alpine list-all-modules | awk '{print $1}' | xargs || true)"
+              rpm_modules="$(make --no-print-directory -C SPECS list-all-modules | awk '{print $1}' | xargs || true)"
+              ;;
+            legacy-inputs)
+              common="$(normalize_modules "${IN_COMMON}")"
+              rpm_extra="$(normalize_modules "${IN_RPM_EXTRA}")"
+              deb_extra="$(normalize_modules "${IN_DEB_EXTRA}")"
+              alpine_extra="$(normalize_modules "${IN_ALPINE_EXTRA}")"
+              rpm_modules="$(normalize_modules "${common} ${rpm_extra}")"
+              deb_modules="$(normalize_modules "${common} ${deb_extra}")"
+              alpine_modules="$(normalize_modules "${common} ${alpine_extra}")"
+              ;;
+            explicit-global)
+              global_base="$(normalize_modules "${GLOBAL_BASE}")"
+              if [[ -z "${global_base}" ]]; then
+                echo "modules_mode=explicit-global requires non-empty modules_global_base" >&2
+                exit 1
+              fi
+              rpm_modules="${global_base}"
+              deb_modules="${global_base}"
+              alpine_modules="${global_base}"
+              ;;
+            *)
+              echo "Unsupported modules_mode: ${mode}" >&2
+              exit 1
+              ;;
+          esac
+
+          rpm_modules="$(normalize_modules "${rpm_modules}")"
+          deb_modules="$(normalize_modules "${deb_modules}")"
+          alpine_modules="$(normalize_modules "${alpine_modules}")"
+
+          global_add="$(normalize_modules "${GLOBAL_ADD}")"
+          global_remove="$(normalize_modules "${GLOBAL_REMOVE}")"
+
+          rpm_modules="$(normalize_modules "${rpm_modules} ${global_add}")"
+          deb_modules="$(normalize_modules "${deb_modules} ${global_add}")"
+          alpine_modules="$(normalize_modules "${alpine_modules} ${global_add}")"
+
+          rpm_modules="$(remove_modules "${rpm_modules}" "${global_remove}")"
+          deb_modules="$(remove_modules "${deb_modules}" "${global_remove}")"
+          alpine_modules="$(remove_modules "${alpine_modules}" "${global_remove}")"
 
           rpm_override="$(normalize_modules "${IN_RPM_OVERRIDE}")"
           deb_override="$(normalize_modules "${IN_DEB_OVERRIDE}")"
@@ -332,6 +422,7 @@ jobs:
           echo "alpine_modules=${alpine_modules}" >> "${GITHUB_OUTPUT}"
 
           echo "Resolved modules:"
+          echo "- Mode: ${mode}"
           echo "- RPM: ${rpm_modules}"
           echo "- DEB: ${deb_modules}"
           echo "- Alpine: ${alpine_modules}"
