@@ -16,6 +16,7 @@ on:
         options:
           - stable
           - mainline
+          - all
       build_args:
         description: "rpmbuild arguments"
         required: true
@@ -149,12 +150,10 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     outputs:
-      should_build: ${{ steps.detect.outputs.should_build }}
-      channel: ${{ steps.detect.outputs.channel }}
-      new_version: ${{ steps.detect.outputs.new_version }}
-      previous_version: ${{ steps.detect.outputs.previous_version }}
-      source_repo: ${{ steps.detect.outputs.source_repo }}
-      reason: ${{ steps.detect.outputs.reason }}
+      should_build_any: ${{ steps.detect.outputs.should_build_any }}
+      build_matrix: ${{ steps.detect.outputs.build_matrix }}
+      state_changed: ${{ steps.detect.outputs.state_changed }}
+      detect_report: ${{ steps.detect.outputs.detect_report }}
     steps:
       - name: Install git for checkout
         shell: bash
@@ -195,73 +194,97 @@ jobs:
         run: |
           set -euo pipefail
 
-          channel="${MANUAL_CHANNEL:-mainline}"
-          source_repo="nginx-mainline-source"
-          if [[ "${channel}" == "stable" ]]; then
-            source_repo="nginx-source"
-          fi
-
           source /etc/os-release
           os_token="${ID}"
           release_token="${VERSION_ID%%.*}"
-          repo_file="/tmp/nginx.repo"
-
-          cp SOURCES/nginx.repo "${repo_file}"
-          sed -i \
-            -e "s|OS|${os_token}|g" \
-            -e "s|RELEASEVER|${release_token}|g" \
-            "${repo_file}"
-          sed -i -E 's/^enabled=1$/enabled=0/' "${repo_file}"
-          sed -i -E "/^\[${source_repo}\]/,/^\[/{s/^enabled=.*/enabled=1/}" "${repo_file}"
-          cp "${repo_file}" /etc/yum.repos.d/nginx.repo
-
-          ok=0
-          for i in 1 2 3; do
-            if dnf -y --disablerepo="*" --enablerepo="${source_repo}" download --source nginx; then
-              ok=1
-              break
-            fi
-            echo "Retry dnf source download ($i/3)" >&2
-            sleep 5
-          done
-          if [[ "${ok}" -ne 1 ]]; then
-            echo "Failed to download nginx source after retries from ${source_repo}" >&2
-            exit 1
-          fi
-          src_rpm="$(ls -1t nginx-*.src.rpm | head -n 1)"
-          new_version="$(rpm -qp --queryformat '%{VERSION}\n' "${src_rpm}")"
-
           state_dir=".github/version-state"
-          state_file="${state_dir}/nginx-${channel}.txt"
-          previous_version=""
-          if [[ -f "${state_file}" ]]; then
-            previous_version="$(tr -d '\r\n' < "${state_file}")"
+          requested_channel="${MANUAL_CHANNEL:-mainline}"
+
+          channels=("${requested_channel}")
+          if [[ "${requested_channel}" == "all" ]]; then
+            channels=("mainline" "stable")
           fi
 
-          should_build="false"
-          reason="unchanged"
-          if [[ "${FORCE_BUILD}" == "true" ]]; then
-            should_build="true"
-            reason="manual-force"
-          elif [[ -z "${previous_version}" || "${new_version}" != "${previous_version}" ]]; then
-            should_build="true"
-            reason="new-version"
-          fi
+          should_build_any="false"
+          state_changed="false"
+          detect_report=""
+          build_matrix='{"include":[]}'
 
-          if [[ "${should_build}" == "true" ]]; then
-            mkdir -p "${state_dir}"
-            printf '%s\n' "${new_version}" > "${state_file}"
-          fi
+          mkdir -p "${state_dir}"
 
-          echo "channel=${channel}" >> "${GITHUB_OUTPUT}"
-          echo "source_repo=${source_repo}" >> "${GITHUB_OUTPUT}"
-          echo "new_version=${new_version}" >> "${GITHUB_OUTPUT}"
-          echo "previous_version=${previous_version}" >> "${GITHUB_OUTPUT}"
-          echo "should_build=${should_build}" >> "${GITHUB_OUTPUT}"
-          echo "reason=${reason}" >> "${GITHUB_OUTPUT}"
+          for channel in "${channels[@]}"; do
+            source_repo="nginx-mainline-source"
+            if [[ "${channel}" == "stable" ]]; then
+              source_repo="nginx-source"
+            fi
+
+            repo_file="/tmp/nginx-${channel}.repo"
+            cp SOURCES/nginx.repo "${repo_file}"
+            sed -i \
+              -e "s|OS|${os_token}|g" \
+              -e "s|RELEASEVER|${release_token}|g" \
+              "${repo_file}"
+            sed -i -E 's/^enabled=1$/enabled=0/' "${repo_file}"
+            sed -i -E "/^\[${source_repo}\]/,/^\[/{s/^enabled=.*/enabled=1/}" "${repo_file}"
+            cp "${repo_file}" /etc/yum.repos.d/nginx.repo
+
+            rm -f nginx-*.src.rpm
+            ok=0
+            for i in 1 2 3; do
+              if dnf -y --disablerepo="*" --enablerepo="${source_repo}" download --source nginx; then
+                ok=1
+                break
+              fi
+              echo "Retry dnf source download ${channel} ($i/3)" >&2
+              sleep 5
+            done
+            if [[ "${ok}" -ne 1 ]]; then
+              echo "Failed to download nginx source after retries from ${source_repo}" >&2
+              exit 1
+            fi
+
+            src_rpm="$(ls -1t nginx-*.src.rpm | head -n 1)"
+            new_version="$(rpm -qp --queryformat '%{VERSION}\n' "${src_rpm}")"
+
+            state_file="${state_dir}/nginx-${channel}.txt"
+            previous_version=""
+            if [[ -f "${state_file}" ]]; then
+              previous_version="$(tr -d '\r\n' < "${state_file}")"
+            fi
+
+            should_build="false"
+            reason="unchanged"
+            if [[ "${FORCE_BUILD}" == "true" ]]; then
+              should_build="true"
+              reason="manual-force"
+            elif [[ -z "${previous_version}" || "${new_version}" != "${previous_version}" ]]; then
+              should_build="true"
+              reason="new-version"
+            fi
+
+            if [[ "${should_build}" == "true" ]]; then
+              should_build_any="true"
+              build_matrix="$(jq -c --arg channel "${channel}" '.include += [{channel:$channel}]' <<< "${build_matrix}")"
+            fi
+
+            if [[ "${reason}" == "new-version" ]]; then
+              printf '%s\n' "${new_version}" > "${state_file}"
+              state_changed="true"
+            fi
+
+            prev_print="${previous_version:-"(none)"}"
+            detect_report+="${channel}|${prev_print}|${new_version}|${reason}"$'\n'
+          done
+
+          echo "should_build_any=${should_build_any}" >> "${GITHUB_OUTPUT}"
+          echo "build_matrix=${build_matrix}" >> "${GITHUB_OUTPUT}"
+          echo "state_changed=${state_changed}" >> "${GITHUB_OUTPUT}"
+          echo "detect_report<<EOF" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${detect_report}" >> "${GITHUB_OUTPUT}"
+          echo "EOF" >> "${GITHUB_OUTPUT}"
 
       - name: Commit version state
-        if: ${{ steps.detect.outputs.reason == 'new-version' }}
+        if: ${{ steps.detect.outputs.state_changed == 'true' }}
         shell: bash
         working-directory: ${{ github.workspace }}
         run: |
@@ -270,12 +293,12 @@ jobs:
           git rev-parse --is-inside-work-tree
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ".github/version-state/nginx-${{ steps.detect.outputs.channel }}.txt"
-          git diff --cached --quiet || git commit -m "ci: track nginx ${{ steps.detect.outputs.channel }} ${{ steps.detect.outputs.new_version }}"
+          git add .github/version-state/
+          git diff --cached --quiet || git commit -m "ci: update nginx version state"
           git push
 
       - name: Notify Telegram
-        if: ${{ steps.detect.outputs.should_build == 'true' }}
+        if: ${{ steps.detect.outputs.should_build_any == 'true' }}
         shell: bash
         env:
           TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -286,17 +309,18 @@ jobs:
             echo "Telegram secrets are missing, skip notification."
             exit 0
           fi
-          prev="${{ steps.detect.outputs.previous_version }}"
-          if [[ -z "${prev}" ]]; then
-            prev="(none)"
-          fi
-          message="nginx update detected%0Achannel: ${{ steps.detect.outputs.channel }}%0Afrom: ${prev}%0Ato: ${{ steps.detect.outputs.new_version }}%0Areason: ${{ steps.detect.outputs.reason }}%0Arepo: ${{ github.repository }}"
+          report="$(printf '%s' "${{ steps.detect.outputs.detect_report }}" | sed '/^$/d')"
+          message="nginx update detected%0Arepo: ${{ github.repository }}"
+          while IFS='|' read -r channel prev cur reason; do
+            [[ -z "${channel}" ]] && continue
+            message+="%0A%0Achannel: ${channel}%0Afrom: ${prev}%0Ato: ${cur}%0Areason: ${reason}"
+          done <<< "${report}"
           curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
             -d "chat_id=${TG_CHAT_ID}" \
             -d "text=${message}"
 
   resolve-modules:
-    if: ${{ needs.detect.outputs.should_build == 'true' }}
+    if: ${{ needs.detect.outputs.should_build_any == 'true' }}
     needs: detect
     runs-on: ubuntu-latest
     outputs:
@@ -428,7 +452,7 @@ jobs:
           echo "- Alpine: ${alpine_modules}"
 
   resolve-matrix-modules:
-    if: ${{ needs.detect.outputs.should_build == 'true' }}
+    if: ${{ needs.detect.outputs.should_build_any == 'true' }}
     needs:
       - detect
       - resolve-modules
@@ -475,7 +499,7 @@ jobs:
           echo "Resolved matrix modules: ${matrix_modules}"
 
   generate-matrix-checks:
-    if: ${{ needs.detect.outputs.should_build == 'true' && (github.event_name != 'workflow_dispatch' || inputs.run_generate_matrix) }}
+    if: ${{ needs.detect.outputs.should_build_any == 'true' && (github.event_name != 'workflow_dispatch' || inputs.run_generate_matrix) }}
     needs:
       - detect
       - resolve-modules
@@ -487,13 +511,16 @@ jobs:
       show_available_modules: ${{ github.event_name == 'workflow_dispatch' && inputs.show_available_matrix_modules || false }}
 
   build-rpm:
-    if: ${{ needs.detect.outputs.should_build == 'true' }}
+    if: ${{ needs.detect.outputs.should_build_any == 'true' }}
     needs:
       - detect
       - resolve-modules
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.build_matrix) }}
     uses: ./.github/workflows/build.yml
     with:
-      nginx_channel: ${{ needs.detect.outputs.channel }}
+      nginx_channel: ${{ matrix.channel }}
       build_args: ${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}
       disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
       enabled_modules: ${{ needs['resolve-modules'].outputs.rpm_modules }}
@@ -503,26 +530,32 @@ jobs:
     secrets: inherit
 
   build-debian:
-    if: ${{ needs.detect.outputs.should_build == 'true' }}
+    if: ${{ needs.detect.outputs.should_build_any == 'true' }}
     needs:
       - detect
       - resolve-modules
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.build_matrix) }}
     uses: ./.github/workflows/build-debian.yml
     with:
-      nginx_channel: ${{ needs.detect.outputs.channel }}
+      nginx_channel: ${{ matrix.channel }}
       enabled_modules: ${{ needs['resolve-modules'].outputs.deb_modules }}
       publish_deb_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_deb_repo || true }}
       debian_suite: ${{ github.event_name == 'workflow_dispatch' && inputs.debian_suite || 'bookworm' }}
     secrets: inherit
 
   build-alpine:
-    if: ${{ needs.detect.outputs.should_build == 'true' }}
+    if: ${{ needs.detect.outputs.should_build_any == 'true' }}
     needs:
       - detect
       - resolve-modules
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.build_matrix) }}
     uses: ./.github/workflows/build-custom-alpine.yml
     with:
-      nginx_channel: ${{ needs.detect.outputs.channel }}
+      nginx_channel: ${{ matrix.channel }}
       alpine_version: ${{ github.event_name == 'workflow_dispatch' && inputs.alpine_version || '3.20' }}
       enabled_modules: ${{ needs['resolve-modules'].outputs.alpine_modules }}
       publish_alpine_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_alpine_repo || true }}
