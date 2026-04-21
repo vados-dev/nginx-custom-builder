@@ -150,7 +150,7 @@ $(BUILD_SOURCES)/$(BASE_SRC):
 
 stage-sources: $(BUILD_SOURCES)/$(BASE_SRC)
 	@mkdir -p $(BUILD_SOURCES)
-	@find $(SRCPATH) -maxdepth 1 -type f ! -name "$(BASE_SRC)" -exec cp -f {} $(BUILD_SOURCES)/ \;
+	@find $(SRCPATH) -maxdepth 1 \( -type f -o -type l \) ! -name "$(BASE_SRC)" -exec cp -Lf {} $(BUILD_SOURCES)/ \;
 	@echo "===> $@ done!"
 
 base:	nginx.spec stage-sources
@@ -240,7 +240,7 @@ nginx-module-%.spec:
 		dn=`dirname "$${src}"` ; \
 		bdn=`basename "$${dn}"` ; \
 		pn="$${bdn}_`basename "$${src}"`" ; \
-		ln -sf "$${src}" "$(SRCPATH)/$${pn}" ; \
+		cp -f "$${src}" "$(SRCPATH)/$${pn}" ; \
 		s="`printf "Patch%d: %s\n" $${i} $${pn}`" ; \
 		patches="$${patches}\n$${s}" ; \
 		s="`printf "%%patch%d -p1" $${i}`" ; \

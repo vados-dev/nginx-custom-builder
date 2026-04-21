@@ -49,6 +49,9 @@ CI_IMAGE ?= reg.vados.ru/nginx-custom-builder-ci:lts
 CI_PROJECT ?= nginxci
 CI_SERVICE ?= nginx-ci-runner
 CI_WORKDIR ?= /work
+CI_BUILD_ENGINE ?= buildx
+CI_BUILDX_BUILDER ?= nginx-custom-builder-ci
+CI_BUILDX_PLATFORMS ?= linux/amd64
 CI_CHANNEL ?= mainline
 CI_COMPOSE_FILE ?= docker-compose.ci.yml
 CI_UID ?= $(shell id -u)
@@ -72,7 +75,38 @@ default:
 	}
 
 ci-build:
+	@$(MAKE) ci-build-$(CI_BUILD_ENGINE)
+
+ci-build-compose:
 	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) build --progress=plain --no-cache
+
+ci-buildx-bootstrap:
+	@if ! docker buildx inspect $(CI_BUILDX_BUILDER) >/dev/null 2>&1; then \
+		docker buildx create --name $(CI_BUILDX_BUILDER) --driver docker-container --use ; \
+	else \
+		docker buildx use $(CI_BUILDX_BUILDER) ; \
+	fi
+	docker buildx inspect --bootstrap $(CI_BUILDX_BUILDER)
+
+ci-build-buildx: ci-buildx-bootstrap
+	docker buildx build \
+		--builder $(CI_BUILDX_BUILDER) \
+		--progress=plain \
+		--platform $(CI_BUILDX_PLATFORMS) \
+		--load \
+		-t $(CI_IMAGE) \
+		-f Dockerfile.ci \
+		.
+
+ci-push-buildx: ci-buildx-bootstrap
+	docker buildx build \
+		--builder $(CI_BUILDX_BUILDER) \
+		--progress=plain \
+		--platform $(CI_BUILDX_PLATFORMS) \
+		--push \
+		-t $(CI_IMAGE) \
+		-f Dockerfile.ci \
+		.
 
 ci-push:
 	docker push $(CI_IMAGE)
@@ -228,7 +262,8 @@ tag:
 	@git tag -a $(VERSION)-$(RELEASE)
 
 .PHONY: \
-	ci-build ci-push ci-deploy ci-rm ci-ps ci-shell ci-check ci-rpm \
+	ci-build ci-build-compose ci-buildx-bootstrap ci-build-buildx \
+	ci-push ci-push-buildx ci-deploy ci-rm ci-ps ci-shell ci-check ci-rpm \
 	ci-check-mainline ci-check-stable ci-check-all \
 	ci-rpm-mainline ci-rpm-stable ci-artifacts ci-specs-clean help \
 	fetch version-check version-check-njs release release-njs revert commit tag
