@@ -54,6 +54,11 @@ CI_BUILD_ENGINE ?= buildx
 CI_BUILDX_BUILDER ?= nginx-custom-builder-ci
 CI_BUILDX_PLATFORMS ?= linux/amd64
 CI_CHANNEL ?= mainline
+CI_FORCE_BUILD ?= false
+CI_WRITE_STATE ?= true
+CI_RETRIES ?= 3
+CI_ENABLED_MODULES ?= image-filter perl xslt error-page-inherit include-server markdown-filter acme njs
+CI_AUTOCLEAN_WORKTREE ?= true
 CI_COMPOSE_FILE ?= docker-compose.ci.yml
 CI_UID ?= $(shell id -u)
 CI_GID ?= $(shell id -g)
@@ -64,6 +69,9 @@ CI_RPMBUILD_DIR ?= $(CI_HOME)/rpmbuild
 CI_NGINX_REPO_BASE ?= https://nginx.org/packages
 CI_NGINX_REPO_OS ?=
 CI_NGINX_REPO_RELEASE ?=
+
+CI_HOME_PATH ?= $(CI_WORKDIR)/$(CI_HOME)
+CI_DOCKER_COMPOSE = CI_IMAGE="$(CI_IMAGE)" docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE)
 
 default:
 	@{ \
@@ -79,7 +87,7 @@ ci-build:
 	@$(MAKE) ci-build-$(CI_BUILD_ENGINE)
 
 ci-build-compose:
-	CI_BASE_IMAGE="$(CI_BASE_IMAGE)" docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) build --progress=plain --no-cache
+	CI_BASE_IMAGE="$(CI_BASE_IMAGE)" $(CI_DOCKER_COMPOSE) build --progress=plain --no-cache
 
 ci-buildx-bootstrap:
 	@if ! docker buildx inspect $(CI_BUILDX_BUILDER) >/dev/null 2>&1; then \
@@ -115,24 +123,34 @@ ci-push:
 	docker push $(CI_IMAGE)
 
 ci-deploy:
-	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) up -d
+	$(CI_DOCKER_COMPOSE) up -d
 
 ci-rm:
-	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) down
+	$(CI_DOCKER_COMPOSE) down
 
 ci-ps:
-	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) ps
+	$(CI_DOCKER_COMPOSE) ps
 
-ci-shell:
-	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash
+ci-init-home:
+	$(CI_DOCKER_COMPOSE) exec -T -u 0:0 $(CI_SERVICE) bash -c 'mkdir -p "$(CI_HOME_PATH)/.config" /root/.config; if [ -f "$(CI_WORKDIR)/SOURCES/mc.tar.gz" ]; then tar -xzf "$(CI_WORKDIR)/SOURCES/mc.tar.gz" -C "$(CI_HOME_PATH)/.config"; tar -xzf "$(CI_WORKDIR)/SOURCES/mc.tar.gz" -C /root/.config; fi; chown -R $(CI_UID):$(CI_GID) "$(CI_HOME_PATH)"'
+
+ci-shell: ci-init-home
+	$(CI_DOCKER_COMPOSE) exec -u $(CI_UID):$(CI_GID) -e HOME=$(CI_HOME_PATH) -e USER=$(CI_USER) -e LOGNAME=$(CI_USER) $(CI_SERVICE) bash
+
+ci-shell-root: ci-init-home
+	$(CI_DOCKER_COMPOSE) exec -u 0:0 -e HOME=/root -e USER=root -e LOGNAME=root $(CI_SERVICE) bash
 
 ci-check:
-	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -T $(CI_SERVICE) bash -c 'mkdir -p /work/.ci-home && export HOME=/work/.ci-home && CHANNEL=$(CI_CHANNEL) WRITE_STATE=true bash scripts/check-version-local.sh'
+	$(CI_DOCKER_COMPOSE) exec -T -u 0:0 $(CI_SERVICE) bash -c 'mkdir -p "$(CI_HOME_PATH)" && export HOME="$(CI_HOME_PATH)" USER=root LOGNAME=root && CHANNEL=$(CI_CHANNEL) FORCE_BUILD=$(CI_FORCE_BUILD) WRITE_STATE=$(CI_WRITE_STATE) RETRIES=$(CI_RETRIES) bash scripts/check-version-local.sh && chown -R $(CI_UID):$(CI_GID) "$(CI_HOME_PATH)" "$(CI_WORKDIR)/.github/version-state" || true'
 
-ci-rpm:
-	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -T -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash -c 'mkdir -p /work/.ci-home && export HOME=/work/.ci-home USER=$(CI_USER) LOGNAME=$(CI_USER) && make -C SPECS tree specs base modules'
+ci-rpm: ci-rpm-channel
+
+ci-rpm-channel:
+	@$(MAKE) ci-init-home
+	$(CI_DOCKER_COMPOSE) exec -T -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash -c 'mkdir -p "$(CI_HOME_PATH)" && export HOME="$(CI_HOME_PATH)" USER=$(CI_USER) LOGNAME=$(CI_USER) && base_version="$$(CHANNEL=$(CI_CHANNEL) NGINX_REPO_BASE="$(CI_NGINX_REPO_BASE)" NGINX_REPO_OS="$(CI_NGINX_REPO_OS)" NGINX_REPO_RELEASE="$(CI_NGINX_REPO_RELEASE)" bash scripts/get-nginx-srpm-version.sh)" && make -C SPECS clean tree specs base modules BASE_VERSION=$$base_version ENABLED_MODULES="$(CI_ENABLED_MODULES)"'
 	@$(MAKE) ci-artifacts
 	@$(MAKE) ci-specs-clean
+	@if [ "$(CI_AUTOCLEAN_WORKTREE)" = "true" ]; then $(MAKE) ci-clean-worktree; fi
 
 ci-check-mainline:
 	@$(MAKE) ci-check CI_CHANNEL=mainline
@@ -145,14 +163,14 @@ ci-check-all:
 	@$(MAKE) ci-check-stable
 
 ci-rpm-mainline:
-	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -T -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash -c 'mkdir -p /work/.ci-home && export HOME=/work/.ci-home USER=$(CI_USER) LOGNAME=$(CI_USER) && base_version="$$(CHANNEL=mainline NGINX_REPO_BASE="$(CI_NGINX_REPO_BASE)" NGINX_REPO_OS="$(CI_NGINX_REPO_OS)" NGINX_REPO_RELEASE="$(CI_NGINX_REPO_RELEASE)" bash scripts/get-nginx-srpm-version.sh)" && make -C SPECS clean tree specs base modules BASE_VERSION=$$base_version'
-	@$(MAKE) ci-artifacts
-	@$(MAKE) ci-specs-clean
+	@$(MAKE) ci-rpm-channel CI_CHANNEL=mainline
 
 ci-rpm-stable:
-	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -T -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash -c 'mkdir -p /work/.ci-home && export HOME=/work/.ci-home USER=$(CI_USER) LOGNAME=$(CI_USER) && base_version="$$(CHANNEL=stable NGINX_REPO_BASE="$(CI_NGINX_REPO_BASE)" NGINX_REPO_OS="$(CI_NGINX_REPO_OS)" NGINX_REPO_RELEASE="$(CI_NGINX_REPO_RELEASE)" bash scripts/get-nginx-srpm-version.sh)" && make -C SPECS clean tree specs base modules BASE_VERSION=$$base_version'
-	@$(MAKE) ci-artifacts
-	@$(MAKE) ci-specs-clean
+	@$(MAKE) ci-rpm-channel CI_CHANNEL=stable
+
+ci-rpm-all:
+	@$(MAKE) ci-rpm-mainline
+	@$(MAKE) ci-rpm-stable
 
 ci-artifacts:
 	@mkdir -p "$(CI_ARTIFACTS_DIR)"
@@ -170,7 +188,15 @@ ci-artifacts:
 	@echo "Artifacts copied to $(CI_ARTIFACTS_DIR)"
 
 ci-specs-clean:
-	docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE) exec -T -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash -c 'mkdir -p /work/.ci-home && export HOME=/work/.ci-home USER=$(CI_USER) LOGNAME=$(CI_USER) && make -C SPECS cln && rpmdev-wipetree'
+	@$(MAKE) ci-init-home
+	$(CI_DOCKER_COMPOSE) exec -T -u $(CI_UID):$(CI_GID) $(CI_SERVICE) bash -c 'mkdir -p "$(CI_HOME_PATH)" && export HOME="$(CI_HOME_PATH)" USER=$(CI_USER) LOGNAME=$(CI_USER) && make -C SPECS cln && rpmdev-wipetree'
+
+ci-clean-worktree:
+	@git clean -f -- \
+		SPECS/.deps-module-* \
+		SPECS/module-* \
+		SPECS/nginx-module-*.spec \
+		SOURCES/nginx-module-*.copyright || true
 
 help: default
 	@make -C SPECS/
@@ -266,7 +292,7 @@ tag:
 
 .PHONY: \
 	ci-build ci-build-compose ci-buildx-bootstrap ci-build-buildx \
-	ci-push ci-push-buildx ci-deploy ci-rm ci-ps ci-shell ci-check ci-rpm \
+	ci-push ci-push-buildx ci-deploy ci-rm ci-ps ci-init-home ci-shell ci-shell-root ci-check ci-rpm ci-rpm-channel ci-rpm-all \
 	ci-check-mainline ci-check-stable ci-check-all \
-	ci-rpm-mainline ci-rpm-stable ci-artifacts ci-specs-clean help \
+	ci-rpm-mainline ci-rpm-stable ci-artifacts ci-specs-clean ci-clean-worktree help \
 	fetch version-check version-check-njs release release-njs revert commit tag

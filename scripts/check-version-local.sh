@@ -71,10 +71,15 @@ retry() {
   done
 }
 
-retry "${RETRIES}" dnf -y install dnf-plugins-core rpm >/dev/null
+retry "${RETRIES}" dnf -y --disablerepo='nginx*' install dnf-plugins-core rpm >/dev/null
 
 source /etc/os-release
 os_token="${ID}"
+case "${os_token}" in
+  almalinux|rocky|rhel|ol|oraclelinux)
+    os_token="centos"
+    ;;
+esac
 release_token="${VERSION_ID%%.*}"
 repo_file="/tmp/nginx.repo"
 

@@ -17,6 +17,11 @@ fi
 
 repo_os="${NGINX_REPO_OS:-${ID}}"
 repo_release="${NGINX_REPO_RELEASE:-${VERSION_ID%%.*}}"
+case "${repo_os}" in
+  almalinux|rocky|rhel|ol|oraclelinux)
+    repo_os="centos"
+    ;;
+esac
 
 case "${CHANNEL}" in
   mainline)

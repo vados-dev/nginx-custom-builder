@@ -52,6 +52,11 @@ on:
         required: false
         default: ""
         type: string
+      ci_container_image:
+        description: "Container image for RPM build job"
+        required: false
+        default: "ghcr.io/vados-dev/nginx-custom-builder/ci:main"
+        type: string
   workflow_call:
     inputs:
       nginx_channel:
@@ -94,6 +99,11 @@ on:
         required: false
         default: ""
         type: string
+      ci_container_image:
+        description: "Container image for RPM build job"
+        required: false
+        default: "ghcr.io/vados-dev/nginx-custom-builder/ci:main"
+        type: string
 
 jobs:
   build:
@@ -103,7 +113,7 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       GITHUB_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
       RPM_GPG_PRIVATE_KEY: ${{ secrets.RPM_GPG_PRIVATE_KEY }}
-    container: quay.io/centos/centos:stream10
+    container: ${{ inputs.ci_container_image }}
 
     steps:
       - name: Checkout
@@ -157,6 +167,11 @@ jobs:
 
           source /etc/os-release
           os_token="${ID}"
+          case "${os_token}" in
+            almalinux|rocky|rhel|ol|oraclelinux)
+              os_token="centos"
+              ;;
+          esac
           release_token="${VERSION_ID%%.*}"
           repo_file="/tmp/nginx.repo"
 
@@ -401,6 +416,11 @@ jobs:
           set -euo pipefail
           source /etc/os-release
           os_token="${ID}"
+          case "${os_token}" in
+            almalinux|rocky|rhel|ol|oraclelinux)
+              os_token="centos"
+              ;;
+          esac
           release_token="${VERSION_ID%%.*}"
           arch_token="$(uname -m)"
           channel="${{ inputs.nginx_channel }}"

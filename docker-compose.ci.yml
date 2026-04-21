@@ -1,11 +1,15 @@
 services:
   nginx-ci-runner:
-    image: reg.vados.ru/nginx-custom-builder-ci:lts
+    image: ${CI_IMAGE:-reg.vados.ru/nginx-custom-builder-ci:lts}
     build:
       context: .
       dockerfile: Dockerfile.ci
       args:
         CI_BASE_IMAGE: ${CI_BASE_IMAGE:-almalinux:9}
+    environment:
+      HOME: /work/.ci-home
+      USER: git
+      LOGNAME: git
     command: ["bash", "-lc", "sleep infinity"]
     working_dir: /work
     volumes:

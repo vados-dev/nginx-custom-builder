@@ -142,12 +142,17 @@ on:
         required: false
         default: false
         type: boolean
+      ci_container_image:
+        description: "Container image for detect/build-rpm jobs"
+        required: false
+        default: "ghcr.io/vados-dev/nginx-custom-builder/ci:main"
+        type: string
 
 jobs:
   detect:
     if: ${{ github.event_name != 'schedule' || vars.CHECK_VERSION_CRON_ENABLED == 'true' }}
     runs-on: ubuntu-latest
-    container: quay.io/centos/centos:stream10
+    container: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'ghcr.io/vados-dev/nginx-custom-builder/ci:main' }}
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     outputs:
@@ -198,6 +203,11 @@ jobs:
 
           source /etc/os-release
           os_token="${ID}"
+          case "${os_token}" in
+            almalinux|rocky|rhel|ol|oraclelinux)
+              os_token="centos"
+              ;;
+          esac
           release_token="${VERSION_ID%%.*}"
           state_dir=".github/version-state"
           requested_channel="${MANUAL_CHANNEL:-}"
@@ -489,6 +499,7 @@ jobs:
       publish_dnf_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_dnf_repo || true }}
       alpine_version: ${{ github.event_name == 'workflow_dispatch' && inputs.alpine_version || '3.20' }}
       publish_alpine_structure: true
+      ci_container_image: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'ghcr.io/vados-dev/nginx-custom-builder/ci:main' }}
     secrets: inherit
 
   build-debian:
