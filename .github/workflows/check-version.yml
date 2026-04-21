@@ -2,6 +2,8 @@ name: Check nginx version
 
 permissions:
   contents: write
+env:
+  CI_CONTAINER_REPO: ghcr.io/vados-dev/nginx-custom-builder/ci
 
 on:
   schedule:
@@ -143,16 +145,16 @@ on:
         default: false
         type: boolean
       ci_container_image:
-        description: "Container image for detect/build-rpm jobs"
+        description: "CI container tag for detect/build jobs"
         required: false
-        default: "ghcr.io/vados-dev/nginx-custom-builder/ci:lts"
+        default: "lts"
         type: string
 
 jobs:
   detect:
     if: ${{ github.event_name != 'schedule' || vars.CHECK_VERSION_CRON_ENABLED == 'true' }}
     runs-on: ubuntu-latest
-    container: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'ghcr.io/vados-dev/nginx-custom-builder/ci:lts' }}
+    container: ${{ format('{0}:{1}', env.CI_CONTAINER_REPO, (github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'lts')) }}
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     outputs:
@@ -499,7 +501,7 @@ jobs:
       publish_dnf_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_dnf_repo || true }}
       alpine_version: ${{ github.event_name == 'workflow_dispatch' && inputs.alpine_version || '3.20' }}
       publish_alpine_structure: true
-      ci_container_image: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'ghcr.io/vados-dev/nginx-custom-builder/ci:lts' }}
+      ci_container_image: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'lts' }}
     secrets: inherit
 
   build-debian:
