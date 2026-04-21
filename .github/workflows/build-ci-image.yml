@@ -16,10 +16,13 @@ on:
           - build
           - delete
       image_tag:
-        description: "Build mode: tag override (e.g. v0.0.1b). Empty => CI_IMAGE_VER"
+        description: "Build mode suffix. Final tag = CI_IMAGE_VER+1(+suffix)"
         required: false
         default: ""
-        type: string
+        type: choice
+        options:
+          - ""
+          - "b"
       delete_tags:
         description: "Delete mode: space/comma separated tags (e.g. v0.0.1b,sha-abc123)"
         required: false
@@ -50,7 +53,8 @@ jobs:
           set -euo pipefail
           repo_lc="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
           image="ghcr.io/${repo_lc}/ci"
-          tag_input="${{ github.event_name == 'workflow_dispatch' && inputs.image_tag || '' }}"
+          suffix_input="${{ github.event_name == 'workflow_dispatch' && inputs.image_tag || '' }}"
+          suffix_input="$(echo "${suffix_input}" | tr '[:upper:]' '[:lower:]' | xargs)"
 
           next_tag() {
             local t="$1"
@@ -74,30 +78,18 @@ jobs:
             printf 'v%d.%d.%d\n' "${major}" "${minor}" "${patch}"
           }
 
-          if [[ -n "${tag_input}" ]]; then
-            tag="${tag_input}"
-          elif [[ -n "${CI_IMAGE_VER}" ]]; then
-            tag="${CI_IMAGE_VER}"
-          else
-            owner_lc="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
-            repo_name="${GITHUB_REPOSITORY#*/}"
-            package_name="${repo_name}/ci"
-            package_name_enc="${package_name//\//%2F}"
-            versions_json="$(gh api \
-              -H "Accept: application/vnd.github+json" \
-              "/users/${owner_lc}/packages/container/${package_name_enc}/versions?per_page=100" 2>/dev/null || echo '[]')"
-            latest_numeric_tag="$(
-              jq -r '.[].metadata.container.tags[]? // empty' <<< "${versions_json}" \
-                | grep -E '^v[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}$' \
-                | sort -V \
-                | tail -n1 || true
-            )"
-            if [[ -z "${latest_numeric_tag}" ]]; then
-              tag="v0.0.1"
-            else
-              tag="$(next_tag "${latest_numeric_tag}")"
-            fi
+          if [[ -z "${CI_IMAGE_VER}" ]]; then
+            echo "CI_IMAGE_VER repo variable is empty" >&2
+            exit 1
           fi
+
+          base_numeric_tag="$(sed -E 's/^(v[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}).*/\1/' <<< "${CI_IMAGE_VER}")"
+          if [[ ! "${base_numeric_tag}" =~ ^v[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}$ ]]; then
+            echo "Invalid CI_IMAGE_VER format: ${CI_IMAGE_VER}" >&2
+            exit 1
+          fi
+
+          tag="$(next_tag "${base_numeric_tag}")${suffix_input}"
           tag_sanitized="$(echo "${tag}" | tr '/:@ ' '-' | tr -cd 'a-zA-Z0-9._-')"
           echo "image=${image}" >> "${GITHUB_OUTPUT}"
           echo "tag=${tag_sanitized}" >> "${GITHUB_OUTPUT}"
