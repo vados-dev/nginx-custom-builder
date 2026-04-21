@@ -249,7 +249,18 @@ check-compat-%:
 
 nginx-module-%.deb-changelog:
 	@echo "===> Generating $@"
-	@cd $(DOCS) && DEST=$(CURDIR) VERSIONMASK=1 make $(CURDIR)/nginx-module-$*.deb-changelog
+	@if [ -f "$(DOCS)/nginx-module-$*.xml" ]; then \
+		cd $(DOCS) && DEST=$(CURDIR) VERSIONMASK=1 make $(CURDIR)/nginx-module-$*.deb-changelog ; \
+	else \
+		module_version="$(MODULE_VERSION_PREFIX_$(call modname, $*))$(MODULE_VERSION_$(call modname, $*))" ; \
+		{ \
+			echo "nginx-module-$* ($${module_version}-$(MODULE_RELEASE_$(call modname, $*))~$(CODENAME)) $(CODENAME); urgency=low" ; \
+			echo ; \
+			echo "  * Custom module packaging update." ; \
+			echo ; \
+			echo " -- $(PACKAGE_VENDOR)  $$(date -R)" ; \
+		} > "$(CURDIR)/nginx-module-$*.deb-changelog" ; \
+	fi
 	@sed -i -e 's,nginx-module-,nginx$(MODULE_SUFFIX)-module-,g' $(CURDIR)/$@
 
 rules-module-%: $(BASE_SRC) nginx-module-%.deb-changelog .deps-module-%
