@@ -250,7 +250,12 @@ nginx-module-%.spec:
 	if [ -f ../SOURCES/$${module_copyright} ]; then \
 		copyright_source=$${module_copyright} ; \
 	else \
-		copyright_source=COPYRIGHT ; \
+		if [ -f ../docs/$${module_copyright} ]; then \
+			cp -f ../docs/$${module_copyright} ../SOURCES/$${module_copyright} ; \
+		else \
+			cp -f ../docs/nginx.copyright ../SOURCES/$${module_copyright} ; \
+		fi ; \
+		copyright_source=$${module_copyright} ; \
 	fi ; \
 	module_changelog=`echo $@ | sed -e "s#.spec#.changelog.in#"` ; \
 	if [ -f $${module_changelog} ]; then \
