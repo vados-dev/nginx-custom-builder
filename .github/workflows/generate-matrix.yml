@@ -8,6 +8,24 @@ on:
       - .github/workflows/generate-matrix.yml
   workflow_dispatch:
     inputs:
+      target_os:
+        description: "Which OS matrix to run"
+        required: true
+        default: "redhat"
+        type: choice
+        options:
+          - redhat
+          - ubuntu
+          - alpine
+          - all
+      nginx_channel:
+        description: "nginx source channel for debug builds"
+        required: true
+        default: "mainline"
+        type: choice
+        options:
+          - mainline
+          - stable
       module_mode:
         description: "How to select modules for matrix targets"
         required: true
@@ -26,8 +44,21 @@ on:
         required: false
         default: false
         type: boolean
+      debug_mode:
+        description: "Debug mode: build only base target for selected OS"
+        required: false
+        default: false
+        type: boolean
   workflow_call:
     inputs:
+      target_os:
+        required: false
+        default: "all"
+        type: string
+      nginx_channel:
+        required: false
+        default: "mainline"
+        type: string
       module_mode:
         required: false
         default: "auto"
@@ -37,6 +68,10 @@ on:
         default: "image-filter perl xslt markdown-filter acme njs error-page-inherit include-server"
         type: string
       show_available_modules:
+        required: false
+        default: false
+        type: boolean
+      debug_mode:
         required: false
         default: false
         type: boolean
@@ -55,6 +90,10 @@ jobs:
       matrix-alpine: ${{ steps.set-matrix.outputs.matrix-alpine }}
       matrix-ubuntu: ${{ steps.set-matrix.outputs.matrix-ubuntu }}
       matrix-redhat: ${{ steps.set-matrix.outputs.matrix-redhat }}
+      run-alpine: ${{ steps.resolve-targets.outputs.run_alpine }}
+      run-ubuntu: ${{ steps.resolve-targets.outputs.run_ubuntu }}
+      run-redhat: ${{ steps.resolve-targets.outputs.run_redhat }}
+      selected-channel: ${{ steps.resolve-targets.outputs.selected_channel }}
       selected-modules: ${{ steps.resolve-targets.outputs.selected_modules }}
       targets-alpine: ${{ steps.resolve-targets.outputs.targets_alpine }}
       targets-ubuntu: ${{ steps.resolve-targets.outputs.targets_ubuntu }}
@@ -105,10 +144,16 @@ jobs:
           event_mode="$(jq -r '.inputs.module_mode // empty' "${GITHUB_EVENT_PATH}")"
           event_custom="$(jq -r '.inputs.custom_modules // empty' "${GITHUB_EVENT_PATH}")"
           event_show="$(jq -r '.inputs.show_available_modules // empty' "${GITHUB_EVENT_PATH}")"
+          event_os="$(jq -r '.inputs.target_os // empty' "${GITHUB_EVENT_PATH}")"
+          event_channel="$(jq -r '.inputs.nginx_channel // empty' "${GITHUB_EVENT_PATH}")"
+          event_debug="$(jq -r '.inputs.debug_mode // empty' "${GITHUB_EVENT_PATH}")"
 
           default_custom_modules="image-filter perl xslt markdown-filter acme njs error-page-inherit include-server"
           module_mode="${event_mode:-}"
           custom_modules="${event_custom:-}"
+          target_os="${event_os:-all}"
+          selected_channel="${event_channel:-mainline}"
+          debug_mode="${event_debug:-false}"
           if [[ -z "${module_mode}" ]]; then
             if [[ "${GITHUB_EVENT_NAME:-}" == "push" ]]; then
               module_mode="custom"
@@ -221,10 +266,41 @@ jobs:
           targets_ubuntu="$(normalize_modules "${targets_ubuntu}")"
           targets_redhat="$(normalize_modules "${targets_redhat}")"
 
+          if [[ "${debug_mode}" == "true" ]]; then
+            targets_alpine="base"
+            targets_ubuntu="base"
+            targets_redhat="base"
+          fi
+
+          run_alpine="false"
+          run_ubuntu="false"
+          run_redhat="false"
+          case "${target_os}" in
+            all)
+              run_alpine="true"
+              run_ubuntu="true"
+              run_redhat="true"
+              ;;
+            alpine) run_alpine="true" ;;
+            ubuntu) run_ubuntu="true" ;;
+            redhat) run_redhat="true" ;;
+            *)
+              echo "Unsupported target_os: ${target_os}" >&2
+              exit 1
+              ;;
+          esac
+
           echo "selected_modules=${selected_modules}" >> "${GITHUB_OUTPUT}"
+          echo "selected_channel=${selected_channel}" >> "${GITHUB_OUTPUT}"
+          echo "run_alpine=${run_alpine}" >> "${GITHUB_OUTPUT}"
+          echo "run_ubuntu=${run_ubuntu}" >> "${GITHUB_OUTPUT}"
+          echo "run_redhat=${run_redhat}" >> "${GITHUB_OUTPUT}"
           echo "targets_alpine=${targets_alpine}" >> "${GITHUB_OUTPUT}"
           echo "targets_ubuntu=${targets_ubuntu}" >> "${GITHUB_OUTPUT}"
           echo "targets_redhat=${targets_redhat}" >> "${GITHUB_OUTPUT}"
+          echo "Selected channel: ${selected_channel}"
+          echo "Target OS: ${target_os}"
+          echo "Debug mode: ${debug_mode}"
           echo "Resolved matrix targets (alpine): ${targets_alpine}"
           echo "Resolved matrix targets (ubuntu): ${targets_ubuntu}"
           echo "Resolved matrix targets (redhat): ${targets_redhat}"
@@ -242,12 +318,20 @@ jobs:
 
   alpine:
     needs: generate-matrix
+    if: ${{ needs.generate-matrix.outputs.run-alpine == 'true' }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix-alpine)}}
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Resolve nginx version for channel
+        run: |
+          channel="${{ needs.generate-matrix.outputs.selected-channel }}"
+          version_string="$(curl -fsSL "https://version.nginx.com/nginx/${channel}")"
+          nginx_version="${version_string%%-*}"
+          sed -i -E "s/^NGINX_VERSION[[:space:]]*:=.*/NGINX_VERSION := ${nginx_version}/" contrib/src/nginx/version
 
       - name: Setup Alpine Linux
         uses: jirutka/setup-alpine@ae3b3ddba35054804fc4a3507b519fa7e8152050 # v1
@@ -294,12 +378,20 @@ jobs:
 
   ubuntu:
     needs: generate-matrix
+    if: ${{ needs.generate-matrix.outputs.run-ubuntu == 'true' }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix-ubuntu)}}
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Resolve nginx version for channel
+        run: |
+          channel="${{ needs.generate-matrix.outputs.selected-channel }}"
+          version_string="$(curl -fsSL "https://version.nginx.com/nginx/${channel}")"
+          nginx_version="${version_string%%-*}"
+          sed -i -E "s/^NGINX_VERSION[[:space:]]*:=.*/NGINX_VERSION := ${nginx_version}/" contrib/src/nginx/version
 
       - name: Setup Ubuntu
         run: |
@@ -334,6 +426,7 @@ jobs:
 
   redhat:
     needs: generate-matrix
+    if: ${{ needs.generate-matrix.outputs.run-redhat == 'true' }}
     runs-on: ubuntu-24.04
     container: almalinux:9
     strategy:
@@ -358,6 +451,13 @@ jobs:
             xz \
             'dnf-command(config-manager)'
           dnf config-manager --set-enabled crb
+
+      - name: Resolve nginx version for channel
+        run: |
+          channel="${{ needs.generate-matrix.outputs.selected-channel }}"
+          version_string="$(curl -fsSL "https://version.nginx.com/nginx/${channel}")"
+          nginx_version="${version_string%%-*}"
+          sed -i -E "s/^BASE_VERSION[[:space:]]*=.*/BASE_VERSION=\t${nginx_version}/" SPECS/Makefile
 
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1
