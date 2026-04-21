@@ -183,6 +183,7 @@ nginx.spec:
 
 module-%: nginx-module-%.spec stage-sources
 	@echo "===> Building nginx-$@ package" ; \
+	$(MAKE) --no-print-directory stage-sources && \
 	$(SHELL) -c "time -p rpmbuild $(RPMBUILD_ARGS) $(RPMBUILD_EXTRA_DEFINES) nginx-$@.spec" && \
 	if [ "$(COPY_ARTIFACTS)" = "1" ]; then \
 		mkdir -p $(ARTIFACTS_DIR) && \
