@@ -46,10 +46,10 @@ Installed-Size: 115
 Depends: nginx-r1.30.0
 Provides: nginx-module-error-page-inherit-r1.30.0
 Filename: ./nginx-module-error-page-inherit_1.30.0+0.0.1-1~bookworm_amd64.deb
-Size: 78024
-MD5sum: 52b58618754fc5163b5d455668a4cc42
-SHA1: 8a4defd69dc39f85ebb82ddf694b3834101fba9e
-SHA256: c6c0592ed6e401b7be9954dbb7f60350f2be5d4025d66549a8045f2263648d4a
+Size: 78016
+MD5sum: 666a593ff1488aa243dbb1f86a70e8f0
+SHA1: 9f5508677c3160914d359226392706f33e8e1600
+SHA256: c57ba17c5878c4e777d6adc66b037e618494687b1b3ee5b729415f4872ed62fc
 Section: httpd
 Priority: optional
 Homepage: https://nginx.org/
@@ -82,10 +82,10 @@ Installed-Size: 115
 Depends: nginx-r1.30.0
 Provides: nginx-module-include-server-r1.30.0
 Filename: ./nginx-module-include-server_1.30.0+0.0.1-1~bookworm_amd64.deb
-Size: 78192
-MD5sum: 76bea12dbad279dd26cfa99fd3828b25
-SHA1: e4ec941ca820e3ba1ddf6a9074a0557007227935
-SHA256: 1af9543f6184f4c9de70711ad1a1eaff0cae905dc2b440de75b5245deab88e16
+Size: 78188
+MD5sum: 567f6a83ce26dffbfcc7a87b4ea7e29d
+SHA1: 91d14fe40a1edabd55ce71a9d6dac04c789f1bc7
+SHA256: 1ed821a9162f03267956294a9443009b99e50832ec39454d661983e4f7ee89fc
 Section: httpd
 Priority: optional
 Homepage: https://nginx.org/
@@ -100,10 +100,10 @@ Installed-Size: 115
 Depends: libc6 (>= 2.33), libcmark0.30.2 (>= 0.30.2), nginx-r1.30.0
 Provides: nginx-module-markdown-filter-r1.30.0
 Filename: ./nginx-module-markdown-filter_1.30.0+0.1.7-1~bookworm_amd64.deb
-Size: 79732
-MD5sum: 44d9f8bcca80548ca38875625a3c5818
-SHA1: ba2b21ba2571251d608e9fce14554754309391eb
-SHA256: 96c0314c8a229e48c1420df6c3293eef1ca6fd1b06c248d0e05f5a2db6bdd8a2
+Size: 79744
+MD5sum: a324a7a1b57e95aeafc35ac11566a411
+SHA1: 05c9572d6d1904fc2d55aab5182e125aae9475f3
+SHA256: bc41ac48d0e8426975ae98cd98c3a605f092f05e8404cd7d7ccabb793dd60bef
 Section: httpd
 Priority: optional
 Homepage: https://nginx.org/
