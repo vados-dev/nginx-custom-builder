@@ -93,6 +93,15 @@ jobs:
               | xargs || true
           }
 
+          modules_from_make_targets() {
+            local dir="$1"
+            local all_mods=""
+            local base_mods=""
+            all_mods="$(make --no-print-directory -C "${dir}" list-all-modules 2>/dev/null | awk '{print $1}' | xargs || true)"
+            base_mods="$(make --no-print-directory -C "${dir}" list-base-modules 2>/dev/null | awk '{print $1}' | xargs || true)"
+            normalize_modules "${all_mods} ${base_mods}"
+          }
+
           event_mode="$(jq -r '.inputs.module_mode // empty' "${GITHUB_EVENT_PATH}")"
           event_custom="$(jq -r '.inputs.custom_modules // empty' "${GITHUB_EVENT_PATH}")"
           event_show="$(jq -r '.inputs.show_available_modules // empty' "${GITHUB_EVENT_PATH}")"
@@ -103,17 +112,26 @@ jobs:
 
           debian_default_modules="$(make --no-print-directory -C debian list-all-modules | awk '{print $1}' | xargs || true)"
           debian_default_modules="$(normalize_modules "${debian_default_modules}")"
-          debian_all_modules="$(modules_from_makefiles debian)"
+          debian_all_modules="$(modules_from_make_targets debian)"
+          if [[ -z "${debian_all_modules}" ]]; then
+            debian_all_modules="$(modules_from_makefiles debian)"
+          fi
           debian_all_modules="$(normalize_modules "${debian_all_modules}")"
 
           alpine_default_modules="$(make --no-print-directory -C alpine list-all-modules | awk '{print $1}' | xargs || true)"
           alpine_default_modules="$(normalize_modules "${alpine_default_modules}")"
-          alpine_all_modules="$(modules_from_makefiles alpine)"
+          alpine_all_modules="$(modules_from_make_targets alpine)"
+          if [[ -z "${alpine_all_modules}" ]]; then
+            alpine_all_modules="$(modules_from_makefiles alpine)"
+          fi
           alpine_all_modules="$(normalize_modules "${alpine_all_modules}")"
 
           redhat_default_modules="$(make --no-print-directory -C SPECS list-all-modules | awk '{print $1}' | xargs || true)"
           redhat_default_modules="$(normalize_modules "${redhat_default_modules}")"
-          redhat_all_modules="$(modules_from_makefiles SPECS)"
+          redhat_all_modules="$(modules_from_make_targets SPECS)"
+          if [[ -z "${redhat_all_modules}" ]]; then
+            redhat_all_modules="$(modules_from_makefiles SPECS)"
+          fi
           redhat_all_modules="$(normalize_modules "${redhat_all_modules}")"
 
           # Keep Ubuntu module discovery aligned with Debian Makefile modules.
