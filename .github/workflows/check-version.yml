@@ -17,14 +17,6 @@ on:
           - all
           - mainline
           - stable
-      build_args:
-        description: "rpmbuild arguments"
-        required: true
-        default: "-bb"
-        type: choice
-        options:
-          - "-bb"
-          - "-ba"
       disable_debug_packages:
         description: "Disable debug/debuginfo packages"
         required: true
@@ -36,32 +28,49 @@ on:
         default: false
         type: boolean
       alpine_version:
-        description: "Alpine major.minor for repo path"
+        description: "APK repo OS"
         required: true
         default: "3.20"
         type: choice
         options:
-          - "3.23"
           - "3.22"
           - "3.21"
           - "3.20"
           - "3.19"
-          - "3.18"
       debian_suite:
-        description: "Debian suite path in repo"
+        description: "DEB repo OS"
         required: true
-        default: "bookworm"
-        type: string
+        default: "trixie"
+        type: choice
+        options:
+          - "trixie"
+          - "bookworm"
+          - "bullseye"
       rpm_repo_os:
-        description: "DNF repo OS path segment (e.g. centos)"
+        description: "DNF repo OS"
         required: true
         default: "centos"
-        type: string
+        type: choice
+        options:
+          - "centos"
+          - "almalinux"
+          - "rhel"
       rpm_repo_release:
-        description: "DNF repo release path segment (e.g. 10)"
+        description: "DNF repo release"
         required: true
         default: "10"
-        type: string
+        type: choice
+        options:
+          - "10"
+          - "9"
+      build_args:
+        description: "rpmbuild arguments"
+        required: true
+        default: "-bb"
+        type: choice
+        options:
+          - "-bb"
+          - "-ba"
       modules_mode:
         description: "How to resolve module base set"
         required: true
