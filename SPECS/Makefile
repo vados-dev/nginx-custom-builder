@@ -358,6 +358,7 @@ nginx-module-%.spec:
 	post=`echo "$$MODULE_POST_$(call modname,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
 	cat $(MODULE_SPEC_TEMPLATE) | sed \
 			-e "s#%%NAME%%#$${pkgname}#g" \
+			-e "s#%%PACKAGE_VENDOR%%#$(if $(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(PACKAGE_VENDOR))#g" \
 			-e "s#%%MODULE_PACKAGE_VENDOR%%#$(if $(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(PACKAGE_VENDOR))#g" \
 			-e "s#%%MODULE_PACKAGE_URL%%#$(if $(strip $(MODULE_PACKAGE_URL_$(call modname,$*))),$(strip $(MODULE_PACKAGE_URL_$(call modname,$*))),$(PACKAGE_URL))#g" \
 			-e "s#%%MODULE_PACKAGE_LICENSE%%#$${module_package_license}#g" \
@@ -368,6 +369,7 @@ nginx-module-%.spec:
 		-e "s#%%MAIN_RELEASE%%#$(BASE_RELEASE)#g" \
 		-e "s#%%BASE_VERSION%%#$(BASE_VERSION)#g" \
 		-e "s#%%BASE_RELEASE%%#$(BASE_RELEASE)#g" \
+		-e "s#%%VERSION_PREFIX%%#$(MODULE_VERSION_PREFIX_$(call modname,$*))#g" \
 		-e "s#%%MODULE_VERSION_PREFIX%%#$(MODULE_VERSION_PREFIX_$(call modname,$*))#g" \
 		-e "s#%%VERSION%%#$(MODULE_VERSION_$(call modname,$*))#g" \
 		-e "s#%%RELEASE%%#$(MODULE_RELEASE_$(call modname,$*))#g" \
@@ -381,7 +383,10 @@ nginx-module-%.spec:
 		-e "s#%%MODULE_DEFINITIONS%%#$${definitions}#g" \
 		-e "s#%%MODULE_PREBUILD%%#$${prebuild}#g" \
 		-e "s#%%MODULE_ENV%%#$${buildenv}#g" \
+		-e "s#%%MODULE_CC_OPT%%#$(MODULE_CC_OPT_$(call modname,$*))#g" \
+		-e "s#%%MODULE_LD_OPT%%#$(MODULE_LD_OPT_$(call modname,$*))#g" \
 		-e "s#%%MODULE_CC_OPT_DEBUG%%#$(MODULE_CC_OPT_DEBUG_$(subst -,_,$*))#g" \
+		-e "s#%%MODULE_LD_OPT_DEBUG%%#$(MODULE_LD_OPT_DEBUG_$(subst -,_,$*))#g" \
 		-e "s#%%MODULE_CC_OPT_NODEBUG%%#$(MODULE_CC_OPT_NODEBUG_$(subst -,_,$*))#g" \
 		-e "s#%%MODULE_PREINSTALL%%#$${preinstall}#g" \
 		-e "s#%%MODULE_FILES%%#$${files}#g" \
