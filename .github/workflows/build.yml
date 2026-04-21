@@ -2,8 +2,6 @@ name: Build RPM
 
 permissions:
   contents: write
-env:
-  CI_CONTAINER_REPO: ghcr.io/vados-dev/nginx-custom-builder/ci
 
 on:
   workflow_dispatch:
@@ -115,7 +113,7 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       GITHUB_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
       RPM_GPG_PRIVATE_KEY: ${{ secrets.RPM_GPG_PRIVATE_KEY }}
-    container: ${{ format('{0}:{1}', env.CI_CONTAINER_REPO, inputs.ci_container_image) }}
+    container: ${{ format('ghcr.io/vados-dev/nginx-custom-builder/ci:{0}', inputs.ci_container_image) }}
 
     steps:
       - name: Checkout

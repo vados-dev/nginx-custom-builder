@@ -2,8 +2,6 @@ name: Check nginx version
 
 permissions:
   contents: write
-env:
-  CI_CONTAINER_REPO: ghcr.io/vados-dev/nginx-custom-builder/ci
 
 on:
   schedule:
@@ -154,7 +152,7 @@ jobs:
   detect:
     if: ${{ github.event_name != 'schedule' || vars.CHECK_VERSION_CRON_ENABLED == 'true' }}
     runs-on: ubuntu-latest
-    container: ${{ format('{0}:{1}', env.CI_CONTAINER_REPO, (github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'lts')) }}
+    container: ${{ format('ghcr.io/vados-dev/nginx-custom-builder/ci:{0}', (github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'lts')) }}
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     outputs:
