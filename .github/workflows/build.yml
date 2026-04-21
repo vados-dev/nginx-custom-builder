@@ -167,13 +167,24 @@ jobs:
           sed -i -E "s/^BASE_VERSION[[:space:]]*=.*/BASE_VERSION=\t${ver}/" SPECS/Makefile
           enabled_modules="${{ inputs.enabled_modules }}"
           if [[ -n "${enabled_modules}" ]]; then
+            for mod in ${enabled_modules}; do
+              make -C SPECS --no-print-directory ".deps-module-${mod}"
+            done
+          fi
+          if [[ -n "${enabled_modules}" ]]; then
             make -C SPECS nginx.spec specs ENABLED_MODULES="${enabled_modules}"
           else
             make -C SPECS nginx.spec specs
           fi
 
           echo "Generated module specs:"
-          ls -1 SPECS/nginx-module-*.spec || true
+          shopt -s nullglob
+          module_specs=(SPECS/nginx-module-*.spec)
+          printf '%s\n' "${module_specs[@]:-}"
+          if [[ -n "${enabled_modules}" && "${#module_specs[@]}" -eq 0 ]]; then
+            echo "No module specs were generated for enabled_modules='${enabled_modules}'" >&2
+            exit 1
+          fi
 
           echo "nginx_version=${ver}" >> "$GITHUB_OUTPUT"
           echo "source_repo=${source_repo}" >> "$GITHUB_OUTPUT"
