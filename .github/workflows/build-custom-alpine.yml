@@ -194,7 +194,7 @@ jobs:
 
           (
             cd "${repo_root}"
-            apk index --rewrite-arch "${arch}" -o APKINDEX.tar.gz ./*.apk
+            apk index --allow-untrusted --rewrite-arch "${arch}" -o APKINDEX.tar.gz ./*.apk
           )
 
           mkdir -p /tmp/apk-repo/repo/alpine/keys

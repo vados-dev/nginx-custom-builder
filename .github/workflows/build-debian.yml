@@ -92,6 +92,7 @@ jobs:
             libedit-dev \
             libgd-dev \
             libxslt1-dev \
+            libperl-dev \
             libcmark-dev \
             pkg-config \
             clang \
