@@ -1,8 +1,11 @@
 name: Generate Matrix
 
 on:
-  pull_request:
   push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/generate-matrix.yml
   workflow_dispatch:
     inputs:
       module_mode:

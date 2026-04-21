@@ -4,8 +4,8 @@ permissions:
   contents: write
 
 on:
-#  schedule:
-#    - cron: "*/7 * * * *"
+  schedule:
+    - cron: "*/7 * * * *"
   workflow_dispatch:
     inputs:
       nginx_channel:
@@ -38,7 +38,7 @@ on:
       modules_mode:
         description: "How to resolve module base set"
         required: true
-        default: "repo-defaults"
+        default: "legacy-inputs"
         type: choice
         options:
           - repo-defaults
@@ -77,7 +77,7 @@ on:
       modules_alpine_extra:
         description: "Legacy mode: extra modules for Alpine"
         required: true
-        default: ""
+        default: "acme njs"
         type: string
       modules_rpm_override:
         description: "Override RPM modules completely"
@@ -145,6 +145,7 @@ on:
 
 jobs:
   detect:
+    if: ${{ github.event_name != 'schedule' || vars.CHECK_VERSION_CRON_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     container: quay.io/centos/centos:stream10
     env:
@@ -190,6 +191,7 @@ jobs:
         shell: bash
         env:
           MANUAL_CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.nginx_channel || '' }}
+          EVENT_NAME: ${{ github.event_name }}
           FORCE_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.force_build || false }}
         run: |
           set -euo pipefail
@@ -198,7 +200,14 @@ jobs:
           os_token="${ID}"
           release_token="${VERSION_ID%%.*}"
           state_dir=".github/version-state"
-          requested_channel="${MANUAL_CHANNEL:-mainline}"
+          requested_channel="${MANUAL_CHANNEL:-}"
+          if [[ -z "${requested_channel}" ]]; then
+            if [[ "${EVENT_NAME}" == "schedule" ]]; then
+              requested_channel="all"
+            else
+              requested_channel="mainline"
+            fi
+          fi
 
           channels=("${requested_channel}")
           if [[ "${requested_channel}" == "all" ]]; then
@@ -336,14 +345,14 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
-          MODULES_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_mode || 'repo-defaults' }}
+          MODULES_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_mode || 'legacy-inputs' }}
           GLOBAL_BASE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_global_base || '' }}
           GLOBAL_ADD: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_add || '' }}
           GLOBAL_REMOVE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_remove || '' }}
           IN_COMMON: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_common || 'error-page-inherit include-server markdown-filter' }}
           IN_RPM_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_rpm_extra || 'acme njs' }}
           IN_DEB_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_deb_extra || 'acme njs' }}
-          IN_ALPINE_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_alpine_extra || '' }}
+          IN_ALPINE_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_alpine_extra || 'acme njs' }}
           IN_RPM_OVERRIDE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_rpm_override || '' }}
           IN_DEB_OVERRIDE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_deb_override || '' }}
           IN_ALPINE_OVERRIDE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_alpine_override || '' }}
@@ -451,63 +460,15 @@ jobs:
           echo "- DEB: ${deb_modules}"
           echo "- Alpine: ${alpine_modules}"
 
-  resolve-matrix-modules:
-    if: ${{ needs.detect.outputs.should_build_any == 'true' }}
-    needs:
-      - detect
-      - resolve-modules
-    runs-on: ubuntu-latest
-    outputs:
-      matrix_modules: ${{ steps.resolve.outputs.matrix_modules }}
-    steps:
-      - name: Resolve matrix module set
-        id: resolve
-        shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          MODE_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.matrix_module_mode || 'auto' }}
-          OVERRIDE_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.matrix_modules_override || '' }}
-          RPM_MODULES: ${{ needs['resolve-modules'].outputs.rpm_modules }}
-          DEB_MODULES: ${{ needs['resolve-modules'].outputs.deb_modules }}
-          ALPINE_MODULES: ${{ needs['resolve-modules'].outputs.alpine_modules }}
-        run: |
-          set -euo pipefail
-
-          normalize_modules() {
-            local raw="$1"
-            if [[ -z "${raw//[[:space:]]/}" ]]; then
-              echo ""
-              return
-            fi
-            echo "$raw" | xargs -n1 | awk 'NF && !seen[$0]++' | xargs
-          }
-
-          union_modules="$(normalize_modules "${RPM_MODULES} ${DEB_MODULES} ${ALPINE_MODULES}")"
-          mode="${MODE_INPUT}"
-          override="$(normalize_modules "${OVERRIDE_INPUT}")"
-
-          matrix_modules="${union_modules}"
-          if [[ "${mode}" == "custom" ]]; then
-            if [[ -z "${override}" ]]; then
-              echo "matrix_module_mode=custom requires non-empty matrix_modules_override" >&2
-              exit 1
-            fi
-            matrix_modules="${override}"
-          fi
-
-          echo "matrix_modules=${matrix_modules}" >> "${GITHUB_OUTPUT}"
-          echo "Resolved matrix modules: ${matrix_modules}"
-
   generate-matrix-checks:
     if: ${{ needs.detect.outputs.should_build_any == 'true' && (github.event_name != 'workflow_dispatch' || inputs.run_generate_matrix) }}
     needs:
       - detect
       - resolve-modules
-      - resolve-matrix-modules
     uses: ./.github/workflows/generate-matrix.yml
     with:
-      module_mode: custom
-      custom_modules: ${{ needs['resolve-matrix-modules'].outputs.matrix_modules }}
+      module_mode: ${{ github.event_name == 'workflow_dispatch' && inputs.matrix_module_mode || 'auto' }}
+      custom_modules: ${{ github.event_name == 'workflow_dispatch' && inputs.matrix_modules_override || '' }}
       show_available_modules: ${{ github.event_name == 'workflow_dispatch' && inputs.show_available_matrix_modules || false }}
 
   build-rpm:
@@ -517,6 +478,7 @@ jobs:
       - resolve-modules
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix: ${{ fromJson(needs.detect.outputs.build_matrix) }}
     uses: ./.github/workflows/build.yml
     with:
@@ -536,6 +498,7 @@ jobs:
       - resolve-modules
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix: ${{ fromJson(needs.detect.outputs.build_matrix) }}
     uses: ./.github/workflows/build-debian.yml
     with:
@@ -552,6 +515,7 @@ jobs:
       - resolve-modules
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix: ${{ fromJson(needs.detect.outputs.build_matrix) }}
     uses: ./.github/workflows/build-custom-alpine.yml
     with:
