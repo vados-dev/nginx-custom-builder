@@ -247,16 +247,7 @@ nginx-module-%.spec:
 		i=$$(($${i}+1)) ; \
 	done ; \
 	module_copyright=`echo $@ | sed -e "s#.spec#.copyright#"` ; \
-	if [ -f ../SOURCES/$${module_copyright} ]; then \
-		copyright_source=$${module_copyright} ; \
-	else \
-		if [ -f ../docs/$${module_copyright} ]; then \
-			cp -f ../docs/$${module_copyright} ../SOURCES/$${module_copyright} ; \
-		else \
-			cp -f ../docs/nginx.copyright ../SOURCES/$${module_copyright} ; \
-		fi ; \
-		copyright_source=$${module_copyright} ; \
-	fi ; \
+	module_package_license="$(strip $(MODULE_PACKAGE_LICENSE_$(call modname,$*)))" ; \
 	module_changelog=`echo $@ | sed -e "s#.spec#.changelog.in#"` ; \
 	if [ -f $${module_changelog} ]; then \
 		changelog_file=$${module_changelog} ; \
@@ -267,7 +258,7 @@ nginx-module-%.spec:
 	if [ "$(MODULE_TARGET)" = "plus" ]; then \
 		pkgname=`echo $${pkgname} | sed -e "s#^nginx-#nginx-plus-#"` ; \
 	fi ; \
-	if [ -z "$(MODULE_PACKAGE_LICENSE_$(call modname,$*))" ]; then \
+	if [ -z "$${module_package_license}" ]; then \
 		tmplic=`mktemp -d` ; \
 		found_license="" ; \
 		for src in $(MODULE_SOURCES_$(call modname,$*)); do \
@@ -306,9 +297,40 @@ nginx-module-%.spec:
 			[ -n "$${found_license}" ] && break ; \
 		done ; \
 		if [ -n "$${found_license}" ]; then \
-			echo "WARNING: MODULE_PACKAGE_LICENSE_$(call modname,$*) is empty (found: $${found_license})" >&2 ; \
+			if [ ! -f ../SOURCES/$${module_copyright} ]; then \
+				cp -f "$${found_license}" ../SOURCES/$${module_copyright} || true ; \
+			fi ; \
+			if grep -qiE 'apache[[:space:]-]*2(\.0)?|apache license' "$${found_license}"; then \
+				module_package_license="Apache-2.0" ; \
+			elif grep -qiE 'mit license|permission is hereby granted, free of charge' "$${found_license}"; then \
+				module_package_license="MIT" ; \
+			elif grep -qiE 'bsd|redistribution and use in source and binary forms' "$${found_license}"; then \
+				module_package_license="BSD-2-Clause" ; \
+			elif grep -qiE 'gnu general public license|\\bgpl\\b' "$${found_license}"; then \
+				module_package_license="GPL-2.0-or-later" ; \
+			else \
+				module_package_license="LicenseRef-See-Source" ; \
+			fi ; \
+		else \
+			module_package_license="MIT" ; \
+			if [ ! -f ../SOURCES/$${module_copyright} ]; then \
+				printf '%s\n' 'MIT' > ../SOURCES/$${module_copyright} ; \
+			fi ; \
 		fi ; \
 		rm -rf "$${tmplic}" ; \
+	fi ; \
+	if [ -f ../SOURCES/$${module_copyright} ]; then \
+		copyright_source=$${module_copyright} ; \
+	else \
+		if [ -f ../docs/$${module_copyright} ]; then \
+			cp -f ../docs/$${module_copyright} ../SOURCES/$${module_copyright} ; \
+		else \
+			printf '%s\n' 'MIT' > ../SOURCES/$${module_copyright} ; \
+		fi ; \
+		copyright_source=$${module_copyright} ; \
+	fi ; \
+	if [ -z "$${module_package_license}" ]; then \
+		module_package_license="MIT" ; \
 	fi ; \
 	definitions=`echo "$$MODULE_DEFINITIONS_$(call modname,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
 	prebuild=`echo "$$MODULE_PREBUILD_$(call modname,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
@@ -317,11 +339,11 @@ nginx-module-%.spec:
 	files=`echo "$$MODULE_FILES_$(call modname,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
 	post=`echo "$$MODULE_POST_$(call modname,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
 	cat $(MODULE_SPEC_TEMPLATE) | sed \
-		-e "s#%%NAME%%#$${pkgname}#g" \
-		-e "s#%%MODULE_PACKAGE_VENDOR%%#$(if $(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(PACKAGE_VENDOR))#g" \
-		-e "s#%%MODULE_PACKAGE_URL%%#$(if $(strip $(MODULE_PACKAGE_URL_$(call modname,$*))),$(strip $(MODULE_PACKAGE_URL_$(call modname,$*))),$(PACKAGE_URL))#g" \
-		-e "s#%%MODULE_PACKAGE_LICENSE%%#$(if $(strip $(MODULE_PACKAGE_LICENSE_$(call modname,$*))),$(strip $(MODULE_PACKAGE_LICENSE_$(call modname,$*))),$(PACKAGE_LICENSE))#g" \
-		-e "s#%%SUMMARY%%#$(MODULE_SUMMARY_PREFIX) $(MODULE_SUMMARY_$(call modname,$*))#g" \
+			-e "s#%%NAME%%#$${pkgname}#g" \
+			-e "s#%%MODULE_PACKAGE_VENDOR%%#$(if $(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(PACKAGE_VENDOR))#g" \
+			-e "s#%%MODULE_PACKAGE_URL%%#$(if $(strip $(MODULE_PACKAGE_URL_$(call modname,$*))),$(strip $(MODULE_PACKAGE_URL_$(call modname,$*))),$(PACKAGE_URL))#g" \
+			-e "s#%%MODULE_PACKAGE_LICENSE%%#$${module_package_license}#g" \
+			-e "s#%%SUMMARY%%#$(MODULE_SUMMARY_PREFIX) $(MODULE_SUMMARY_$(call modname,$*))#g" \
 		-e "s#%%SHORT_SUMMARY%%#$(MODULE_SUMMARY_$(call modname,$*))#g" \
 		-e "s#%%TARGET_VERSION%%#$(TARGET_VERSION)#g" \
 		-e "s#%%MAIN_VERSION%%#$(BASE_VERSION)#g" \
