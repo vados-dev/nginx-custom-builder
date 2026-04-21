@@ -23,6 +23,12 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    outputs:
+      image_ref: ${{ steps.meta.outputs.image_ref }}
+      image_ref_sha: ${{ steps.meta.outputs.image_ref_sha }}
+      image: ${{ steps.meta.outputs.image }}
+      tag: ${{ steps.meta.outputs.tag }}
+      sha_tag: ${{ steps.meta.outputs.sha_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -44,6 +50,8 @@ jobs:
           echo "image=${image}" >> "${GITHUB_OUTPUT}"
           echo "tag=${tag_sanitized}" >> "${GITHUB_OUTPUT}"
           echo "sha_tag=sha-${GITHUB_SHA::12}" >> "${GITHUB_OUTPUT}"
+          echo "image_ref=${image}:${tag_sanitized}" >> "${GITHUB_OUTPUT}"
+          echo "image_ref_sha=${image}:sha-${GITHUB_SHA::12}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -73,6 +81,38 @@ jobs:
           docker buildx imagetools create \
             -t "${{ steps.meta.outputs.image }}:latest" \
             "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}"
+
+      - name: Save image metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > ci-image.env <<EOF
+          CI_IMAGE=${{ steps.meta.outputs.image }}
+          CI_IMAGE_TAG=${{ steps.meta.outputs.tag }}
+          CI_IMAGE_SHA_TAG=${{ steps.meta.outputs.sha_tag }}
+          CI_IMAGE_REF=${{ steps.meta.outputs.image_ref }}
+          CI_IMAGE_REF_SHA=${{ steps.meta.outputs.image_ref_sha }}
+          EOF
+
+      - name: Upload image metadata artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-image-metadata
+          path: ci-image.env
+          if-no-files-found: error
+
+      - name: Write summary
+        shell: bash
+        run: |
+          {
+            echo "### CI image metadata"
+            echo
+            echo "- image: \`${{ steps.meta.outputs.image }}\`"
+            echo "- tag: \`${{ steps.meta.outputs.tag }}\`"
+            echo "- sha tag: \`${{ steps.meta.outputs.sha_tag }}\`"
+            echo "- image ref: \`${{ steps.meta.outputs.image_ref }}\`"
+            echo "- image ref sha: \`${{ steps.meta.outputs.image_ref_sha }}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Print usage hint
         shell: bash
