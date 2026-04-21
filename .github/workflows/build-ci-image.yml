@@ -3,7 +3,6 @@ name: Build CI Image
 permissions:
   contents: write
   packages: write
-  workflows: write
 
 on:
   workflow_dispatch:
@@ -127,6 +126,8 @@ jobs:
       - name: Update default ci_container_image in check-version workflow
         if: ${{ github.event_name == 'workflow_dispatch' }}
         shell: bash
+        env:
+          PUSH_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || '' }}
         run: |
           set -euo pipefail
           image_ref="${{ steps.meta.outputs.image_ref }}"
@@ -157,7 +158,12 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add "${file}"
             git commit -m "ci: set check-version default container to ${image_ref}"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
+            if [[ -n "${PUSH_TOKEN}" ]]; then
+              git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+              git push origin "HEAD:${GITHUB_REF_NAME}"
+            else
+              echo "PUSH_TOKEN is empty; skipped auto-push of ${file}" >&2
+            fi
           fi
 
       - name: Save image metadata
