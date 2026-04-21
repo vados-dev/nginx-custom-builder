@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       target_os:
-        description: "Which OS matrix to run"
+        description: "Debug mode only: which OS matrix to run"
         required: true
-        default: "redhat"
+        default: "all"
         type: choice
         options:
           - redhat
@@ -19,13 +19,14 @@ on:
           - alpine
           - all
       nginx_channel:
-        description: "nginx source channel for debug builds"
+        description: "Debug mode only: nginx source channel"
         required: true
-        default: "mainline"
+        default: "all"
         type: choice
         options:
           - mainline
           - stable
+          - all
       module_mode:
         description: "How to select modules for matrix targets"
         required: true
@@ -45,7 +46,7 @@ on:
         default: false
         type: boolean
       debug_mode:
-        description: "Debug mode: build only base target for selected OS"
+        description: "Enable focused debug run (selected OS/channel, base target only)"
         required: false
         default: false
         type: boolean
@@ -57,7 +58,7 @@ on:
         type: string
       nginx_channel:
         required: false
-        default: "mainline"
+        default: "all"
         type: string
       module_mode:
         required: false
@@ -93,7 +94,6 @@ jobs:
       run-alpine: ${{ steps.resolve-targets.outputs.run_alpine }}
       run-ubuntu: ${{ steps.resolve-targets.outputs.run_ubuntu }}
       run-redhat: ${{ steps.resolve-targets.outputs.run_redhat }}
-      selected-channel: ${{ steps.resolve-targets.outputs.selected_channel }}
       selected-modules: ${{ steps.resolve-targets.outputs.selected_modules }}
       targets-alpine: ${{ steps.resolve-targets.outputs.targets_alpine }}
       targets-ubuntu: ${{ steps.resolve-targets.outputs.targets_ubuntu }}
@@ -151,8 +151,8 @@ jobs:
           default_custom_modules="image-filter perl xslt markdown-filter acme njs error-page-inherit include-server"
           module_mode="${event_mode:-}"
           custom_modules="${event_custom:-}"
-          target_os="${event_os:-all}"
-          selected_channel="${event_channel:-mainline}"
+          requested_target_os="${event_os:-all}"
+          requested_channel="${event_channel:-all}"
           debug_mode="${event_debug:-false}"
           if [[ -z "${module_mode}" ]]; then
             if [[ "${GITHUB_EVENT_NAME:-}" == "push" ]]; then
@@ -266,10 +266,21 @@ jobs:
           targets_ubuntu="$(normalize_modules "${targets_ubuntu}")"
           targets_redhat="$(normalize_modules "${targets_redhat}")"
 
+          channel_set="mainline stable"
+          target_os="all"
           if [[ "${debug_mode}" == "true" ]]; then
             targets_alpine="base"
             targets_ubuntu="base"
             targets_redhat="base"
+            target_os="${requested_target_os}"
+            case "${requested_channel}" in
+              all) channel_set="mainline stable" ;;
+              mainline|stable) channel_set="${requested_channel}" ;;
+              *)
+                echo "Unsupported nginx_channel: ${requested_channel}" >&2
+                exit 1
+                ;;
+            esac
           fi
 
           run_alpine="false"
@@ -291,14 +302,14 @@ jobs:
           esac
 
           echo "selected_modules=${selected_modules}" >> "${GITHUB_OUTPUT}"
-          echo "selected_channel=${selected_channel}" >> "${GITHUB_OUTPUT}"
+          echo "channel_set=${channel_set}" >> "${GITHUB_OUTPUT}"
           echo "run_alpine=${run_alpine}" >> "${GITHUB_OUTPUT}"
           echo "run_ubuntu=${run_ubuntu}" >> "${GITHUB_OUTPUT}"
           echo "run_redhat=${run_redhat}" >> "${GITHUB_OUTPUT}"
           echo "targets_alpine=${targets_alpine}" >> "${GITHUB_OUTPUT}"
           echo "targets_ubuntu=${targets_ubuntu}" >> "${GITHUB_OUTPUT}"
           echo "targets_redhat=${targets_redhat}" >> "${GITHUB_OUTPUT}"
-          echo "Selected channel: ${selected_channel}"
+          echo "Selected channels: ${channel_set}"
           echo "Target OS: ${target_os}"
           echo "Debug mode: ${debug_mode}"
           echo "Resolved matrix targets (alpine): ${targets_alpine}"
@@ -311,10 +322,27 @@ jobs:
           TARGETS_ALPINE: ${{ steps.resolve-targets.outputs.targets_alpine }}
           TARGETS_UBUNTU: ${{ steps.resolve-targets.outputs.targets_ubuntu }}
           TARGETS_REDHAT: ${{ steps.resolve-targets.outputs.targets_redhat }}
+          CHANNEL_SET: ${{ steps.resolve-targets.outputs.channel_set }}
         run: |
-          jq -nRr '"matrix-alpine=" + ({ include: [ $ARGS.positional[] | {target: .} ] } | tojson)' --args ${TARGETS_ALPINE} >> "${GITHUB_OUTPUT}"
-          jq -nRr '"matrix-ubuntu=" + ({ include: [ $ARGS.positional[] | {target: .} ] } | tojson)' --args ${TARGETS_UBUNTU} >> "${GITHUB_OUTPUT}"
-          jq -nRr '"matrix-redhat=" + ({ include: [ $ARGS.positional[] | {target: .} ] } | tojson)' --args ${TARGETS_REDHAT} >> "${GITHUB_OUTPUT}"
+          emit_matrix() {
+            local key="$1"
+            local targets="$2"
+            local channels="$3"
+            json="$(jq -nc --arg t "${targets}" --arg c "${channels}" '
+              {
+                include: [
+                  ($t | split(" ")[] | select(length > 0)) as $target
+                  | ($c | split(" ")[] | select(length > 0)) as $channel
+                  | {target: $target, channel: $channel}
+                ]
+              }'
+            )"
+            echo "${key}=${json}" >> "${GITHUB_OUTPUT}"
+          }
+
+          emit_matrix "matrix-alpine" "${TARGETS_ALPINE}" "${CHANNEL_SET}"
+          emit_matrix "matrix-ubuntu" "${TARGETS_UBUNTU}" "${CHANNEL_SET}"
+          emit_matrix "matrix-redhat" "${TARGETS_REDHAT}" "${CHANNEL_SET}"
 
   alpine:
     needs: generate-matrix
@@ -328,7 +356,7 @@ jobs:
 
       - name: Resolve nginx version for channel
         run: |
-          channel="${{ needs.generate-matrix.outputs.selected-channel }}"
+          channel="${{ matrix.channel }}"
           version_string="$(curl -fsSL "https://version.nginx.com/nginx/${channel}")"
           nginx_version="${version_string%%-*}"
           sed -i -E "s/^NGINX_VERSION[[:space:]]*:=.*/NGINX_VERSION := ${nginx_version}/" contrib/src/nginx/version
@@ -388,7 +416,7 @@ jobs:
 
       - name: Resolve nginx version for channel
         run: |
-          channel="${{ needs.generate-matrix.outputs.selected-channel }}"
+          channel="${{ matrix.channel }}"
           version_string="$(curl -fsSL "https://version.nginx.com/nginx/${channel}")"
           nginx_version="${version_string%%-*}"
           sed -i -E "s/^NGINX_VERSION[[:space:]]*:=.*/NGINX_VERSION := ${nginx_version}/" contrib/src/nginx/version
@@ -454,7 +482,7 @@ jobs:
 
       - name: Resolve nginx version for channel
         run: |
-          channel="${{ needs.generate-matrix.outputs.selected-channel }}"
+          channel="${{ matrix.channel }}"
           version_string="$(curl -fsSL "https://version.nginx.com/nginx/${channel}")"
           nginx_version="${version_string%%-*}"
           sed -i -E "s/^BASE_VERSION[[:space:]]*=.*/BASE_VERSION=\t${nginx_version}/" SPECS/Makefile
