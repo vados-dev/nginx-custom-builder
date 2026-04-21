@@ -62,7 +62,7 @@ on:
       modules_common:
         description: "Legacy mode: common modules for all platforms (space-separated)"
         required: true
-        default: "error-page-inherit include-server markdown-filter"
+        default: "image-filter perl xslt error-page-inherit include-server markdown-filter"
         type: string
       modules_rpm_extra:
         description: "Legacy mode: extra modules for RPM"
@@ -349,7 +349,7 @@ jobs:
           GLOBAL_BASE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_global_base || '' }}
           GLOBAL_ADD: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_add || '' }}
           GLOBAL_REMOVE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_remove || '' }}
-          IN_COMMON: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_common || 'error-page-inherit include-server markdown-filter' }}
+          IN_COMMON: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_common || 'image-filter perl xslt error-page-inherit include-server markdown-filter' }}
           IN_RPM_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_rpm_extra || 'acme njs' }}
           IN_DEB_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_deb_extra || 'acme njs' }}
           IN_ALPINE_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_alpine_extra || 'acme njs' }}
