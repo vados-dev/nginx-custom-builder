@@ -346,6 +346,21 @@ jobs:
       - name: Create and install build depends for ${{ matrix.target }} and build it
         working-directory: SPECS
         run: |
+          # Prefetch contrib tarballs required by this module target.
+          # RedHat flow generates spec before module build and otherwise can fail
+          # with "local source missing: <tarball>".
+          case ${{ matrix.target }} in
+            module-*)
+              module_name="${{ matrix.target }}"
+              module_name="${module_name#module-}"
+              module_var="${module_name//-/_}"
+              deps="$(make --no-print-directory -f Makefile --eval "print-deps:; @echo \$(MODULE_CONTRIB_DEPS_${module_var})" print-deps | xargs || true)"
+              if [[ -n "${deps}" ]]; then
+                make --no-print-directory -C ../contrib $(for dep in ${deps}; do printf '.sum-%s ' "${dep}"; done)
+              fi
+              ;;
+          esac
+
           case ${{ matrix.target }} in
             base)
               spec="nginx.spec"
