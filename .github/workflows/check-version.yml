@@ -11,7 +11,7 @@ on:
       nginx_channel:
         description: "nginx source channel"
         required: true
-        default: "all"
+        default: "mainline"
         type: choice
         options:
           - all
@@ -27,6 +27,16 @@ on:
         required: true
         default: false
         type: boolean
+      build_pkg_type:
+        description: "Build pkg type"
+        required: true
+        default: "RPM"
+        type: choice
+        options:
+          - "All"
+          - "RPM"
+          - "APK"
+          - "DEB"
       alpine_version:
         description: "APK repo OS"
         required: true
@@ -169,8 +179,6 @@ jobs:
     if: ${{ github.event_name != 'schedule' || vars.CHECK_VERSION_CRON_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     container: ${{ format('ghcr.io/vados-dev/nginx-custom-builder/ci:{0}', (github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'lts')) }}
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     outputs:
       should_build_any: ${{ steps.detect.outputs.should_build_any }}
       build_matrix: ${{ steps.detect.outputs.build_matrix }}
