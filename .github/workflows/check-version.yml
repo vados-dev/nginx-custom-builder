@@ -43,8 +43,12 @@ on:
         options:
           - "All"
           - "APK"
-          - "debian"
-          - "ubuntu"
+          - "debian-trixie"
+          - "debian-bookworm"
+          - "debian-bullseye"
+          - "ubuntu-noble"
+          - "ubuntu-jammy"
+          - "ubuntu-focal"
           - "centos"
           - "almalinux"
           - "rhel"
@@ -59,16 +63,6 @@ on:
           - "3.21"
           - "3.20"
           - "3.19"
-
-      debian_suite:
-        description: "DEB repo OS"
-        required: true
-        default: "trixie"
-        type: choice
-        options:
-          - "trixie"
-          - "bookworm"
-          - "bullseye"
 
       rpm_repo_release:
         description: "DNF repo release"
@@ -553,8 +547,8 @@ jobs:
         (
           github.event_name != 'workflow_dispatch' ||
           inputs.build_os == 'All' ||
-          inputs.build_os == 'debian' ||
-          inputs.build_os == 'ubuntu'
+          startsWith(inputs.build_os, 'debian-') ||
+          startsWith(inputs.build_os, 'ubuntu-')
         )
       }}
     needs:
@@ -570,8 +564,29 @@ jobs:
       enabled_modules: ${{ needs['resolve-modules'].outputs.deb_modules }}
       disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
       publish_deb_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_repos || true }}
-      deb_repo_os: ${{ github.event_name == 'workflow_dispatch' && (inputs.build_os == 'ubuntu' && 'ubuntu' || 'debian') || 'debian' }}
-      debian_suite: ${{ github.event_name == 'workflow_dispatch' && inputs.debian_suite || 'bookworm' }}
+      deb_repo_os: >-
+        ${{
+          github.event_name == 'workflow_dispatch' &&
+          (
+            startsWith(inputs.build_os, 'ubuntu-') && 'ubuntu' ||
+            'debian'
+          ) ||
+          'debian'
+        }}
+      debian_suite: >-
+        ${{
+          github.event_name == 'workflow_dispatch' &&
+          (
+            (inputs.build_os == 'debian-trixie' && 'trixie') ||
+            (inputs.build_os == 'debian-bookworm' && 'bookworm') ||
+            (inputs.build_os == 'debian-bullseye' && 'bullseye') ||
+            (inputs.build_os == 'ubuntu-noble' && 'noble') ||
+            (inputs.build_os == 'ubuntu-jammy' && 'jammy') ||
+            (inputs.build_os == 'ubuntu-focal' && 'focal') ||
+            'bookworm'
+          ) ||
+          'bookworm'
+        }}
     secrets: inherit
 
   build-alpine:
