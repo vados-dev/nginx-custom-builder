@@ -23,6 +23,12 @@ on:
         default: true
         type: boolean
 
+      publish_repos:
+        description: "Publish repositories to gh-pages"
+        required: true
+        default: true
+        type: boolean
+
       force_build:
         description: "Force build even if version is unchanged"
         required: true
@@ -501,7 +507,17 @@ jobs:
       show_available_modules: ${{ github.event_name == 'workflow_dispatch' && inputs.show_available_matrix_modules || false }}
 
   build-rpm:
-    if: ${{ needs.detect.outputs.should_build_any == 'true' }}
+    if: >-
+      ${{
+        needs.detect.outputs.should_build_any == 'true' &&
+        (
+          github.event_name != 'workflow_dispatch' ||
+          inputs.build_os == 'All' ||
+          inputs.build_os == 'centos' ||
+          inputs.build_os == 'almalinux' ||
+          inputs.build_os == 'rhel'
+        )
+      }}
     needs:
       - detect
       - resolve-modules
@@ -516,13 +532,31 @@ jobs:
       disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
       enabled_modules: ${{ needs['resolve-modules'].outputs.rpm_modules }}
       publish_dnf_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_repos || true }}
-      rpm_repo_os: ${{ github.event_name == 'workflow_dispatch' && inputs.build_os || 'centos' }}
+      rpm_repo_os: >-
+        ${{
+          github.event_name == 'workflow_dispatch' &&
+          (
+            (inputs.build_os == 'almalinux' && 'almalinux') ||
+            (inputs.build_os == 'rhel' && 'rhel') ||
+            'centos'
+          ) ||
+          'centos'
+        }}
       rpm_repo_release: ${{ github.event_name == 'workflow_dispatch' && inputs.rpm_repo_release || '10' }}
       ci_container_image: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'lts' }}
     secrets: inherit
 
   build-debian:
-    if: ${{ needs.detect.outputs.should_build_any == 'true' }}
+    if: >-
+      ${{
+        needs.detect.outputs.should_build_any == 'true' &&
+        (
+          github.event_name != 'workflow_dispatch' ||
+          inputs.build_os == 'All' ||
+          inputs.build_os == 'debian' ||
+          inputs.build_os == 'ubuntu'
+        )
+      }}
     needs:
       - detect
       - resolve-modules
@@ -536,12 +570,19 @@ jobs:
       enabled_modules: ${{ needs['resolve-modules'].outputs.deb_modules }}
       disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
       publish_deb_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_repos || true }}
-      debian_os: ${{ github.event_name == 'workflow_dispatch' && inputs.build_os || 'debian' }}
       debian_suite: ${{ github.event_name == 'workflow_dispatch' && inputs.debian_suite || 'bookworm' }}
     secrets: inherit
 
   build-alpine:
-    if: ${{ needs.detect.outputs.should_build_any == 'true' }}
+    if: >-
+      ${{
+        needs.detect.outputs.should_build_any == 'true' &&
+        (
+          github.event_name != 'workflow_dispatch' ||
+          inputs.build_os == 'All' ||
+          inputs.build_os == 'APK'
+        )
+      }}
     needs:
       - detect
       - resolve-modules
