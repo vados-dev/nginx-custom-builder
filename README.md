@@ -49,14 +49,17 @@
      - APK (кастомные модули): `.github/workflows/build-custom-alpine.yml`
 - `.github/workflows/build-alpine.yml` — отдельный workflow зеркалирования upstream Alpine-пакетов nginx.org (не сборка кастомных модулей).
 
-### Входные параметры `check-version.yml`
+### Входные параметры `check-version.yml` (актуально)
 
 Базовые:
 
-- `nginx_channel`: `mainline|stable`
+- `nginx_channel`: `all|mainline|stable`
 - `build_args`: `-bb|-ba` (для RPM)
-- `disable_debug_packages`: выключение debug/debuginfo пакетов RPM
+- `disable_debug_packages`: выключение debug/debuginfo пакетов (RPM/DEB/APK)
 - `force_build`: собрать даже если версия nginx не изменилась
+- `build_os`: `All|APK|debian|ubuntu|centos|almalinux|rhel`
+- `publish_repos`: единый тумблер публикации репозиториев в `gh-pages`
+- `ci_container_image`: тег CI-образа (без `ghcr.io/...`, например `lts`)
 
 Профили модулей:
 
@@ -71,13 +74,11 @@ Override модулей (полная замена профиля):
 - `modules_deb_override`
 - `modules_alpine_override`
 
-Публикация:
+Параметры путей/OS:
 
-- `publish_dnf_repo`
-- `publish_deb_repo`
-- `publish_alpine_repo`
-- `debian_suite` (по умолчанию `bookworm`)
-- `alpine_version` (по умолчанию `3.20`)
+- `rpm_repo_release`: `10|9` (для structured RPM пути)
+- `debian_suite`: например `trixie|bookworm|bullseye`
+- `alpine_version`: например `3.20`
 
 Логика модулей:
 
@@ -93,7 +94,13 @@ Override модулей (полная замена профиля):
 
 Состояние последней собранной версии хранится в `.github/version-state/nginx-<channel>.txt`.
 
-### DNF repo from GitHub Pages
+## Приоритет платформ
+
+- Основной контур: **RPM/CentOS** (боевой сценарий).
+- Debian: поддерживается, но сейчас вторичен.
+- Alpine: поддерживается в первую очередь для Docker-сценариев.
+
+### DNF repo from GitHub Pages (основной сценарий)
 
 `build.yml` теперь публикует готовый DNF-репозиторий (с `repodata`) в ветку `gh-pages`:
 
@@ -102,12 +109,19 @@ Override модулей (полная замена профиля):
 - `repo/centos/10/mainline/x86_64`
 - `repo/centos/10/stable/x86_64`
 
+`repo/<os>/<release>/<channel>/...` формируется из:
+
+- `build_os` (в check-version, для RPM это `centos|almalinux|rhel`)
+- `rpm_repo_release` (`10|9`)
+
 ### Перед использованием включить GitHub Pages
 
 - `Settings -> Pages -> Build and deployment -> Deploy from a branch`
 - Branch: `gh-pages` (root)
 
-### Пример `.repo` для mainline
+### Подключение репозитория на CentOS/RHEL-подобных
+
+Создай `/etc/yum.repos.d/nginx-custom.repo`:
 
 ```ini
 [nginx-custom-mainline]
@@ -129,7 +143,9 @@ gpgcheck=1
 gpgkey=https://<github-user>.github.io/<repo>/repo/RPM-GPG-KEY-nginx
 ```
 
-Legacy fallback (без `$releasever/$basearch`):
+Если собираешь `stable`, поменяй в `baseurl` `mainline` -> `stable`.
+
+Legacy fallback (без `$releasever/$basearch`, оставлен для совместимости):
 `https://<github-user>.github.io/<repo>/repo/mainline/x86_64/`
 
 ### Проверка и обновление
@@ -140,7 +156,7 @@ sudo dnf makecache
 sudo dnf upgrade "nginx*"
 ```
 
-## Debian (APT) repo from GitHub Pages
+## Debian (APT) repo from GitHub Pages (вторичный контур)
 
 `build-debian.yml` публикует репозиторий в:
 
@@ -148,7 +164,11 @@ sudo dnf upgrade "nginx*"
 - `repo/debian/<suite>/<channel>/binary-<arch>/Packages.gz`
 - `repo/debian/<suite>/<channel>/Release`
 
-## Alpine (APK) custom repo for Docker
+Также есть OS-специфичный путь:
+
+- `repo/<debian|ubuntu>/<suite>/<channel>/binary-<arch>/...`
+
+## Alpine (APK) custom repo for Docker (вторичный контур)
 
 `build-custom-alpine.yml` публикует кастомно собранные APK в:
 
@@ -172,10 +192,10 @@ apk add nginx
 crontab -e
 
 # mainline: еженедельно
-17 3 * * 1 /usr/bin/flock -n /tmp/nginx-check-mainline.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-custom-builder && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=mainline -f build_args=-bb -f disable_debug_packages=true -f force_build=false -f modules_common="error-page-inherit include-server markdown-filter" -f modules_rpm_extra="acme njs" -f modules_deb_extra="acme njs" -f modules_alpine_extra="" -f publish_dnf_repo=true -f publish_deb_repo=true -f publish_alpine_repo=true -f debian_suite=bookworm -f alpine_version=3.20 >> /home/git/projects/nginx-custom-builder/.github/cron-mainline.log 2>&1'
+17 3 * * 1 /usr/bin/flock -n /tmp/nginx-check-mainline.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-custom-builder && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=mainline -f build_os=centos -f rpm_repo_release=10 -f build_args=-bb -f disable_debug_packages=true -f force_build=false -f publish_repos=true -f ci_container_image=lts >> /home/git/projects/nginx-custom-builder/.github/cron-mainline.log 2>&1'
 
 # stable: еженедельно без пересечения с mainline
-27 3 * * 1 /usr/bin/flock -n /tmp/nginx-check-stable.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-custom-builder && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=stable -f build_args=-bb -f disable_debug_packages=true -f force_build=false -f modules_common="error-page-inherit include-server markdown-filter" -f modules_rpm_extra="acme njs" -f modules_deb_extra="acme njs" -f modules_alpine_extra="" -f publish_dnf_repo=true -f publish_deb_repo=true -f publish_alpine_repo=true -f debian_suite=bookworm -f alpine_version=3.20 >> /home/git/projects/nginx-custom-builder/.github/cron-stable.log 2>&1'
+27 3 * * 1 /usr/bin/flock -n /tmp/nginx-check-stable.lock /bin/bash -lc 'export HOME=/home/git; export PATH=/usr/local/bin:/usr/bin:/bin; cd /home/git/projects/nginx-custom-builder && /usr/bin/gh workflow run "Check nginx version" -f nginx_channel=stable -f build_os=centos -f rpm_repo_release=10 -f build_args=-bb -f disable_debug_packages=true -f force_build=false -f publish_repos=true -f ci_container_image=lts >> /home/git/projects/nginx-custom-builder/.github/cron-stable.log 2>&1'
 
 crontab -l
 ```
