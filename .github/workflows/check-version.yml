@@ -362,7 +362,9 @@ jobs:
 
   resolve-modules:
     if: ${{ needs.detect.outputs.should_build_any == 'true' }}
-    needs: detect
+    needs:
+      - detect
+      - resolve-targets
     runs-on: ubuntu-latest
     outputs:
       alpine_modules: ${{ steps.resolve.outputs.alpine_modules }}
