@@ -102,6 +102,13 @@ jobs:
 
       - name: Resolve module targets
         id: resolve-targets
+        env:
+          IN_TARGET_OS: ${{ inputs.target_os }}
+          IN_NGINX_CHANNEL: ${{ inputs.nginx_channel }}
+          IN_MODULE_MODE: ${{ inputs.module_mode }}
+          IN_CUSTOM_MODULES: ${{ inputs.custom_modules }}
+          IN_SHOW_AVAILABLE_MODULES: ${{ inputs.show_available_modules }}
+          IN_DEBUG_MODE: ${{ inputs.debug_mode }}
         run: |
           normalize_modules() {
             local raw="$1"
@@ -140,12 +147,12 @@ jobs:
             normalize_modules "${all_mods} ${base_mods}"
           }
 
-          event_mode="$(jq -r '.inputs.module_mode // empty' "${GITHUB_EVENT_PATH}")"
-          event_custom="$(jq -r '.inputs.custom_modules // empty' "${GITHUB_EVENT_PATH}")"
-          event_show="$(jq -r '.inputs.show_available_modules // empty' "${GITHUB_EVENT_PATH}")"
-          event_os="$(jq -r '.inputs.target_os // empty' "${GITHUB_EVENT_PATH}")"
-          event_channel="$(jq -r '.inputs.nginx_channel // empty' "${GITHUB_EVENT_PATH}")"
-          event_debug="$(jq -r '.inputs.debug_mode // empty' "${GITHUB_EVENT_PATH}")"
+          event_mode="${IN_MODULE_MODE:-}"
+          event_custom="${IN_CUSTOM_MODULES:-}"
+          event_show="${IN_SHOW_AVAILABLE_MODULES:-}"
+          event_os="${IN_TARGET_OS:-}"
+          event_channel="${IN_NGINX_CHANNEL:-}"
+          event_debug="${IN_DEBUG_MODE:-}"
 
           default_custom_modules="image-filter perl xslt markdown-filter acme njs error-page-inherit include-server"
           module_mode="${event_mode:-}"
