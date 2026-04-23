@@ -361,7 +361,11 @@ jobs:
             -d "text=${message}"
 
   resolve-modules:
-    if: ${{ needs.detect.outputs.should_build_any == 'true' }}
+    if: >-
+      ${{
+        needs.detect.outputs.should_build_any == 'true' &&
+        !(github.event_name == 'workflow_dispatch' && inputs.run_generate_matrix)
+      }}
     needs:
       - detect
       - resolve-targets
@@ -639,7 +643,6 @@ jobs:
       }}
     needs:
       - detect
-      - resolve-modules
       - resolve-targets
     uses: ./.github/workflows/generate-matrix.yml
     with:
