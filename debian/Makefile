@@ -153,7 +153,7 @@ rules:	rules-base $(addprefix rules-module-, $(MODULES))
 
 base:	rules-base attest-base
 	@echo "===> Building base package" ; \
-	$(SHELL) -c "cd debuild-base/$(SRCDIR) ; export DEB_BUILD_OPTIONS=parallel=$(NPROC) ; time -p debuild -us -uc" && \
+	$(SHELL) -c "cd debuild-base/$(SRCDIR) ; export DEB_BUILD_OPTIONS=parallel=$(NPROC) ; time -p debuild --preserve-envvar DISABLE_DEBUG_PACKAGES -us -uc" && \
 	find debuild-base/ -maxdepth 1 -type f -exec cp {} ../../ \; && \
 	ln -s debuild-base/$(SRCDIR)/debian/nginx$(BASE_SUFFIX)/usr/sbin base
 
@@ -224,7 +224,7 @@ module-%: rules-module-% check-compat-% attest-module-%
 	    echo "---> Skipping nginx-$@ package (`cat nginx-$@.skip`)" ; \
 	else \
 	    echo "===> Building nginx-$@ package" ; \
-	    $(SHELL) -c "cd debuild-$@/$(SRCDIR) ; export DEB_BUILD_OPTIONS=parallel=$(NPROC) ; time -p debuild --preserve-envvar PATH --preserve-envvar RUSTUP_HOME -us -uc" && \
+	    $(SHELL) -c "cd debuild-$@/$(SRCDIR) ; export DEB_BUILD_OPTIONS=parallel=$(NPROC) ; time -p debuild --preserve-envvar PATH --preserve-envvar RUSTUP_HOME --preserve-envvar DISABLE_DEBUG_PACKAGES -us -uc" && \
 	    find debuild-$@/ -maxdepth 1 -type f -exec cp {} ../../ \; && \
 	    ln -s debuild-$@/$(SRCDIR)/debian/$(MODULE_PACKAGE_PREFIX)-$*/usr/lib/nginx/modules $@ ; \
 	fi;

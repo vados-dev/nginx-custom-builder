@@ -161,10 +161,14 @@ jobs:
         run: |
           set -euo pipefail
           modules="${{ inputs.enabled_modules }}"
+          disable_debug="0"
+          if [[ "${{ inputs.disable_debug_packages }}" == "true" ]]; then
+            disable_debug="1"
+          fi
           if [[ -n "${modules}" ]]; then
-            make -C debian base modules ENABLED_MODULES="${modules}"
+            make -C debian base modules ENABLED_MODULES="${modules}" DISABLE_DEBUG_PACKAGES="${disable_debug}"
           else
-            make -C debian base modules
+            make -C debian base modules DISABLE_DEBUG_PACKAGES="${disable_debug}"
           fi
 
       - name: Collect DEB artifacts

@@ -172,10 +172,14 @@ jobs:
         run: |
           set -euo pipefail
           modules="${{ inputs.enabled_modules }}"
+          disable_debug="0"
+          if [[ "${{ inputs.disable_debug_packages }}" == "true" ]]; then
+            disable_debug="1"
+          fi
           if [[ -n "${modules}" ]]; then
-            su builder -s /bin/bash -c "export PATH=\"/home/builder/.cargo/bin:\$PATH\"; export LIBCLANG_PATH=\"${LIBCLANG_PATH}\"; cd \"${GITHUB_WORKSPACE}\" && make -C alpine modules ENABLED_MODULES='${modules}'"
+            su builder -s /bin/bash -c "export PATH=\"/home/builder/.cargo/bin:\$PATH\"; export LIBCLANG_PATH=\"${LIBCLANG_PATH}\"; export DISABLE_DEBUG_PACKAGES='${disable_debug}'; cd \"${GITHUB_WORKSPACE}\" && make -C alpine modules ENABLED_MODULES='${modules}'"
           else
-            su builder -s /bin/bash -c "export PATH=\"/home/builder/.cargo/bin:\$PATH\"; export LIBCLANG_PATH=\"${LIBCLANG_PATH}\"; cd \"${GITHUB_WORKSPACE}\" && make -C alpine modules"
+            su builder -s /bin/bash -c "export PATH=\"/home/builder/.cargo/bin:\$PATH\"; export LIBCLANG_PATH=\"${LIBCLANG_PATH}\"; export DISABLE_DEBUG_PACKAGES='${disable_debug}'; cd \"${GITHUB_WORKSPACE}\" && make -C alpine modules"
           fi
 
       - name: Collect APK artifacts

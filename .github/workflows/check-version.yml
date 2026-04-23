@@ -638,6 +638,7 @@ jobs:
     with:
       target_os: ${{ needs.resolve-targets.outputs.matrix_target_os }}
       nginx_channel: ${{ github.event_name == 'workflow_dispatch' && inputs.nginx_channel || 'all' }}
+      debug_mode: true
       module_mode: ${{ github.event_name == 'workflow_dispatch' && inputs.matrix_module_mode || 'auto' }}
       custom_modules: ${{ github.event_name == 'workflow_dispatch' && inputs.matrix_modules_override || '' }}
       show_available_modules: ${{ github.event_name == 'workflow_dispatch' && inputs.show_available_matrix_modules || false }}
