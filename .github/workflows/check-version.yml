@@ -631,15 +631,20 @@ jobs:
           echo "publish_repos=${publish_repos}" >> "${GITHUB_OUTPUT}"
 
   generate-matrix-checks:
-    if: ${{ needs.detect.outputs.should_build_any == 'true' && (github.event_name != 'workflow_dispatch' || inputs.run_generate_matrix) }}
+    if: >-
+      ${{
+        needs.detect.outputs.should_build_any == 'true' &&
+        github.event_name == 'workflow_dispatch' &&
+        inputs.run_generate_matrix
+      }}
     needs:
       - detect
       - resolve-modules
       - resolve-targets
     uses: ./.github/workflows/generate-matrix.yml
     with:
-      target_os: ${{ needs.resolve-targets.outputs.matrix_target_os }}
-      nginx_channel: ${{ github.event_name == 'workflow_dispatch' && inputs.nginx_channel || 'all' }}
+      target_os: all
+      nginx_channel: all
       debug_mode: true
       module_mode: ${{ github.event_name == 'workflow_dispatch' && inputs.matrix_module_mode || 'auto' }}
       custom_modules: ${{ github.event_name == 'workflow_dispatch' && inputs.matrix_modules_override || '' }}
@@ -649,7 +654,8 @@ jobs:
     if: >-
       ${{
         needs.detect.outputs.should_build_any == 'true' &&
-        needs.resolve-targets.outputs.run_rpm == 'true'
+        needs.resolve-targets.outputs.run_rpm == 'true' &&
+        !(github.event_name == 'workflow_dispatch' && inputs.run_generate_matrix)
       }}
     needs:
       - detect
@@ -675,7 +681,8 @@ jobs:
     if: >-
       ${{
         needs.detect.outputs.should_build_any == 'true' &&
-        needs.resolve-targets.outputs.run_deb == 'true'
+        needs.resolve-targets.outputs.run_deb == 'true' &&
+        !(github.event_name == 'workflow_dispatch' && inputs.run_generate_matrix)
       }}
     needs:
       - detect
@@ -699,7 +706,8 @@ jobs:
     if: >-
       ${{
         needs.detect.outputs.should_build_any == 'true' &&
-        needs.resolve-targets.outputs.run_alpine == 'true'
+        needs.resolve-targets.outputs.run_alpine == 'true' &&
+        !(github.event_name == 'workflow_dispatch' && inputs.run_generate_matrix)
       }}
     needs:
       - detect
