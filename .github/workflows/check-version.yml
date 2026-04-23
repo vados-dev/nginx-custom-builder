@@ -500,6 +500,7 @@ jobs:
       run_rpm: ${{ steps.resolve.outputs.run_rpm }}
       run_deb: ${{ steps.resolve.outputs.run_deb }}
       run_alpine: ${{ steps.resolve.outputs.run_alpine }}
+      matrix_target_os: ${{ steps.resolve.outputs.matrix_target_os }}
       ci_container_image: ${{ steps.resolve.outputs.ci_container_image }}
       rpm_repo_os: ${{ steps.resolve.outputs.rpm_repo_os }}
       rpm_repo_release: ${{ steps.resolve.outputs.rpm_repo_release }}
@@ -542,6 +543,7 @@ jobs:
           run_rpm="false"
           run_deb="false"
           run_alpine="false"
+          matrix_target_os="all"
           rpm_repo_os="${{ env.DEFAULT_RPM_REPO_OS }}"
           deb_repo_os="${{ env.DEFAULT_DEB_REPO_OS }}"
           debian_suite="${{ env.DEFAULT_DEB_SUITE }}"
@@ -551,51 +553,62 @@ jobs:
               run_rpm="true"
               run_deb="true"
               run_alpine="true"
+              matrix_target_os="all"
               ;;
             APK)
               run_alpine="true"
+              matrix_target_os="alpine"
               ;;
             centos)
               run_rpm="true"
               rpm_repo_os="centos"
+              matrix_target_os="redhat"
               ;;
             almalinux)
               run_rpm="true"
               rpm_repo_os="almalinux"
+              matrix_target_os="redhat"
               ;;
             rhel)
               run_rpm="true"
               rpm_repo_os="rhel"
+              matrix_target_os="redhat"
               ;;
             debian-trixie)
               run_deb="true"
               deb_repo_os="debian"
               debian_suite="trixie"
+              matrix_target_os="ubuntu"
               ;;
             debian-bookworm)
               run_deb="true"
               deb_repo_os="debian"
               debian_suite="bookworm"
+              matrix_target_os="ubuntu"
               ;;
             debian-bullseye)
               run_deb="true"
               deb_repo_os="debian"
               debian_suite="bullseye"
+              matrix_target_os="ubuntu"
               ;;
             ubuntu-noble)
               run_deb="true"
               deb_repo_os="ubuntu"
               debian_suite="noble"
+              matrix_target_os="ubuntu"
               ;;
             ubuntu-jammy)
               run_deb="true"
               deb_repo_os="ubuntu"
               debian_suite="jammy"
+              matrix_target_os="ubuntu"
               ;;
             ubuntu-focal)
               run_deb="true"
               deb_repo_os="ubuntu"
               debian_suite="focal"
+              matrix_target_os="ubuntu"
               ;;
             *)
               echo "Unsupported build_os: ${build_os}" >&2
@@ -606,6 +619,7 @@ jobs:
           echo "run_rpm=${run_rpm}" >> "${GITHUB_OUTPUT}"
           echo "run_deb=${run_deb}" >> "${GITHUB_OUTPUT}"
           echo "run_alpine=${run_alpine}" >> "${GITHUB_OUTPUT}"
+          echo "matrix_target_os=${matrix_target_os}" >> "${GITHUB_OUTPUT}"
           echo "ci_container_image=${ci_image}" >> "${GITHUB_OUTPUT}"
           echo "rpm_repo_os=${rpm_repo_os}" >> "${GITHUB_OUTPUT}"
           echo "rpm_repo_release=${rpm_release}" >> "${GITHUB_OUTPUT}"
@@ -619,8 +633,11 @@ jobs:
     needs:
       - detect
       - resolve-modules
+      - resolve-targets
     uses: ./.github/workflows/generate-matrix.yml
     with:
+      target_os: ${{ needs.resolve-targets.outputs.matrix_target_os }}
+      nginx_channel: ${{ github.event_name == 'workflow_dispatch' && inputs.nginx_channel || 'all' }}
       module_mode: ${{ github.event_name == 'workflow_dispatch' && inputs.matrix_module_mode || 'auto' }}
       custom_modules: ${{ github.event_name == 'workflow_dispatch' && inputs.matrix_modules_override || '' }}
       show_available_modules: ${{ github.event_name == 'workflow_dispatch' && inputs.show_available_matrix_modules || false }}
