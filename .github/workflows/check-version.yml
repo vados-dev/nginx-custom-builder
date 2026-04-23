@@ -570,6 +570,7 @@ jobs:
       enabled_modules: ${{ needs['resolve-modules'].outputs.deb_modules }}
       disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
       publish_deb_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_repos || true }}
+      deb_repo_os: ${{ github.event_name == 'workflow_dispatch' && (inputs.build_os == 'ubuntu' && 'ubuntu' || 'debian') || 'debian' }}
       debian_suite: ${{ github.event_name == 'workflow_dispatch' && inputs.debian_suite || 'bookworm' }}
     secrets: inherit
 
