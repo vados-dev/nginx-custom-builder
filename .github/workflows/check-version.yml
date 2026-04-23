@@ -9,6 +9,7 @@ env:
   DEFAULT_DEB_REPO_OS: debian
   DEFAULT_DEB_SUITE: bookworm
   DEFAULT_ALPINE_VERSION: "3.20"
+  DEFAULT_PUBLISH_REPOS: true
 
 on:
   schedule:
@@ -24,14 +25,9 @@ on:
           - all
           - mainline
           - stable
+
       disable_debug_packages:
         description: "Disable debug/debuginfo packages"
-        required: true
-        default: true
-        type: boolean
-
-      publish_repos:
-        description: "Publish repositories to gh-pages"
         required: true
         default: true
         type: boolean
@@ -524,13 +520,13 @@ jobs:
             ci_image="${{ inputs.ci_container_image }}"
             rpm_release="${{ inputs.rpm_repo_release }}"
             alpine_version="${{ inputs.alpine_version }}"
-            publish_repos="${{ inputs.publish_repos }}"
+            publish_repos="${{ env.DEFAULT_PUBLISH_REPOS }}"
           else
             build_os="All"
             ci_image="${{ env.DEFAULT_CI_CONTAINER_IMAGE }}"
             rpm_release="${{ env.DEFAULT_RPM_REPO_RELEASE }}"
             alpine_version="${{ env.DEFAULT_ALPINE_VERSION }}"
-            publish_repos="true"
+            publish_repos="${{ env.DEFAULT_PUBLISH_REPOS }}"
           fi
 
           if [[ -z "${ci_image}" ]]; then
