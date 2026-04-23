@@ -81,6 +81,7 @@ on:
         options:
           - "-bb"
           - "-ba"
+
       modules_mode:
         description: "How to resolve module base set"
         required: true
@@ -90,61 +91,73 @@ on:
           - repo-defaults
           - legacy-inputs
           - explicit-global
+
       modules_global_base:
         description: "Base modules for explicit-global mode (space-separated)"
         required: false
         default: "image-filter perl xslt markdown-filter acme njs error-page-inherit include-server"
         type: string
+
       modules_add:
         description: "Add modules to resolved base (space-separated)"
         required: false
         default: ""
         type: string
+
       modules_remove:
         description: "Remove modules from resolved base (space-separated)"
         required: false
         default: ""
         type: string
+
       modules_common:
         description: "Legacy mode: common modules for all platforms (space-separated)"
         required: true
         default: "image-filter perl xslt error-page-inherit include-server markdown-filter"
         type: string
-      modules_rpm_extra:
-        description: "Legacy mode: extra modules for RPM"
-        required: true
-        default: "acme njs"
-        type: string
-      modules_deb_extra:
-        description: "Legacy mode: extra modules for Debian"
-        required: true
-        default: "acme njs"
-        type: string
+
       modules_alpine_extra:
         description: "Legacy mode: extra modules for Alpine"
         required: true
         default: "acme njs"
         type: string
-      modules_rpm_override:
-        description: "Override RPM modules completely"
-        required: false
-        default: ""
+
+      modules_deb_extra:
+        description: "Legacy mode: extra modules for Debian"
+        required: true
+        default: "acme njs"
         type: string
-      modules_deb_override:
-        description: "Override Debian modules completely"
-        required: false
-        default: ""
+
+      modules_rpm_extra:
+        description: "Legacy mode: extra modules for RPM"
+        required: true
+        default: "acme njs"
         type: string
+
       modules_alpine_override:
         description: "Override Alpine modules completely"
         required: false
         default: ""
         type: string
+
+      modules_deb_override:
+        description: "Override Debian modules completely"
+        required: false
+        default: ""
+        type: string
+
+      modules_rpm_override:
+        description: "Override RPM modules completely"
+        required: false
+        default: ""
+        type: string
+
       run_generate_matrix:
         description: "Run generate-matrix workflow after version/module resolve"
         required: true
         default: true
         type: boolean
+
       matrix_module_mode:
         description: "Module selection mode for generate-matrix"
         required: true
@@ -153,21 +166,19 @@ on:
         options:
           - auto
           - custom
+
       matrix_modules_override:
         description: "Space-separated module list for generate-matrix when mode=custom"
         required: false
         default: ""
         type: string
+
       show_available_matrix_modules:
         description: "Print available modules in generate-matrix logs"
         required: false
         default: false
         type: boolean
-      publish_repos:
-        description: "Publish all repos to gh-pages"
-        required: true
-        default: true
-        type: boolean
+
       ci_container_image:
         description: "CI container tag for detect/build jobs"
         required: false
