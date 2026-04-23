@@ -7,13 +7,13 @@ env:
   DEFAULT_RPM_REPO_OS: centos
   DEFAULT_RPM_REPO_RELEASE: "10"
   DEFAULT_DEB_REPO_OS: debian
-  DEFAULT_DEB_SUITE: bookworm
+  DEFAULT_DEB_SUITE: trixie
   DEFAULT_ALPINE_VERSION: "3.20"
   DEFAULT_PUBLISH_REPOS: true
 
 on:
   schedule:
-    - cron: "*/7 * * * *"
+    - cron: "17 * * 3 1"
   workflow_dispatch:
     inputs:
       nginx_channel:
