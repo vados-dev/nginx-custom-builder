@@ -348,6 +348,7 @@ jobs:
           emit_matrix "matrix-redhat" "${TARGETS_REDHAT}" "${CHANNEL_SET}"
 
   alpine:
+    name: apk
     needs: generate-matrix
     if: ${{ needs.generate-matrix.outputs.run-alpine == 'true' }}
     runs-on: ubuntu-24.04
@@ -410,6 +411,7 @@ jobs:
           find ~/packages/alpine -type f | xargs ls -ld
 
   ubuntu:
+    name: deb
     needs: generate-matrix
     if: ${{ needs.generate-matrix.outputs.run-ubuntu == 'true' }}
     runs-on: ubuntu-24.04
@@ -460,6 +462,7 @@ jobs:
           find .. -mindepth 1 -maxdepth 1 -name "*.deb" | xargs ls -ld
 
   redhat:
+    name: rpm
     needs: generate-matrix
     if: ${{ needs.generate-matrix.outputs.run-redhat == 'true' }}
     runs-on: ubuntu-24.04
