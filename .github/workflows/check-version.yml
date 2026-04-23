@@ -22,23 +22,29 @@ on:
         required: true
         default: true
         type: boolean
+
       force_build:
         description: "Force build even if version is unchanged"
         required: true
         default: false
         type: boolean
-      build_pkg_type:
-        description: "Build pkg type"
+
+      build_os:
+        description: "Build for OS"
         required: true
-        default: "RPM"
+        default: "centos"
         type: choice
         options:
           - "All"
-          - "RPM"
           - "APK"
-          - "DEB"
+          - "debian"
+          - "ubuntu"
+          - "centos"
+          - "almalinux"
+          - "rhel"
+
       alpine_version:
-        description: "APK repo OS"
+        description: "APK repo OS version"
         required: true
         default: "3.20"
         type: choice
@@ -47,6 +53,7 @@ on:
           - "3.21"
           - "3.20"
           - "3.19"
+
       debian_suite:
         description: "DEB repo OS"
         required: true
@@ -56,15 +63,7 @@ on:
           - "trixie"
           - "bookworm"
           - "bullseye"
-      rpm_repo_os:
-        description: "DNF repo OS"
-        required: true
-        default: "centos"
-        type: choice
-        options:
-          - "centos"
-          - "almalinux"
-          - "rhel"
+
       rpm_repo_release:
         description: "DNF repo release"
         required: true
@@ -73,6 +72,7 @@ on:
         options:
           - "10"
           - "9"
+
       build_args:
         description: "rpmbuild arguments"
         required: true
@@ -505,7 +505,7 @@ jobs:
       disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
       enabled_modules: ${{ needs['resolve-modules'].outputs.rpm_modules }}
       publish_dnf_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_repos || true }}
-      rpm_repo_os: ${{ github.event_name == 'workflow_dispatch' && inputs.rpm_repo_os || 'centos' }}
+      rpm_repo_os: ${{ github.event_name == 'workflow_dispatch' && inputs.build_os || 'centos' }}
       rpm_repo_release: ${{ github.event_name == 'workflow_dispatch' && inputs.rpm_repo_release || '10' }}
       ci_container_image: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'lts' }}
     secrets: inherit
@@ -525,6 +525,7 @@ jobs:
       enabled_modules: ${{ needs['resolve-modules'].outputs.deb_modules }}
       disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
       publish_deb_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_repos || true }}
+      debian_os: ${{ github.event_name == 'workflow_dispatch' && inputs.build_os || 'debian' }}
       debian_suite: ${{ github.event_name == 'workflow_dispatch' && inputs.debian_suite || 'bookworm' }}
     secrets: inherit
 
