@@ -158,7 +158,7 @@ on:
       run_generate_matrix:
         description: "Run generate-matrix workflow after version/module resolve"
         required: true
-        default: true
+        default: false
         type: boolean
 
       matrix_module_mode:
