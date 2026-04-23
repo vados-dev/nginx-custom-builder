@@ -62,7 +62,10 @@ config.pre.nginx:
 
 config.pre.nginx_debug: config.pre.nginx
 	dh_testdir
-	rm -rf $(BUILDDIR_nginx_debug)/extra && cp -Pa $(BUILDDIR_nginx)/extra $(BUILDDIR_nginx_debug)/
+	rm -rf $(BUILDDIR_nginx_debug)/extra
+	if [ -d "$(BUILDDIR_nginx)/extra" ]; then \
+		cp -Pa $(BUILDDIR_nginx)/extra $(BUILDDIR_nginx_debug)/ ; \
+	fi
 	touch $@
 
 config.status.nginx: config.env.nginx config.pre.nginx
