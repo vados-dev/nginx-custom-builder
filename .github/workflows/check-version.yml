@@ -2,6 +2,13 @@ name: Check nginx version
 
 permissions:
   contents: write
+env:
+  DEFAULT_CI_CONTAINER_IMAGE: lts
+  DEFAULT_RPM_REPO_OS: centos
+  DEFAULT_RPM_REPO_RELEASE: "10"
+  DEFAULT_DEB_REPO_OS: debian
+  DEFAULT_DEB_SUITE: bookworm
+  DEFAULT_ALPINE_VERSION: "3.20"
 
 on:
   schedule:
@@ -489,6 +496,128 @@ jobs:
           echo "- DEB: ${deb_modules}"
           echo "- Alpine: ${alpine_modules}"
 
+  resolve-targets:
+    if: ${{ needs.detect.outputs.should_build_any == 'true' }}
+    needs: detect
+    runs-on: ubuntu-latest
+    outputs:
+      run_rpm: ${{ steps.resolve.outputs.run_rpm }}
+      run_deb: ${{ steps.resolve.outputs.run_deb }}
+      run_alpine: ${{ steps.resolve.outputs.run_alpine }}
+      ci_container_image: ${{ steps.resolve.outputs.ci_container_image }}
+      rpm_repo_os: ${{ steps.resolve.outputs.rpm_repo_os }}
+      rpm_repo_release: ${{ steps.resolve.outputs.rpm_repo_release }}
+      deb_repo_os: ${{ steps.resolve.outputs.deb_repo_os }}
+      debian_suite: ${{ steps.resolve.outputs.debian_suite }}
+      alpine_version: ${{ steps.resolve.outputs.alpine_version }}
+      publish_repos: ${{ steps.resolve.outputs.publish_repos }}
+    steps:
+      - name: Resolve build targets and fallbacks
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          event_name="${{ github.event_name }}"
+          if [[ "${event_name}" == "workflow_dispatch" ]]; then
+            build_os="${{ inputs.build_os }}"
+            ci_image="${{ inputs.ci_container_image }}"
+            rpm_release="${{ inputs.rpm_repo_release }}"
+            alpine_version="${{ inputs.alpine_version }}"
+            publish_repos="${{ inputs.publish_repos }}"
+          else
+            build_os="All"
+            ci_image="${{ env.DEFAULT_CI_CONTAINER_IMAGE }}"
+            rpm_release="${{ env.DEFAULT_RPM_REPO_RELEASE }}"
+            alpine_version="${{ env.DEFAULT_ALPINE_VERSION }}"
+            publish_repos="true"
+          fi
+
+          if [[ -z "${ci_image}" ]]; then
+            ci_image="${{ env.DEFAULT_CI_CONTAINER_IMAGE }}"
+          fi
+          if [[ -z "${rpm_release}" ]]; then
+            rpm_release="${{ env.DEFAULT_RPM_REPO_RELEASE }}"
+          fi
+          if [[ -z "${alpine_version}" ]]; then
+            alpine_version="${{ env.DEFAULT_ALPINE_VERSION }}"
+          fi
+
+          run_rpm="false"
+          run_deb="false"
+          run_alpine="false"
+          rpm_repo_os="${{ env.DEFAULT_RPM_REPO_OS }}"
+          deb_repo_os="${{ env.DEFAULT_DEB_REPO_OS }}"
+          debian_suite="${{ env.DEFAULT_DEB_SUITE }}"
+
+          case "${build_os}" in
+            All)
+              run_rpm="true"
+              run_deb="true"
+              run_alpine="true"
+              ;;
+            APK)
+              run_alpine="true"
+              ;;
+            centos)
+              run_rpm="true"
+              rpm_repo_os="centos"
+              ;;
+            almalinux)
+              run_rpm="true"
+              rpm_repo_os="almalinux"
+              ;;
+            rhel)
+              run_rpm="true"
+              rpm_repo_os="rhel"
+              ;;
+            debian-trixie)
+              run_deb="true"
+              deb_repo_os="debian"
+              debian_suite="trixie"
+              ;;
+            debian-bookworm)
+              run_deb="true"
+              deb_repo_os="debian"
+              debian_suite="bookworm"
+              ;;
+            debian-bullseye)
+              run_deb="true"
+              deb_repo_os="debian"
+              debian_suite="bullseye"
+              ;;
+            ubuntu-noble)
+              run_deb="true"
+              deb_repo_os="ubuntu"
+              debian_suite="noble"
+              ;;
+            ubuntu-jammy)
+              run_deb="true"
+              deb_repo_os="ubuntu"
+              debian_suite="jammy"
+              ;;
+            ubuntu-focal)
+              run_deb="true"
+              deb_repo_os="ubuntu"
+              debian_suite="focal"
+              ;;
+            *)
+              echo "Unsupported build_os: ${build_os}" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "run_rpm=${run_rpm}" >> "${GITHUB_OUTPUT}"
+          echo "run_deb=${run_deb}" >> "${GITHUB_OUTPUT}"
+          echo "run_alpine=${run_alpine}" >> "${GITHUB_OUTPUT}"
+          echo "ci_container_image=${ci_image}" >> "${GITHUB_OUTPUT}"
+          echo "rpm_repo_os=${rpm_repo_os}" >> "${GITHUB_OUTPUT}"
+          echo "rpm_repo_release=${rpm_release}" >> "${GITHUB_OUTPUT}"
+          echo "deb_repo_os=${deb_repo_os}" >> "${GITHUB_OUTPUT}"
+          echo "debian_suite=${debian_suite}" >> "${GITHUB_OUTPUT}"
+          echo "alpine_version=${alpine_version}" >> "${GITHUB_OUTPUT}"
+          echo "publish_repos=${publish_repos}" >> "${GITHUB_OUTPUT}"
+
   generate-matrix-checks:
     if: ${{ needs.detect.outputs.should_build_any == 'true' && (github.event_name != 'workflow_dispatch' || inputs.run_generate_matrix) }}
     needs:
@@ -504,17 +633,12 @@ jobs:
     if: >-
       ${{
         needs.detect.outputs.should_build_any == 'true' &&
-        (
-          github.event_name != 'workflow_dispatch' ||
-          inputs.build_os == 'All' ||
-          inputs.build_os == 'centos' ||
-          inputs.build_os == 'almalinux' ||
-          inputs.build_os == 'rhel'
-        )
+        needs.resolve-targets.outputs.run_rpm == 'true'
       }}
     needs:
       - detect
       - resolve-modules
+      - resolve-targets
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -525,35 +649,22 @@ jobs:
       build_args: ${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}
       disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
       enabled_modules: ${{ needs['resolve-modules'].outputs.rpm_modules }}
-      publish_dnf_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_repos || true }}
-      rpm_repo_os: >-
-        ${{
-          github.event_name == 'workflow_dispatch' &&
-          (
-            (inputs.build_os == 'almalinux' && 'almalinux') ||
-            (inputs.build_os == 'rhel' && 'rhel') ||
-            'centos'
-          ) ||
-          'centos'
-        }}
-      rpm_repo_release: ${{ github.event_name == 'workflow_dispatch' && inputs.rpm_repo_release || '10' }}
-      ci_container_image: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'lts' }}
+      publish_dnf_repo: ${{ needs.resolve-targets.outputs.publish_repos == 'true' }}
+      rpm_repo_os: ${{ needs.resolve-targets.outputs.rpm_repo_os }}
+      rpm_repo_release: ${{ needs.resolve-targets.outputs.rpm_repo_release }}
+      ci_container_image: ${{ needs.resolve-targets.outputs.ci_container_image }}
     secrets: inherit
 
   build-debian:
     if: >-
       ${{
         needs.detect.outputs.should_build_any == 'true' &&
-        (
-          github.event_name != 'workflow_dispatch' ||
-          inputs.build_os == 'All' ||
-          startsWith(inputs.build_os, 'debian-') ||
-          startsWith(inputs.build_os, 'ubuntu-')
-        )
+        needs.resolve-targets.outputs.run_deb == 'true'
       }}
     needs:
       - detect
       - resolve-modules
+      - resolve-targets
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -563,45 +674,21 @@ jobs:
       nginx_channel: ${{ matrix.channel }}
       enabled_modules: ${{ needs['resolve-modules'].outputs.deb_modules }}
       disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
-      publish_deb_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_repos || true }}
-      deb_repo_os: >-
-        ${{
-          github.event_name == 'workflow_dispatch' &&
-          (
-            startsWith(inputs.build_os, 'ubuntu-') && 'ubuntu' ||
-            'debian'
-          ) ||
-          'debian'
-        }}
-      debian_suite: >-
-        ${{
-          github.event_name == 'workflow_dispatch' &&
-          (
-            (inputs.build_os == 'debian-trixie' && 'trixie') ||
-            (inputs.build_os == 'debian-bookworm' && 'bookworm') ||
-            (inputs.build_os == 'debian-bullseye' && 'bullseye') ||
-            (inputs.build_os == 'ubuntu-noble' && 'noble') ||
-            (inputs.build_os == 'ubuntu-jammy' && 'jammy') ||
-            (inputs.build_os == 'ubuntu-focal' && 'focal') ||
-            'bookworm'
-          ) ||
-          'bookworm'
-        }}
+      publish_deb_repo: ${{ needs.resolve-targets.outputs.publish_repos == 'true' }}
+      deb_repo_os: ${{ needs.resolve-targets.outputs.deb_repo_os }}
+      debian_suite: ${{ needs.resolve-targets.outputs.debian_suite }}
     secrets: inherit
 
   build-alpine:
     if: >-
       ${{
         needs.detect.outputs.should_build_any == 'true' &&
-        (
-          github.event_name != 'workflow_dispatch' ||
-          inputs.build_os == 'All' ||
-          inputs.build_os == 'APK'
-        )
+        needs.resolve-targets.outputs.run_alpine == 'true'
       }}
     needs:
       - detect
       - resolve-modules
+      - resolve-targets
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -609,8 +696,8 @@ jobs:
     uses: ./.github/workflows/build-custom-alpine.yml
     with:
       nginx_channel: ${{ matrix.channel }}
-      alpine_version: ${{ github.event_name == 'workflow_dispatch' && inputs.alpine_version || '3.20' }}
+      alpine_version: ${{ needs.resolve-targets.outputs.alpine_version }}
       enabled_modules: ${{ needs['resolve-modules'].outputs.alpine_modules }}
       disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
-      publish_alpine_repo: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_repos || true }}
+      publish_alpine_repo: ${{ needs.resolve-targets.outputs.publish_repos == 'true' }}
     secrets: inherit
