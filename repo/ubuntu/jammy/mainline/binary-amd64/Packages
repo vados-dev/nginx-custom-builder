@@ -1,0 +1,166 @@
+Package: nginx
+Version: 1.29.8-1~jammy
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 9718
+Depends: libc6 (>= 2.34), libcrypt1 (>= 1:4.1.0), libpcre2-8-0 (>= 10.22), libssl3 (>= 3.0.0~~alpha1), zlib1g (>= 1:1.1.4), lsb-base (>= 3.0-6)
+Recommends: logrotate
+Conflicts: nginx-common, nginx-core
+Replaces: nginx-common, nginx-core
+Provides: httpd, nginx, nginx-r1.29.8
+Filename: ./nginx_1.29.8-1~jammy_amd64.deb
+Size: 3029650
+MD5sum: cc4bbbe56ef608f3f286969210fc47f5
+SHA1: 148aad7f20c11bb4c0c781b0a03dace6b43edbeb
+SHA256: 3efa33b95fe4675f8674198d2714449dc3793b2f68cf29473cc3b836446790e1
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org
+Description: high performance web server
+ nginx [engine x] is an HTTP and reverse proxy server, as well as
+ a mail proxy server.
+
+Package: nginx-module-acme
+Version: 1.29.8+0.3.1-1~jammy
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 11393
+Depends: libc6 (>= 2.33), libgcc-s1 (>= 4.2), nginx-r1.29.8
+Provides: nginx-module-acme-r1.29.8
+Filename: ./nginx-module-acme_1.29.8+0.3.1-1~jammy_amd64.deb
+Size: 2352946
+MD5sum: 642b3295b609e112661710d841feaf5f
+SHA1: 723f090d67b0eeb9158668c7967c64e68aa48190
+SHA256: abb695b6e0dc3f7604955cdeede50bcd190e5d499560caca14e1c4ad02ffb9f5
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx nginx-acme
+ nginx-acme for nginx
+
+Package: nginx-module-error-page-inherit
+Version: 1.29.8+0.0.1-1~jammy
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 88
+Depends: nginx-r1.29.8
+Provides: nginx-module-error-page-inherit-r1.29.8
+Filename: ./nginx-module-error-page-inherit_1.29.8+0.0.1-1~jammy_amd64.deb
+Size: 32922
+MD5sum: adf42c843a8b0d2039b1294a7cbfe8f7
+SHA1: 42c5fc80b6dfe0917f72e3d26cb3913619c1ea98
+SHA256: a73ad3cb9e24bc4944aacdf8201a733bb018c7289bc1ca5fa65a7509244a8245
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx enable support to error_page_inherit derective in nginx.conf.
+ enable support to error_page_inherit derective in nginx.conf. for nginx
+
+Package: nginx-module-image-filter
+Version: 1.29.8-1~jammy
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 132
+Depends: libc6 (>= 2.14), libgd3 (>= 2.1.0~alpha~), nginx-r1.29.8
+Provides: nginx-module-image-filter-r1.29.8
+Filename: ./nginx-module-image-filter_1.29.8-1~jammy_amd64.deb
+Size: 55328
+MD5sum: 32f53f6264ebecf3c1b29cd9003e608c
+SHA1: 88745a32eec7f168cb3ff980c3457115e92d2e97
+SHA256: a234fd7b439f07e4370a7019cfa031f223d1167eb4a69647bca5590648b89603
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx image filter dynamic module
+ image filter dynamic module for nginx
+
+Package: nginx-module-include-server
+Version: 1.29.8+0.0.1-1~jammy
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 59
+Depends: nginx-r1.29.8
+Provides: nginx-module-include-server-r1.29.8
+Filename: ./nginx-module-include-server_1.29.8+0.0.1-1~jammy_amd64.deb
+Size: 17980
+MD5sum: 3c53c33dd8e3ebd7c38549f973d53221
+SHA1: 61433174b8b01034257085bc73c6275c4321a902
+SHA256: fa914a4b77d3245d57c1e6ff68549731e0b7dcc0fe91d47e113deedff88d796e
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx enable support to include_server derective in nginx.conf.
+ enable support to include_server derective in nginx.conf. for nginx
+
+Package: nginx-module-markdown-filter
+Version: 1.29.8+0.1.7-1~jammy
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 95
+Depends: libc6 (>= 2.33), libcmark0.30.2 (>= 0.30.2), nginx-r1.29.8
+Provides: nginx-module-markdown-filter-r1.29.8
+Filename: ./nginx-module-markdown-filter_1.29.8+0.1.7-1~jammy_amd64.deb
+Size: 38008
+MD5sum: 26f8ae944b6d60c9bd18d6f69721ca9f
+SHA1: 956d793e47f13824057d870fa4588dcd14628094
+SHA256: 2b6528e6f8701f805aa1ad12293b9626782a3cef1cda382f9988613e4dbd939c
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx Dynamic module markdown filter for nginx
+ Dynamic module markdown filter for nginx for nginx
+
+Package: nginx-module-njs
+Version: 1.29.8+0.9.6-1~jammy
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 28571
+Depends: libc6 (>= 2.35), libedit2 (>= 3.1-20130611-0), libpcre2-8-0 (>= 10.32), libssl3 (>= 3.0.0~~alpha1), libxml2 (>= 2.7.4), zlib1g (>= 1:1.1.4), nginx-r1.29.8
+Provides: nginx-module-njs-r1.29.8
+Filename: ./nginx-module-njs_1.29.8+0.9.6-1~jammy_amd64.deb
+Size: 10629408
+MD5sum: 36700a5bc296a0cc2718dd9c0143099b
+SHA1: b506b1260e1a9f75cc489c78fde1c87a37d3a2af
+SHA256: 5e58aa5e4a432fd59eb391583aa8f6ea4239a2985447685e8691371afe053c43
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx njs dynamic modules
+ njs dynamic modules for nginx
+
+Package: nginx-module-perl
+Version: 1.29.8-1~jammy
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 347
+Depends: libc6 (>= 2.34), libperl5.34 (>= 5.34.0), nginx-r1.29.8, perl, perlapi-5.34.0
+Provides: nginx-module-perl-r1.29.8
+Filename: ./nginx-module-perl_1.29.8-1~jammy_amd64.deb
+Size: 125240
+MD5sum: 84187cd65a4e22e748d90b7373057dd7
+SHA1: dbaae03d6493a357b3e71b5dba9d257259944ac2
+SHA256: 332c340fff9f970fbdfebc8a22b476bdd3824f4b14a61adc1b953c98ae5d5058
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx Perl dynamic module
+ Perl dynamic module for nginx
+
+Package: nginx-module-xslt
+Version: 1.29.8-1~jammy
+Architecture: amd64
+Maintainer: NGINX Packaging <nginx-packaging@f5.com>
+Installed-Size: 144
+Depends: libc6 (>= 2.14), libxml2 (>= 2.7.4), libxslt1.1 (>= 1.1.25), nginx-r1.29.8
+Provides: nginx-module-xslt-r1.29.8
+Filename: ./nginx-module-xslt_1.29.8-1~jammy_amd64.deb
+Size: 62916
+MD5sum: 302b0918ae765c2947e7bb40d1936874
+SHA1: fb711ee9b34e819a3345dd757f6a1c86ec4730e3
+SHA256: cea2fe484b60a025cc80a4875bfad2c8c7ef00d94186124d798017dde83c3a19
+Section: httpd
+Priority: optional
+Homepage: https://nginx.org/
+Description: nginx xslt dynamic module
+ xslt dynamic module for nginx
+
