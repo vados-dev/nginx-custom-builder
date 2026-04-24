@@ -451,10 +451,10 @@ jobs:
         working-directory: debian
         run: |
           NGINX_VERSION=$(make --eval 'nv:; @echo $(BASE_VERSION)' nv)
-          make rules-${{ matrix.target }}
+          make rules-${{ matrix.target }} DISABLE_DEBUG_PACKAGES=1
           sudo mk-build-deps --install --tool="apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes" \
             debuild-${{ matrix.target }}/nginx-${NGINX_VERSION}/debian/control
-          make ${{ matrix.target }}
+          make ${{ matrix.target }} DISABLE_DEBUG_PACKAGES=1
 
       - name: List what has been built
         if: ${{ !cancelled() }}
