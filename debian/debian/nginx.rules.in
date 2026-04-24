@@ -112,7 +112,16 @@ install:
 	dh_testroot
 	dh_prep
 	dh_installdirs
+ifeq ($(DISABLE_DEBUG_PACKAGES),0)
 	dh_install
+else
+	install_file="$(CURDIR)/debian/nginx.install"; \
+	backup_file="$(CURDIR)/debian/nginx.install.debug.bak"; \
+	cp -f "$${install_file}" "$${backup_file}"; \
+	grep -v 'nginx-debug' "$${backup_file}" > "$${install_file}" || true; \
+	dh_install; \
+	mv -f "$${backup_file}" "$${install_file}"
+endif
 	mkdir -p $(INSTALLDIR)/usr/lib/nginx/modules
 	mkdir -p $(INSTALLDIR)/usr/share/doc/nginx
 	install -m 644 debian/CHANGES $(INSTALLDIR)/usr/share/doc/nginx/changelog
