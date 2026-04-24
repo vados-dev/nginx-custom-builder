@@ -197,7 +197,18 @@ rules-base: $(BASE_SRC) nginx.deb-changelog
 		-e "s#%%PACKAGE_VENDOR%%#$(PACKAGE_VENDOR)#g" \
 		-e 's#%%BASE_VERSION%%#$(BASE_VERSION)#g' \
 		-e 's#%%PLUS_VERSION%%#$(PLUS_VERSION)#g' \
-		> debuild-base/$(SRCDIR)/debian/control ; \
+	> debuild-base/$(SRCDIR)/debian/control ; \
+	if [ "$(DISABLE_DEBUG_PACKAGES)" = "1" ]; then \
+		awk ' \
+			/^Package:[[:space:]]+/ { \
+				pkg=$$2; \
+				skip=(pkg=="nginx-dbg" || pkg ~ /-dbg$$/); \
+				if (skip) next; \
+			} \
+			{ if (!skip) print } \
+		' debuild-base/$(SRCDIR)/debian/control > debuild-base/$(SRCDIR)/debian/control.tmp ; \
+		mv -f debuild-base/$(SRCDIR)/debian/control.tmp debuild-base/$(SRCDIR)/debian/control ; \
+	fi ; \
 	if [ "$(BASE_TARGET)" = "plus" ]; then \
 		cp	$(DOCS)/EULA-TRIAL \
 			$(DOCS)/EULA-DEVELOPER \
@@ -337,6 +348,17 @@ rules-module-%: $(BASE_SRC) nginx-module-%.deb-changelog .deps-module-%
 		-e "s#%%MODULE_DEPENDS%%#$(MODULE_DEPENDS_$(call modname, $*))#g" \
 		-e "s#%%ADD_CONTROL_TAGS%%#$${addcontroltags}#g" \
 	> $${builddir}/$(SRCDIR)/debian/control ; \
+	if [ "$(DISABLE_DEBUG_PACKAGES)" = "1" ]; then \
+		awk ' \
+			/^Package:[[:space:]]+/ { \
+				pkg=$$2; \
+				skip=(pkg=="nginx-dbg" || pkg ~ /-dbg$$/); \
+				if (skip) next; \
+			} \
+			{ if (!skip) print } \
+		' $${builddir}/$(SRCDIR)/debian/control > $${builddir}/$(SRCDIR)/debian/control.tmp ; \
+		mv -f $${builddir}/$(SRCDIR)/debian/control.tmp $${builddir}/$(SRCDIR)/debian/control ; \
+	fi ; \
 	sed nginx-module-$*.deb-changelog \
 		-e "s#%%TARGET_VERSION%%#$(TARGET_VERSION)#g" \
 		-e "s#%%BASE_VERSION%%#$(BASE_VERSION)#g" \
