@@ -87,15 +87,10 @@ jobs:
             printf 'v%d.%d.%d\n' "${major}" "${minor}" "${patch}"
           }
 
-          if [[ -z "${CI_IMAGE_VER}" ]]; then
-            echo "CI_IMAGE_VER repo variable is empty" >&2
-            exit 1
-          fi
-
           base_numeric_tag="$(sed -E 's/^(v[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}).*/\1/' <<< "${CI_IMAGE_VER}")"
           if [[ ! "${base_numeric_tag}" =~ ^v[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}$ ]]; then
-            echo "Invalid CI_IMAGE_VER format: ${CI_IMAGE_VER}" >&2
-            exit 1
+            # First run or malformed variable fallback: generate v0.0.1.
+            base_numeric_tag="v0.0.0"
           fi
 
           tag="$(next_tag "${base_numeric_tag}")${suffix_input}"
