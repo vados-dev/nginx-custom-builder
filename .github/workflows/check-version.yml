@@ -11,6 +11,7 @@ env:
   DEFAULT_ALPINE_VERSION: "3.20"
   DEFAULT_PUBLISH_REPOS: true
   DEFAULT_NOTIFY_ON_SCHEDULE: true
+  DEFAULT_NOTIFY_ONLY: true
 
 on:
   schedule:
@@ -37,12 +38,6 @@ on:
         description: "Force build or generate-matrix even if version is unchanged"
         required: true
         default: false
-        type: boolean
-
-      notify_only:
-        description: "Notify only (used for schedule behavior control)"
-        required: true
-        default: true
         type: boolean
 
       run_generate_matrix:
@@ -206,6 +201,7 @@ jobs:
       state_changed: ${{ steps.detect.outputs.state_changed }}
       detect_report: ${{ steps.detect.outputs.detect_report }}
       notify_only_mode: ${{ steps.detect.outputs.notify_only_mode }}
+      notify_enabled_mode: ${{ steps.detect.outputs.notify_enabled_mode }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -228,7 +224,6 @@ jobs:
           MANUAL_CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.nginx_channel || '' }}
           EVENT_NAME: ${{ github.event_name }}
           FORCE_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.force_build || false }}
-          NOTIFY_ONLY_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_only || '' }}
         run: |
           set -euo pipefail
 
@@ -256,8 +251,10 @@ jobs:
           fi
 
           notify_only_mode="false"
+          notify_enabled_mode="false"
           if [[ "${EVENT_NAME}" == "schedule" ]]; then
-            notify_only_mode="${{ env.DEFAULT_NOTIFY_ON_SCHEDULE }}"
+            notify_enabled_mode="${{ env.DEFAULT_NOTIFY_ON_SCHEDULE }}"
+            notify_only_mode="${{ env.DEFAULT_NOTIFY_ONLY }}"
           fi
 
           should_build_any="false"
@@ -338,6 +335,7 @@ jobs:
           printf '%s' "${detect_report}" >> "${GITHUB_OUTPUT}"
           echo "EOF" >> "${GITHUB_OUTPUT}"
           echo "notify_only_mode=${notify_only_mode}" >> "${GITHUB_OUTPUT}"
+          echo "notify_enabled_mode=${notify_enabled_mode}" >> "${GITHUB_OUTPUT}"
 
       - name: Commit version state
         if: ${{ steps.detect.outputs.state_changed == 'true' }}
@@ -354,7 +352,7 @@ jobs:
           git push
 
       - name: Notify Telegram
-        if: ${{ github.event_name == 'schedule' && steps.detect.outputs.should_build_any == 'true' }}
+        if: ${{ github.event_name == 'schedule' && steps.detect.outputs.should_build_any == 'true' && steps.detect.outputs.notify_enabled_mode == 'true' }}
         shell: bash
         env:
           TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
