@@ -78,13 +78,15 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
-    container: debian:bookworm
+    container: ${{ (inputs.deb_repo_os == 'ubuntu' && format('ubuntu:{0}', inputs.debian_suite)) || format('debian:{0}', inputs.debian_suite) }}
     steps:
       - name: Install build dependencies
         shell: bash
         run: |
           set -euo pipefail
-          echo 'deb http://deb.debian.org/debian bookworm contrib' >> /etc/apt/sources.list
+          if [[ "${{ inputs.deb_repo_os }}" == "debian" ]]; then
+            echo "deb http://deb.debian.org/debian ${{ inputs.debian_suite }} contrib" >> /etc/apt/sources.list
+          fi
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             ca-certificates \
