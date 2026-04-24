@@ -10,6 +10,7 @@ env:
   DEFAULT_DEB_SUITE: trixie
   DEFAULT_ALPINE_VERSION: "3.20"
   DEFAULT_PUBLISH_REPOS: true
+  DEFAULT_NOTIFY_ON_SCHEDULE: true
 
 on:
   schedule:
@@ -36,6 +37,12 @@ on:
         description: "Force build or generate-matrix even if version is unchanged"
         required: true
         default: false
+        type: boolean
+
+      notify_only:
+        description: "Notify only (used for schedule behavior control)"
+        required: true
+        default: true
         type: boolean
 
       run_generate_matrix:
@@ -198,6 +205,7 @@ jobs:
       build_matrix: ${{ steps.detect.outputs.build_matrix }}
       state_changed: ${{ steps.detect.outputs.state_changed }}
       detect_report: ${{ steps.detect.outputs.detect_report }}
+      notify_only_mode: ${{ steps.detect.outputs.notify_only_mode }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -220,6 +228,7 @@ jobs:
           MANUAL_CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.nginx_channel || '' }}
           EVENT_NAME: ${{ github.event_name }}
           FORCE_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.force_build || false }}
+          NOTIFY_ONLY_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_only || '' }}
         run: |
           set -euo pipefail
 
@@ -244,6 +253,11 @@ jobs:
           channels=("${requested_channel}")
           if [[ "${requested_channel}" == "all" ]]; then
             channels=("mainline" "stable")
+          fi
+
+          notify_only_mode="false"
+          if [[ "${EVENT_NAME}" == "schedule" ]]; then
+            notify_only_mode="${{ env.DEFAULT_NOTIFY_ON_SCHEDULE }}"
           fi
 
           should_build_any="false"
@@ -323,6 +337,7 @@ jobs:
           echo "detect_report<<EOF" >> "${GITHUB_OUTPUT}"
           printf '%s' "${detect_report}" >> "${GITHUB_OUTPUT}"
           echo "EOF" >> "${GITHUB_OUTPUT}"
+          echo "notify_only_mode=${notify_only_mode}" >> "${GITHUB_OUTPUT}"
 
       - name: Commit version state
         if: ${{ steps.detect.outputs.state_changed == 'true' }}
@@ -339,7 +354,7 @@ jobs:
           git push
 
       - name: Notify Telegram
-        if: ${{ steps.detect.outputs.should_build_any == 'true' }}
+        if: ${{ github.event_name == 'schedule' && steps.detect.outputs.should_build_any == 'true' }}
         shell: bash
         env:
           TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -364,6 +379,7 @@ jobs:
     if: >-
       ${{
         needs.detect.outputs.should_build_any == 'true' &&
+        !(github.event_name == 'schedule' && needs.detect.outputs.notify_only_mode == 'true') &&
         !(github.event_name == 'workflow_dispatch' && inputs.run_generate_matrix)
       }}
     needs:
@@ -499,7 +515,7 @@ jobs:
           echo "- Alpine: ${alpine_modules}"
 
   resolve-targets:
-    if: ${{ needs.detect.outputs.should_build_any == 'true' }}
+    if: ${{ needs.detect.outputs.should_build_any == 'true' && !(github.event_name == 'schedule' && needs.detect.outputs.notify_only_mode == 'true') }}
     needs: detect
     runs-on: ubuntu-latest
     outputs:
@@ -638,6 +654,7 @@ jobs:
     if: >-
       ${{
         needs.detect.outputs.should_build_any == 'true' &&
+        !(github.event_name == 'schedule' && needs.detect.outputs.notify_only_mode == 'true') &&
         github.event_name == 'workflow_dispatch' &&
         inputs.run_generate_matrix
       }}
@@ -657,6 +674,7 @@ jobs:
     if: >-
       ${{
         needs.detect.outputs.should_build_any == 'true' &&
+        !(github.event_name == 'schedule' && needs.detect.outputs.notify_only_mode == 'true') &&
         needs.resolve-targets.outputs.run_rpm == 'true' &&
         !(github.event_name == 'workflow_dispatch' && inputs.run_generate_matrix)
       }}
@@ -684,6 +702,7 @@ jobs:
     if: >-
       ${{
         needs.detect.outputs.should_build_any == 'true' &&
+        !(github.event_name == 'schedule' && needs.detect.outputs.notify_only_mode == 'true') &&
         needs.resolve-targets.outputs.run_deb == 'true' &&
         !(github.event_name == 'workflow_dispatch' && inputs.run_generate_matrix)
       }}
@@ -709,6 +728,7 @@ jobs:
     if: >-
       ${{
         needs.detect.outputs.should_build_any == 'true' &&
+        !(github.event_name == 'schedule' && needs.detect.outputs.notify_only_mode == 'true') &&
         needs.resolve-targets.outputs.run_alpine == 'true' &&
         !(github.event_name == 'workflow_dispatch' && inputs.run_generate_matrix)
       }}
