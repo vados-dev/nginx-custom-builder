@@ -101,9 +101,9 @@ clean:
 	find $(CURDIR) -maxdepth 1 -size 0 -delete
 
 post-build:
+	ln -sfn $(BUILDDIR_nginx)/objs $(CURDIR)/objs
 ifeq ($(DISABLE_DEBUG_PACKAGES),0)
 	mv $(BUILDDIR_nginx_debug)/objs/nginx $(BUILDDIR_nginx_debug)/objs/nginx-debug
-	ln -s $(BUILDDIR_nginx)/objs $(CURDIR)/objs
 	cp $(BUILDDIR_nginx)/objs/nginx.8 $(BUILDDIR_nginx)/objs/nginx-debug.8
 endif
 
