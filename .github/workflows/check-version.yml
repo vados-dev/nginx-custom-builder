@@ -33,8 +33,35 @@ on:
         type: boolean
 
       force_build:
-        description: "Force build even if version is unchanged"
+        description: "Force build or generate-matrix even if version is unchanged"
         required: true
+        default: false
+        type: boolean
+
+      run_generate_matrix:
+        description: "Run force generate-matrix only workflow after version/module resolve for all OS`s and releses"
+        required: true
+        default: false
+        type: boolean
+
+      matrix_module_mode:
+        description: "Module selection mode for generate-matrix"
+        required: true
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - custom
+
+      matrix_modules_override:
+        description: "Space-separated module list for generate-matrix when mode=custom"
+        required: false
+        default: "image-filter perl xslt markdown-filter acme njs error-page-inherit include-server"
+        type: string
+
+      show_available_matrix_modules:
+        description: "Print available modules in generate-matrix logs"
+        required: false
         default: false
         type: boolean
 
@@ -154,33 +181,6 @@ on:
         required: false
         default: ""
         type: string
-
-      run_generate_matrix:
-        description: "Run generate-matrix workflow after version/module resolve"
-        required: true
-        default: false
-        type: boolean
-
-      matrix_module_mode:
-        description: "Module selection mode for generate-matrix"
-        required: true
-        default: "auto"
-        type: choice
-        options:
-          - auto
-          - custom
-
-      matrix_modules_override:
-        description: "Space-separated module list for generate-matrix when mode=custom"
-        required: false
-        default: ""
-        type: string
-
-      show_available_matrix_modules:
-        description: "Print available modules in generate-matrix logs"
-        required: false
-        default: false
-        type: boolean
 
       ci_container_image:
         description: "CI container tag for detect/build jobs"
