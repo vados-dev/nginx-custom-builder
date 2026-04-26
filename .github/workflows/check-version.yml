@@ -2,6 +2,7 @@ name: Check nginx version
 
 permissions:
   contents: write
+  packages: write
 env:
   DEFAULT_CI_CONTAINER_IMAGE: lts
   DEFAULT_RPM_REPO_OS: centos
