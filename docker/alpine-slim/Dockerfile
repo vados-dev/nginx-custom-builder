@@ -55,11 +55,11 @@ RUN modules_conf="/etc/nginx/modules/50-custom-dynamic-modules.conf"; \
     for pkg in ${ENABLED_MODULES}; do \
       case "${pkg}" in \
         nginx-module-markdown-filter) \
-          echo "load_module modules/ngx_http_markdown_filter_module.so;" >> "${modules_conf}" ;; \
+          echo "load_module /usr/lib/nginx/modules/ngx_http_markdown_filter_module.so;" >> "${modules_conf}" ;; \
         nginx-module-error-page-inherit) \
-          echo "load_module modules/ngx_http_error_page_inherit_module.so;" >> "${modules_conf}" ;; \
+          echo "load_module /usr/lib/nginx/modules/ngx_http_error_page_inherit_module.so;" >> "${modules_conf}" ;; \
         nginx-module-include-server) \
-          echo "load_module modules/ngx_http_include_server_module.so;" >> "${modules_conf}" ;; \
+          echo "load_module /usr/lib/nginx/modules/ngx_http_include_server_module.so;" >> "${modules_conf}" ;; \
         *) \
           echo "No load_module mapping for package: ${pkg}" >&2 ;; \
       esac; \
