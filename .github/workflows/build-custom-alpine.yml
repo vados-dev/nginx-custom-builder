@@ -26,7 +26,6 @@ on:
           - "3.20"
           - "3.19"
           - "3.18"
-          - "slim"
       enabled_modules:
         description: "Space-separated module list override for APK build"
         required: true
@@ -43,6 +42,19 @@ on:
         default: true
         type: boolean
   workflow_call:
+    outputs:
+      nginx_version:
+        description: "Resolved nginx version used for APK build"
+        value: ${{ jobs.build.outputs.nginx_version }}
+      apk_artifact_name:
+        description: "Uploaded artifact name with built APK packages"
+        value: ${{ jobs.build.outputs.apk_artifact_name }}
+      alpine_repo_url:
+        description: "Published Alpine APK repo URL for this channel/version"
+        value: ${{ jobs.build.outputs.alpine_repo_url }}
+      alpine_key_url:
+        description: "Published Alpine APK public key URL"
+        value: ${{ jobs.build.outputs.alpine_key_url }}
     inputs:
       nginx_channel:
         description: "nginx source channel"
@@ -74,19 +86,21 @@ jobs:
   build:
     if: ${{ github.event_name != 'workflow_dispatch' || github.event.repository.owner.id == github.event.sender.id }}
     runs-on: ubuntu-24.04
+    outputs:
+      nginx_version: ${{ steps.resolve.outputs.nginx_version }}
+      apk_artifact_name: ${{ steps.meta.outputs.apk_artifact_name }}
+      alpine_repo_url: ${{ steps.meta.outputs.alpine_repo_url }}
+      alpine_key_url: ${{ steps.meta.outputs.alpine_key_url }}
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       GITHUB_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
-      BUILD_ALPINE_VERSION: ${{ inputs.alpine_version == 'slim' && '3.20' || inputs.alpine_version }}
-    container: alpine:${{ inputs.alpine_version == 'slim' && '3.20' || inputs.alpine_version }}
+    container: alpine:${{ inputs.alpine_version }}
     steps:
 #      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Install build dependencies
         shell: sh
         run: |
           set -eux
-          echo "Requested Alpine repo profile: ${{ inputs.alpine_version }}"
-          echo "Actual Alpine build container: ${BUILD_ALPINE_VERSION}"
           apk add --no-cache \
             bash \
             build-base \
@@ -205,6 +219,18 @@ jobs:
         with:
           name: apk-packages-${{ inputs.nginx_channel }}
           path: /tmp/apk-build-artifacts/*.apk
+
+      - name: Export Alpine build metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          alpine_v="v${{ inputs.alpine_version }}"
+          channel="${{ inputs.nginx_channel }}"
+          echo "apk_artifact_name=apk-packages-${channel}" >> "${GITHUB_OUTPUT}"
+          echo "alpine_repo_url=https://${GITHUB_REPOSITORY_OWNER}.github.io/${repo_name}/repo/alpine/${alpine_v}/${channel}" >> "${GITHUB_OUTPUT}"
+          echo "alpine_key_url=https://${GITHUB_REPOSITORY_OWNER}.github.io/${repo_name}/repo/alpine/keys/abuild-key.rsa.pub" >> "${GITHUB_OUTPUT}"
 
       - name: Build APK repository metadata
         if: ${{ inputs.publish_alpine_repo }}

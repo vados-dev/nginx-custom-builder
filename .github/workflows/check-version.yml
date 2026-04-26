@@ -95,7 +95,6 @@ on:
           - "3.21"
           - "3.20"
           - "3.19"
-          - "slim"
 
       rpm_repo_release:
         description: "DNF repo release"
@@ -746,4 +745,31 @@ jobs:
       enabled_modules: ${{ needs['resolve-modules'].outputs.alpine_modules }}
       disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
       publish_alpine_repo: ${{ needs.resolve-targets.outputs.publish_repos == 'true' }}
+    secrets: inherit
+
+  build-alpine-slim-image:
+    if: >-
+      ${{
+        needs.detect.outputs.should_build_any == 'true' &&
+        !(github.event_name == 'schedule' && needs.detect.outputs.notify_only_mode == 'true') &&
+        needs.resolve-targets.outputs.run_alpine == 'true' &&
+        !(github.event_name == 'workflow_dispatch' && inputs.run_generate_matrix)
+      }}
+    needs:
+      - detect
+      - resolve-targets
+      - build-alpine
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJson(needs.detect.outputs.build_matrix) }}
+    uses: ./.github/workflows/build-alpine-slim-image.yml
+    with:
+      nginx_channel: ${{ matrix.channel }}
+      alpine_version: ${{ needs.resolve-targets.outputs.alpine_version }}
+      apk_artifact_name: apk-packages-${{ matrix.channel }}
+      alpine_repo_url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/repo/alpine/v${{ needs.resolve-targets.outputs.alpine_version }}/${{ matrix.channel }}
+      alpine_key_url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/repo/alpine/keys/abuild-key.rsa.pub
+      enabled_modules: nginx-module-markdown-filter nginx-module-error-page-inherit nginx-module-include-server
+      push_image: ${{ needs.resolve-targets.outputs.publish_repos == 'true' }}
     secrets: inherit

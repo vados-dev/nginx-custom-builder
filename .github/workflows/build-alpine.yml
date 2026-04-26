@@ -26,7 +26,6 @@ on:
           - "3.20"
           - "3.19"
           - "3.18"
-          - "slim"
       architectures:
         description: "Space-separated arch list"
         required: true
