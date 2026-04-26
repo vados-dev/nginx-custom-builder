@@ -199,7 +199,35 @@ apk add nginx
 
 Dockerfile для этого контура лежит в `docker/alpine-slim/Dockerfile`.
 
-### Локальная сборка и запуск образа из Dockerfile
+### Запуск готового образа из GHCR
+
+Если workflow уже собрал и опубликовал образ, используйте его напрямую из `ghcr.io`.
+
+Пример для `mainline` и `3.20`:
+
+```sh
+docker run --rm -it -p 8080:80 \
+  --name nginx-custom-slim \
+  ghcr.io/vados-dev/nginx-custom-builder/nginx-alpine-slim:mainline-alpine3.20-slim
+```
+
+Или плавающий тег в рамках `mainline alpine-slim`:
+
+```sh
+docker run --rm -it -p 8080:80 \
+  --name nginx-custom-slim \
+  ghcr.io/vados-dev/nginx-custom-builder/nginx-alpine-slim:mainline-alpine-slim
+```
+
+Проверка модулей внутри контейнера:
+
+```sh
+docker exec -it nginx-custom-slim nginx -T
+docker exec -it nginx-custom-slim ls -la /usr/lib/nginx/modules/
+docker exec -it nginx-custom-slim cat /etc/nginx/modules/50-custom-dynamic-modules.conf
+```
+
+### Локальная сборка образа из Dockerfile
 
 Сборка из уже опубликованного APK repo:
 
@@ -231,20 +259,6 @@ docker build \
   --build-arg BASE_IMAGE=nginx:mainline-alpine-slim \
   --build-arg ENABLED_MODULES="nginx-module-markdown-filter nginx-module-error-page-inherit nginx-module-include-server" \
   /tmp/nginx-alpine-slim-local
-```
-
-Запуск:
-
-```sh
-docker run --rm -it -p 8080:80 --name nginx-custom-slim nginx-custom:mainline-alpine-slim
-```
-
-Проверка модулей внутри контейнера:
-
-```sh
-docker exec -it nginx-custom-slim nginx -T
-docker exec -it nginx-custom-slim ls -la /usr/lib/nginx/modules/
-docker exec -it nginx-custom-slim cat /etc/nginx/modules/50-custom-dynamic-modules.conf
 ```
 
 Важно:
