@@ -79,7 +79,6 @@ Override модулей (полная замена профиля):
 - `rpm_repo_release`: `10|9` (для structured RPM пути)
 - `debian_suite`: например `trixie|bookworm|bullseye`
 - `alpine_version`: например `3.20`
-  - также поддержан `slim`: это отдельный repo path/profile `repo/alpine/vslim/...`, при этом кастомная сборка APK выполняется в совместимом базовом контейнере Alpine `3.20`
 
 Логика модулей:
 
@@ -187,13 +186,24 @@ apk update
 apk add nginx
 ```
 
-### Пример для Alpine `slim` и `mainline`
+## Alpine-slim Docker image (целевой артефакт)
 
-```sh
-echo "https://vados-dev.github.io/nginx-custom-builder/repo/alpine/vslim/mainline" >> /etc/apk/repositories
-apk update
-apk add nginx
-```
+Если нужен именно готовый образ на базе официального `nginx:*-alpine-slim`, а не APK-repo, используйте workflow `.github/workflows/build-alpine-slim-image.yml`.
+
+Он делает следующее:
+
+- берёт базовый образ вроде `nginx:mainline-alpine-slim`
+- может взять APK либо из artifact текущего workflow run, либо из вашего APK repo
+- ставит пакеты вроде `nginx-module-markdown-filter nginx-module-error-page-inherit nginx-module-include-server`
+- собирает и при необходимости пушит готовый image в registry
+
+Dockerfile для этого контура лежит в `docker/alpine-slim/Dockerfile`.
+
+Важно:
+
+- APK-модули должны быть собраны под совместимые `nginx`, Alpine и архитектуру
+- для поддержанных пакетов workflow сразу добавляет `load_module`-конфиг в `/etc/nginx/modules/*.conf`
+- `check-version.yml` теперь после Alpine APK-сборки может автоматически собрать и `alpine-slim` image из этих же artifact-ов
 
 ## Запуск workflow GitHub c локального CentOS
 
