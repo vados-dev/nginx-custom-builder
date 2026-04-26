@@ -14,6 +14,7 @@ on:
         options:
           - stable
           - mainline
+
       alpine_version:
         description: "Alpine major.minor for repo path"
         required: true
@@ -25,22 +26,25 @@ on:
           - "3.21"
           - "3.20"
           - "3.19"
-          - "3.18"
+
       enabled_modules:
         description: "Space-separated module list override for APK build"
         required: true
         default: "error-page-inherit include-server markdown-filter"
         type: string
+
       disable_debug_packages:
         description: "Exclude *-dbg APK packages from uploaded/published artifacts"
         required: true
         default: true
         type: boolean
+
       publish_repos:
         description: "Publish APK repository to gh-pages"
         required: true
         default: true
         type: boolean
+
   workflow_call:
     outputs:
       nginx_version:
@@ -185,7 +189,7 @@ jobs:
             /home/builder/.cargo/bin/cargo --version
           '
 
-      - name: Build Alpine module packages
+      - name: Build Alpine modules packages
         shell: bash
         run: |
           set -euo pipefail

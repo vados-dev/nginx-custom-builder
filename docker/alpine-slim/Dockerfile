@@ -11,6 +11,18 @@ COPY apk-packages/ /tmp/apk-packages/
 
 RUN apk add --no-cache ca-certificates curl
 
+RUN runtime_deps=""; \
+    for pkg in ${ENABLED_MODULES}; do \
+      case "${pkg}" in \
+        nginx-module-markdown-filter) \
+          runtime_deps="${runtime_deps} cmark" ;; \
+      esac; \
+    done; \
+    runtime_deps="$(printf '%s\n' "${runtime_deps}" | xargs -n1 | awk 'NF && !seen[$0]++' | xargs || true)"; \
+    if [ -n "${runtime_deps}" ]; then \
+      apk add --no-cache ${runtime_deps}; \
+    fi
+
 RUN if ls /tmp/apk-packages/*.apk >/dev/null 2>&1; then \
       set --; \
       for pkg in ${ENABLED_MODULES}; do \
