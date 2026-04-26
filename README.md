@@ -79,6 +79,7 @@ Override модулей (полная замена профиля):
 - `rpm_repo_release`: `10|9` (для structured RPM пути)
 - `debian_suite`: например `trixie|bookworm|bullseye`
 - `alpine_version`: например `3.20`
+  - также поддержан `slim`: это отдельный repo path/profile `repo/alpine/vslim/...`, при этом кастомная сборка APK выполняется в совместимом базовом контейнере Alpine `3.20`
 
 Логика модулей:
 
@@ -182,6 +183,14 @@ sudo dnf upgrade "nginx*"
 echo "https://vados-dev.github.io/nginx-custom-builder/repo/alpine/v3.20/mainline" >> /etc/apk/repositories
 # если опубликован публичный ключ сборки:
 # wget -O /etc/apk/keys/<builder-key>.pub https://vados-dev.github.io/nginx-custom-builder/repo/alpine/keys/<builder-key>.pub
+apk update
+apk add nginx
+```
+
+### Пример для Alpine `slim` и `mainline`
+
+```sh
+echo "https://vados-dev.github.io/nginx-custom-builder/repo/alpine/vslim/mainline" >> /etc/apk/repositories
 apk update
 apk add nginx
 ```
