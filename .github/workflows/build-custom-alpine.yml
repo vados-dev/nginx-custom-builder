@@ -26,6 +26,7 @@ on:
           - "3.20"
           - "3.19"
           - "3.18"
+          - "slim"
       enabled_modules:
         description: "Space-separated module list override for APK build"
         required: true
@@ -76,13 +77,16 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       GITHUB_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
-    container: alpine:${{ inputs.alpine_version }}
+      BUILD_ALPINE_VERSION: ${{ inputs.alpine_version == 'slim' && '3.20' || inputs.alpine_version }}
+    container: alpine:${{ inputs.alpine_version == 'slim' && '3.20' || inputs.alpine_version }}
     steps:
 #      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Install build dependencies
         shell: sh
         run: |
           set -eux
+          echo "Requested Alpine repo profile: ${{ inputs.alpine_version }}"
+          echo "Actual Alpine build container: ${BUILD_ALPINE_VERSION}"
           apk add --no-cache \
             bash \
             build-base \
