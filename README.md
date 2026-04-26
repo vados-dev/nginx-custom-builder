@@ -199,6 +199,54 @@ apk add nginx
 
 Dockerfile для этого контура лежит в `docker/alpine-slim/Dockerfile`.
 
+### Локальная сборка и запуск образа из Dockerfile
+
+Сборка из уже опубликованного APK repo:
+
+```sh
+mkdir -p /tmp/nginx-alpine-slim-empty
+
+docker build \
+  -f docker/alpine-slim/Dockerfile \
+  -t nginx-custom:mainline-alpine-slim \
+  --build-arg BASE_IMAGE=nginx:mainline-alpine-slim \
+  --build-arg APK_REPO_URL=https://vados-dev.github.io/nginx-custom-builder/repo/alpine/v3.20/mainline \
+  --build-arg APK_KEY_URL=https://vados-dev.github.io/nginx-custom-builder/repo/alpine/keys/abuild-key.rsa.pub \
+  --build-arg ENABLED_MODULES="nginx-module-markdown-filter nginx-module-error-page-inherit nginx-module-include-server" \
+  /tmp/nginx-alpine-slim-empty
+```
+
+Сборка из локальной папки с готовыми `.apk` без публикации repo:
+
+```sh
+mkdir -p /tmp/nginx-alpine-slim-local/apk-packages
+cp /path/to/nginx-module-markdown-filter-*.apk /tmp/nginx-alpine-slim-local/apk-packages/
+cp /path/to/nginx-module-error-page-inherit-*.apk /tmp/nginx-alpine-slim-local/apk-packages/
+cp /path/to/nginx-module-include-server-*.apk /tmp/nginx-alpine-slim-local/apk-packages/
+cp docker/alpine-slim/Dockerfile /tmp/nginx-alpine-slim-local/Dockerfile
+
+docker build \
+  -f /tmp/nginx-alpine-slim-local/Dockerfile \
+  -t nginx-custom:mainline-alpine-slim-local \
+  --build-arg BASE_IMAGE=nginx:mainline-alpine-slim \
+  --build-arg ENABLED_MODULES="nginx-module-markdown-filter nginx-module-error-page-inherit nginx-module-include-server" \
+  /tmp/nginx-alpine-slim-local
+```
+
+Запуск:
+
+```sh
+docker run --rm -it -p 8080:80 --name nginx-custom-slim nginx-custom:mainline-alpine-slim
+```
+
+Проверка модулей внутри контейнера:
+
+```sh
+docker exec -it nginx-custom-slim nginx -T
+docker exec -it nginx-custom-slim ls -la /usr/lib/nginx/modules/
+docker exec -it nginx-custom-slim cat /etc/nginx/modules/50-custom-dynamic-modules.conf
+```
+
 Важно:
 
 - APK-модули должны быть собраны под совместимые `nginx`, Alpine и архитектуру
