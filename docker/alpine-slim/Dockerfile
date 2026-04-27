@@ -9,7 +9,8 @@ SHELL ["/bin/sh", "-ec"]
 
 COPY apk-packages/ /tmp/apk-packages/
 
-RUN apk add --no-cache ca-certificates curl
+#RUN apk add --no-cache ca-certificates curl mc
+RUN set -eux; apk update ; apk add --no-cache ca-certificates curl wget mc ;
 
 RUN runtime_deps=""; \
     for pkg in ${ENABLED_MODULES}; do \
