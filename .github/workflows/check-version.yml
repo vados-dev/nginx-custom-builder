@@ -119,7 +119,7 @@ on:
       modules_mode:
         description: "How to resolve module base set"
         required: true
-        default: "legacy-inputs"
+        default: "repo-defaults"
         type: choice
         options:
           - repo-defaults
@@ -399,7 +399,7 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
-          MODULES_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_mode || 'legacy-inputs' }}
+          MODULES_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_mode || 'repo-defaults' }}
           GLOBAL_BASE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_global_base || '' }}
           GLOBAL_ADD: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_add || '' }}
           GLOBAL_REMOVE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_remove || '' }}
