@@ -57,7 +57,7 @@ MODULES?=
 -include Makefile.module-*
 
 DISCOVERED_MODULES := $(strip $(MODULES))
-ENABLED_MODULES ?= image-filter perl xslt markdown-filter acme njs error-page-inherit include-server
+ENABLED_MODULES ?= acme geoip image-filter njs otel perl xslt markdown-filter 	error-page-inherit include-server
 MODULES := $(strip $(filter $(ENABLED_MODULES),$(DISCOVERED_MODULES)))
 
 STANDARD_CONFIGURE_MODULES=\
@@ -79,6 +79,12 @@ STANDARD_CONFIGURE_MODULES=\
 	--with-http_stub_status_module \
 	--with-http_sub_module \
 	--with-http_v2_module \
+$$( if [ 0%{?rhel} -eq 7 ] || [ 0%{?suse_version} -eq 1315 ]; then \
+        continue; \
+else \
+        echo "--with-http_v3_module"; \
+fi; \
+) \
 	--with-mail \
 	--with-mail_ssl_module \
 	--with-stream \
@@ -106,6 +112,21 @@ BASE_CONFIGURE_ARGS=\
 	--group=%{nginx_group} \
 	$(STANDARD_CONFIGURE_MODULES) \
 	$(EXTRA_BASE_CONFIGURE_ARGS)
+
+ifeq ($(BASE_TARGET), plus)
+BASE_CONFIGURE_ARGS+= \
+        --build=nginx-plus-r$(PLUS_VERSION) \
+        --mgmt-id-path=/var/lib/nginx/nginx.id \
+        --with-http_auth_jwt_module \
+        --with-http_f4f_module \
+        --with-http_hls_module \
+        --with-http_proxy_protocol_vendor_module \
+        --with-http_session_log_module \
+        --with-mgmt \
+        --with-stream_mqtt_filter_module \
+        --with-stream_mqtt_preread_module \
+        --with-stream_proxy_protocol_vendor_module
+endif
 
 include $(CONTRIB)/attestation.mak
 
