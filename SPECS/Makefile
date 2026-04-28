@@ -57,7 +57,7 @@ MODULES?=
 -include Makefile.module-*
 
 DISCOVERED_MODULES := $(strip $(MODULES))
-ENABLED_MODULES ?= acme geoip2 image-filter njs otel perl xslt markdown-filter 	error-page-inherit include-server
+ENABLED_MODULES ?= acme geoip2 image-filter njs otel perl xslt markdown-filter error-page-inherit include-server
 MODULES := $(strip $(filter $(ENABLED_MODULES),$(DISCOVERED_MODULES)))
 
 STANDARD_CONFIGURE_MODULES=\
@@ -146,11 +146,13 @@ all:
 	@$(MAKE) base modules
 	@echo "===> $@ done!"
 
+base-modules:	$(addprefix module-, $(BASE_MODULES))
+
+modules:	$(addprefix module-, $(MODULES))
+
 tree:
 	@rpmdev-setuptree
 	@echo "===> setuptree done"
-
-modules:	$(addprefix module-, $(MODULES))
 
 list-base:
 	@printf "%-20s\t%s\n" nginx $(BASE_VERSION)-$(BASE_RELEASE)
@@ -209,13 +211,19 @@ nginx.spec:
 	}
 	@echo "===> $@ done!"
 
+#.deps-module-%:
+#	@if [ -n "$(MODULE_CONTRIB_DEPS_$(call modname,$*))" ]; then \
+#		cd $(CONTRIB) && make $(foreach dep,$(MODULE_CONTRIB_DEPS_$(call modname,$*)),.sum-$(dep)); \
+#	fi ; \
+#	touch $@
+
 .deps-module-%:
-	@if [ -n "$(MODULE_CONTRIB_DEPS_$(call modname,$*))" ]; then \
-		cd $(CONTRIB) && make $(foreach dep,$(MODULE_CONTRIB_DEPS_$(call modname,$*)),.sum-$(dep)); \
-	fi ; \
+	@if [ -n "$(MODULE_CONTRIB_DEPS_$*)" ]; then \
+		cd $(CONTRIB) && make $(foreach dep,$(MODULE_CONTRIB_DEPS_$*),.sum-$(dep)); \
+	fi; \
 	touch $@
 
-module-%: nginx-module-%.spec .deps-module-% stage-sources
+module-%: nginx-module-%.spec check-compat-% .deps-module-% stage-sources
 	@echo "===> Building nginx-$@ package" ; \
 	$(MAKE) --no-print-directory stage-sources && \
 	$(SHELL) -c "time -p rpmbuild $(RPMBUILD_ARGS) $(RPMBUILD_EXTRA_DEFINES) nginx-$@.spec" && \
@@ -226,6 +234,16 @@ module-%: nginx-module-%.spec .deps-module-% stage-sources
 	fi && \
 	ln -s ../BUILD/nginx-$@-$(BASE_VERSION)/objs $@
 	@echo "===> $@ done!"
+
+#module-%: nginx-module-%.spec check-compat-% $(SRCPATH)/$(BASE_SRC) .deps-module-% attest-module-%
+#	@if [ -e nginx-$@.skip ]; then \
+#		echo "---> Skipping nginx-$@ package (`cat nginx-$@.skip`)" ; \
+#	else \
+#		echo "===> Building nginx-$@ package" ; \
+#		BUILDROOT=`rpmbuild -bc --short-circuit -D "_topdir \`pwd\`/../" -D "__spec_build_pre echo bdir=%{_builddir}; exit 0" nginx-$@.spec | grep ^bdir= | cut -d'=' -f 2` ; \
+#		$(SHELL) -c "time -p rpmbuild --noclean -D \"_topdir `pwd`/../\" -ba nginx-$@.spec" && \
+#		ln -s $$BUILDROOT/$(MODULE_PACKAGE_PREFIX)-$*-$(BASE_VERSION)/objs $@ ; \
+#	fi
 
 nginx-module-%.spec:
 	@echo "===> Creating $@"
@@ -422,6 +440,63 @@ nginx-module-%.spec:
 	mv $@.tmp $@ ; \
 	}
 	@echo "===> $@ done!"
+
+check-compat-%:
+	@module=`echo $@ | cut -d '-' -f 3 | tr '-' '_'` ; \
+	case "$${module}" in \
+		brotli) \
+		if [    `rpm --eval '0%{?suse_version}'` -gt 0 -a `rpm --eval '0%{?suse_version}'` -lt 1500 ]; then \
+			echo "Brotli can't be build on SLES < 15" > \
+			nginx-module-$${module}.skip ; \
+			exit ; \
+		fi ; \
+		;; \
+		geoip) \
+		if [ `rpm --eval '0%{?rhel}'` -ge 8 ] || [ `rpm --eval '0%{?amzn}'` -gt 2 ] || [ `rpm --eval '0%{?suse_version}'` -ge 1600 ]; then \
+			echo "GeoIP can not be build on RHEL/CentOS >= 8 or Amazon Linux >2 or SLES >= 16" > \
+			nginx-module-$${module}.skip ; \
+			exit ; \
+		fi ; \
+		;; \
+		geoip2) \
+		if [ `rpm --eval '0%{?suse_version}'` -gt 0 -a `rpm --eval '0%{?suse_version}'` -lt 1500 -o \
+			`rpm --eval '0%{?amzn}'` -eq 2 ]; then \
+			echo "GeoIP2 can not be built on SLES < 15 and Amazon Linux 2 due to libmaxminddb absence" > \
+			nginx-module-$${module}.skip ; \
+			exit ; \
+		fi ; \
+		;; \
+		lua) \
+		ARCH=`rpm --eval '%{_arch}'` ; \
+		if [ "$$ARCH" = "ppc64le" -o "$$ARCH" = "s390x" ]; then \
+			echo "Lua module can not be built on $$ARCH" > \
+			nginx-module-$${module}.skip ; \
+			exit ; \
+		fi ; \
+		if [ `rpm --eval '0%{?suse_version}'` -gt 0 -a `rpm --eval '0%{?suse_version}'` -lt 1500 ]; then \
+			echo "Lua can't be build on SLES < 15 due to too old openssl" > \
+			nginx-module-$${module}.skip ; \
+			exit ; \
+		fi ; \
+		;; \
+		otel) \
+		if [`rpm --eval '0%{?suse_version}'` -gt 0 -a `rpm --eval '0%{?suse_version}'` -lt 1500 ]; then \
+			echo "otel can not be built on SLES < 15 due to absence of re2" > \
+			nginx-module-$${module}.skip ; \
+			exit ; \
+		fi ; \
+		if [ "`rpm --eval '0%{?amzn}'`" -eq 2 ]; then \
+			echo "otel can not be built on Amazon Linux 2 due to too old c-ares library" > \
+			nginx-module-$${module}.skip ; \
+			exit ; \
+		fi ; \
+		if [ "`rpm --eval '0%{?rhel}'`" -eq 7 ]; then \
+			echo "otel can not be built on RHEL 7 due to too old compiler" > \
+			nginx-module-$${module}.skip ; \
+			exit ; \
+		fi ; \
+		;; \
+	esac
 
 nginx-tests:
 	@{ \
@@ -634,7 +709,7 @@ detect-module-licenses:
 	fi ; \
 	}
 
-.PHONY:	default all modules specs stage-sources test test-debug clean cln detect-module-licenses list list-base list-all-modules
+.PHONY:	default all modules specs stage-sources test test-debug clean cln detect-module-licenses list list-base list-base-modules list-all-modules
 
 
 .SECONDARY:

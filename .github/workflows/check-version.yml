@@ -129,7 +129,7 @@ on:
       modules_global_base:
         description: "Base modules for explicit-global mode (space-separated)"
         required: false
-        default: "acme geoip image-filter njs otel perl xslt image-filter markdown-filter error-page-inherit include-server"
+        default: "acme geoip2 image-filter njs otel perl xslt image-filter markdown-filter error-page-inherit include-server"
         type: string
 
       modules_add:
@@ -147,7 +147,7 @@ on:
       modules_common:
         description: "Legacy mode: common modules for all platforms (space-separated)"
         required: true
-        default: "geoip image-filter otel perl xslt error-page-inherit include-server markdown-filter"
+        default: "geoip2 image-filter otel perl xslt error-page-inherit include-server markdown-filter"
         type: string
 
       modules_alpine_extra:
