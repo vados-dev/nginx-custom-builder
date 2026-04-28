@@ -9,7 +9,7 @@ MODULE_CONFARGS_geoip=	--with-http_geoip_module=dynamic \
 			--with-stream_geoip_module=dynamic
 
 define MODULE_DEFINITIONS_geoip
-%if 0%{?suse_version} >= 1315
+%if 0%{?rhel} >= 9 || 0%{?suse_version} >= 1315
 BuildRequires: libGeoIP-devel
 %else
 BuildRequires: GeoIP-devel
