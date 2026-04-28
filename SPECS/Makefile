@@ -177,27 +177,57 @@ $(BUILD_SOURCES)/$(BASE_SRC):
 	@cd $(BUILD_SOURCES) && wget -N http://nginx.org/download/$(BASE_SRC)
 	@echo "===> $@ done!"
 
+#$(SRCPATH)/$(BASE_SRC):
+#        cd $(CONTRIB) && make .sum-nginx$(BASE_SUFFIX)
+#        cd $(SRCPATH) && ln -s $(CONTRIB)/tarballs/$(BASE_SRC) $(BASE_SRC)
+
 stage-sources: $(BUILD_SOURCES)/$(BASE_SRC)
 	@mkdir -p $(BUILD_SOURCES)
 	@find $(SRCPATH) -maxdepth 1 \( -type f -o -type l \) ! -name "$(BASE_SRC)" -exec cp -Lf {} $(BUILD_SOURCES)/ \;
 	@echo "===> $@ done!"
 
-base:	nginx.spec stage-sources
+base:	nginx.spec stage-sources attest-base
 	@echo "===> Building base package" ; \
-	$(SHELL) -c "time -p rpmbuild $(RPMBUILD_ARGS) $(RPMBUILD_EXTRA_DEFINES) nginx.spec" && \
+	BUILDROOT=`rpmbuild -bc --short-circuit -D "_topdir \`pwd\`/../" -D "__spec_build_pre echo bdir=%{_builddir}; exit 0" nginx$(BASE_SUFFIX).spec | grep ^bdir= | cut -d'=' -f 2` ; \
+	$(SHELL) -c "time -p rpmbuild $(RPMBUILD_ARGS) $(RPMBUILD_EXTRA_DEFINES) nginx$(BASE_SUFFIX).spec" && \
 	if [ "$(COPY_ARTIFACTS)" = "1" ]; then \
 		mkdir -p $(ARTIFACTS_DIR) && \
 		find $(BUILD_ENV_PATH)/RPMS -type f -name "*.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; && \
 		find $(BUILD_ENV_PATH)/SRPMS -maxdepth 1 -type f -name "*.src.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; ; \
 	fi && \
-	ln -s ../BUILD/nginx-$(BASE_VERSION)/objs base
+#	ln -s ../BUILD/nginx-$(BASE_VERSION)/objs base
+	ln -s $$BUILDROOT/nginx$(BASE_SUFFIX)-$(BASE_VERSION)/objs base
 	@echo "===> $@ done!"
 
-nginx.spec:
+#base:   nginx.spec $(SRCPATH)/$(BASE_SRC) attest-base
+#	@echo "===> Building base package" ; \
+#	BUILDROOT=`rpmbuild -bc --short-circuit -D "_topdir \`pwd\`/../" -D "__spec_build_pre echo bdir=%{_builddir}; exit 0" nginx$(BASE_SUFFIX).spec | grep ^bdir= | cut -d'=' -f 2` ; \
+#	$(SHELL) -c "time -p rpmbuild --noclean -D \"_topdir `pwd`/../\" -ba nginx$(BASE_SUFFIX).spec" && \
+#	ln -s $$BUILDROOT/nginx$(BASE_SUFFIX)-$(BASE_VERSION)/objs base
+
+nginx.rpm-changelog:
+	@echo "===> Generating $@"
+	@cd $(DOCS) && DEST=$(CURDIR) VERSIONMASK=1 make $(CURDIR)/nginx$(BASE_SUFFIX).rpm-changelog
+
+nginx.spec: nginx.rpm-changelog
+ifeq ($(BASE_TARGET), plus)
+	cp -v $(CONTRIB)/tarballs/dashboard.html $(SRCPATH)
+	cp -v $(DOCS)/EULA* $(SRCPATH)
+	cp -v $(DOCS)/CHANGES $(SRCPATH)
+endif
 	@echo "===> Creating $@"
 	@{ \
 	set -e ; \
-	cat nginx.spec.in | sed \
+	cp -p $(DOCS)/nginx.copyright $(SRCPATH) ; \
+	patch_files=`find $(CONTRIB)/src/nginx$(BASE_SUFFIX)/ \
+		-type f -name '*.patch' -printf "%f\n" | sort`; \
+	patches=`for i in $$patch_files; do echo $$i; done | \
+			awk '{ printf "Patch%03d: %s\\\n", NR, $$0 }'`; \
+	for patch in $$patch_files; do \
+		cp -v $(CONTRIB)/src/nginx$(BASE_SUFFIX)/$$patch $(SRCPATH) ; \
+	done; \
+#	cat nginx.spec.in | sed \
+	sed nginx$(BASE_SUFFIX).spec.in \
 		-e 's#%%PACKAGE_VENDOR%%#$(PACKAGE_VENDOR)#g' \
 		-e 's#%%PACKAGE_URL%%#$(PACKAGE_URL)#g' \
 		-e 's#%%BASE_VERSION%%#$(BASE_VERSION)#g' \
@@ -207,9 +237,16 @@ nginx.spec:
 		-e "s#%%BASE_PATCHES%%#$$patches#g" \
 		-e 's#%%BASE_CONFIGURE_ARGS%%#$(BASE_CONFIGURE_ARGS)#g' \
 		-e 's#%%BASE_DYNAMIC_MODULES_ARGS%%#$(BASE_DYNAMIC_MODULES_ARGS)#g' \
-		> nginx.spec ; \
+		> nginx$(BASE_SUFFIX).spec ; \
+	sed nginx$(BASE_SUFFIX).rpm-changelog \
+		-e 's#%%BASE_VERSION%%#$(BASE_VERSION)#g' \
+		-e 's#%%BASE_RELEASE%%#$(BASE_RELEASE)#g' \
+		-e 's#%%PLUS_VERSION%%#$(PLUS_VERSION)#g' \
+		-e 's#%%PLUS_RELEASE%%#$(PLUS_RELEASE)#g' \
+	>> nginx$(BASE_SUFFIX).spec ; \
 	}
 	@echo "===> $@ done!"
+
 
 #.deps-module-%:
 #	@if [ -n "$(MODULE_CONTRIB_DEPS_$(call modname,$*))" ]; then \
