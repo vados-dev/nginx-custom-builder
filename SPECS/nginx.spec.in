@@ -92,6 +92,7 @@ Requires(pre): shadow-utils
 %define WITH_LD_OPT -Wl,-z,relro -Wl,-z,now -pie
 
 %define BASE_CONFIGURE_ARGS $(echo "%%BASE_CONFIGURE_ARGS%%")
+%define BASE_DYNAMIC_MODULES_ARGS $(echo "%%BASE_DYNAMIC_MODULES_ARGS%%")
 
 Summary: High performance web server
 Name: nginx
@@ -142,9 +143,7 @@ a mail proxy server.
 
 %build
 ./configure %{BASE_CONFIGURE_ARGS} \
-    --with-http_image_filter_module=dynamic \
-    --with-http_xslt_module=dynamic \
-    --with-http_perl_module=dynamic \
+    %{BASE_DYNAMIC_MODULES_ARGS} \
     --with-cc-opt="%{WITH_CC_OPT}" \
     --with-ld-opt="%{WITH_LD_OPT}" \
     --with-debug
@@ -152,9 +151,7 @@ make %{?_smp_mflags}
 %{__mv} %{bdir}/objs/nginx \
     %{bdir}/objs/nginx-debug
 ./configure %{BASE_CONFIGURE_ARGS} \
-    --with-http_image_filter_module=dynamic \
-    --with-http_xslt_module=dynamic \
-    --with-http_perl_module=dynamic \
+    %{BASE_DYNAMIC_MODULES_ARGS} \
     --with-cc-opt="%{WITH_CC_OPT}" \
     --with-ld-opt="%{WITH_LD_OPT}"
 make %{?_smp_mflags}

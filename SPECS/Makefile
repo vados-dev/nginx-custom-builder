@@ -79,12 +79,7 @@ STANDARD_CONFIGURE_MODULES=\
 	--with-http_stub_status_module \
 	--with-http_sub_module \
 	--with-http_v2_module \
-$$( if [ 0%{?rhel} -eq 7 ] || [ 0%{?suse_version} -eq 1315 ]; then \
-        continue; \
-else \
-        echo "--with-http_v3_module"; \
-fi; \
-) \
+	--with-http_v3_module \
 	--with-mail \
 	--with-mail_ssl_module \
 	--with-stream \
@@ -112,6 +107,11 @@ BASE_CONFIGURE_ARGS=\
 	--group=%{nginx_group} \
 	$(STANDARD_CONFIGURE_MODULES) \
 	$(EXTRA_BASE_CONFIGURE_ARGS)
+
+BASE_DYNAMIC_MODULES_ARGS=\
+	--with-http_image_filter_module=dynamic \
+	--with-http_xslt_module=dynamic \
+	--with-http_perl_module=dynamic
 
 ifeq ($(BASE_TARGET), plus)
 BASE_CONFIGURE_ARGS+= \
@@ -204,6 +204,7 @@ nginx.spec:
 		-e 's#%%MAIN_RELEASE%%#$(BASE_RELEASE)#g' \
 		-e "s#%%BASE_PATCHES%%#$$patches#g" \
 		-e 's#%%BASE_CONFIGURE_ARGS%%#$(BASE_CONFIGURE_ARGS)#g' \
+		-e 's#%%BASE_DYNAMIC_MODULES_ARGS%%#$(BASE_DYNAMIC_MODULES_ARGS)#g' \
 		> nginx.spec ; \
 	}
 	@echo "===> $@ done!"
