@@ -31,9 +31,13 @@ BASE_MAKEFILES= alpine/Makefile \
                 debian/Makefile \
                 SPECS/Makefile
 
-MODULES=        geoip image-filter perl xslt
-EXTERNAL_MODULES=       acme error-page-inherit include-server markdown-filter njs
+#MODULES=        geoip image-filter perl xslt
+#EXTERNAL_MODULES=       acme error-page-inherit include-server markdown-filter njs
 #auth-spnego brotli encrypted-session fips-check geoip2 headers-more lua ndk njs opentracing otel passenger rtmp set-misc subs-filter
+
+MODULES=        image-filter perl xslt
+EXTERNAL_MODULES=       acme auth-spnego brotli encrypted-session fips-check geoip2 headers-more lua ndk njs otel error-page-inherit include-server markdown-filter
+#passenger rtmp set-misc subs-filter
 
 ifeq ($(shell sha512sum --version >/dev/null 2>&1 || echo FAIL),)
 SHA512SUM = sha512sum
@@ -73,6 +77,7 @@ CI_NGINX_REPO_RELEASE ?=
 CI_HOME_PATH ?= $(CI_WORKDIR)/$(CI_HOME)
 CI_DOCKER_COMPOSE = CI_IMAGE="$(CI_IMAGE)" docker compose -p $(CI_PROJECT) -f $(CI_COMPOSE_FILE)
 
+
 default:
 	@{ \
 	echo "Latest available $(FLAVOR) nginx package version: $(CURRENT_VERSION)-$(CURRENT_RELEASE)" ; \
@@ -80,7 +85,10 @@ default:
 	echo "Latest available $(FLAVOR) njs package version: $(CURRENT_VERSION_NJS)-$(CURRENT_RELEASE_NJS)" ; \
 	echo "Next njs version: $(VERSION_NJS)" ; \
 	echo ; \
-	echo "Valid targets: release release-njs revert commit tag" ; \
+	echo "Valid targets: ci-build ci-build-compose ci-buildx-bootstrap ci-build-buildx \
+	ci-push ci-push-buildx ci-deploy ci-rm ci-ps ci-init-home ci-shell ci-shell-root ci-check ci-rpm ci-rpm-channel ci-rpm-all \
+	ci-check-mainline ci-check-stable ci-check-all ci-rpm-mainline ci-rpm-stable ci-artifacts ci-specs-clean ci-clean-worktree help \
+	fetch version-check version-check-njs release release-njs revert commit tag cleanrelease" ; \
 	}
 
 ci-build:
@@ -199,13 +207,27 @@ ci-clean-worktree:
 		SOURCES/nginx-module-*.copyright || true
 
 help: default
-	@make -C SPECS/
+	@$(MAKE) -C SPECS
+#	@$(MAKE) -C contrib
 
 fetch:
 	@$(MAKE) -C contrib fetch
 
+install:
+	@$(MAKE) -C contrib install
+
+list:
+	@$(MAKE) -C contrib list
+
+
+clean:
+	@$(MAKE) -C SPECS cln
+	@$(MAKE) -C SPECS clean
+	@$(MAKE) -C contrib clean
+
 %:
-	@make -C SPECS/ $@
+	@$(MAKE) -C SPECS $@
+	@$(MAKE) -C contrib $@
 
 version-check:
 	@{ \
@@ -295,4 +317,4 @@ tag:
 	ci-push ci-push-buildx ci-deploy ci-rm ci-ps ci-init-home ci-shell ci-shell-root ci-check ci-rpm ci-rpm-channel ci-rpm-all \
 	ci-check-mainline ci-check-stable ci-check-all \
 	ci-rpm-mainline ci-rpm-stable ci-artifacts ci-specs-clean ci-clean-worktree help \
-	fetch version-check version-check-njs release release-njs revert commit tag
+	fetch version-check version-check-njs release release-njs revert commit tag clean

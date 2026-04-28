@@ -1,21 +1,58 @@
 SHELL=		/bin/bash
 
-BASE_VERSION=	1.29.6
-BASE_RELEASE=	1
-BASE_SRC=	nginx-$(BASE_VERSION).tar.gz
-SRCPATH?=	../SOURCES
 CONTRIB?=       ../contrib
 CONTRIB:=       $(abspath $(CONTRIB))
-BUILD_ENV_PATH=	${HOME}/rpmbuild
+
+BASE_TARGET?=   oss
+
+ifeq ($(BASE_TARGET), plus)
+BASE_SUFFIX=-plus
+DOCS?=          ../docs-plus
+MODULE_TARGET?= plus
+endif
+
+DOCS?=          ../docs
+MODULE_TARGET?= oss
+
+include $(CONTRIB)/src/nginx$(BASE_SUFFIX)/version
+
+BASE_VERSION=   $(NGINX_VERSION)
+BASE_RELEASE=   1
+PLUS_VERSION=   $(NGINX_PLUS_VERSION)
+PLUS_RELEASE=   $(BASE_RELEASE)
+BASE_SRC=       nginx$(BASE_SUFFIX)-$(BASE_VERSION).tar.gz
+SRCPATH?=       ../SOURCES
+BUILD_ENV_PATH= ${HOME}/rpmbuild
+MODSRC_PREFIX=
+BUILD_DIR=      %{bdir}
+
+#BASE_VERSION=   1.29.6
+#BASE_RELEASE=	1
+#BASE_SRC=	nginx-$(BASE_VERSION).tar.gz
+#SRCPATH?=	../SOURCES
+#CONTRIB?=       ../contrib
+#CONTRIB:=       $(abspath $(CONTRIB))
+
+#BASE_TARGET?= oss
+
+#ifeq ($(BASE_TARGET), plus)
+#BASE_SUFFIX=-plus
+#DOCS?=          ../docs-plus
+#MODULE_TARGET?= plus
+#endif
+
+#BUILD_ENV_PATH=	${HOME}/rpmbuild
 ARTIFACTS_DIR?=	/.data/nfs/dst/nginx/RPMS all
 COPY_ARTIFACTS?=	1 #$(if $(CI),1,0)
 BUILD_SOURCES=	$(BUILD_ENV_PATH)/SOURCES
+#DOCS?=          ../docs
 MODULE_TARGET?=	oss
 MODSRC_PREFIX=
 MODSRC_PATH=	$(SRCPATH)
 BUILD_DIR=	%{bdir}
 RPMBUILD_ARGS?=	-bb
 RPMBUILD_EXTRA_DEFINES?=
+#--noclean -D \"_topdir `pwd`/../\"
 
 GITHUB := https://github.com/vados-dev
 
@@ -27,27 +64,33 @@ endif
 GIT ?= $(error git not found)
 
 ifeq ($(MODULE_TARGET), plus)
-MODULE_SPEC_TEMPLATE=	nginx-plus-module.spec.in
-MODULE_SUMMARY_PREFIX=	NGINX Plus
-else
-MODULE_SPEC_TEMPLATE=	nginx-module.spec.in
-MODULE_SUMMARY_PREFIX=	nginx
-endif
-
-ifeq ($(MODULE_TARGET), plus)
 MODULE_SUMMARY_PREFIX=  NGINX Plus
 TARGET_VERSION=$(PLUS_VERSION)
 MODULE_SUFFIX=-plus
-PACKAGE_URL=     https://www.nginx.com/
-PACKAGE_LICENSE= Proprietary (EULA included)
+MODULE_PACKAGE_URL=     https://www.nginx.com/
+MODULE_PACKAGE_LICENSE= Proprietary (EULA included)
 else
 MODULE_SUMMARY_PREFIX=  nginx
 TARGET_VERSION=$(BASE_VERSION)
-PACKAGE_URL=     https://nginx.org/
-PACKAGE_LICENSE=2-clause BSD-like license
+MODULE_PACKAGE_URL=     https://nginx.org/
+MODULE_PACKAGE_LICENSE=2-clause BSD-like license
 endif
 
+#ifeq ($(MODULE_TARGET), plus)
+#MODULE_SPEC_TEMPLATE=	nginx-plus-module.spec.in
+#MODULE_SUMMARY_PREFIX=	NGINX Plus
+#else
+#MODULE_SPEC_TEMPLATE=	nginx-module.spec.in
+#MODULE_SUMMARY_PREFIX=	nginx
+#endif
+
+MODULE_SPEC_TEMPLATE=   nginx$(MODULE_SUFFIX)-module.spec.in
+MODULE_PACKAGE_PREFIX=nginx$(MODULE_SUFFIX)-module
+MODULE_TARGET_PREFIX=$(TARGET_VERSION)+
+
 PACKAGE_VENDOR=	NGINX Inc.
+
+BASE_MODULES=   acme geoip2 image-filter njs otel perl xslt
 
 # Unified module selection point:
 # - module metadata stays in Makefile.module-*
@@ -57,7 +100,7 @@ MODULES?=
 -include Makefile.module-*
 
 DISCOVERED_MODULES := $(strip $(MODULES))
-ENABLED_MODULES ?= acme geoip2 image-filter njs otel perl xslt markdown-filter error-page-inherit include-server
+ENABLED_MODULES ?= markdown-filter error-page-inherit include-server
 MODULES := $(strip $(filter $(ENABLED_MODULES),$(DISCOVERED_MODULES)))
 
 STANDARD_CONFIGURE_MODULES=\
@@ -108,10 +151,10 @@ BASE_CONFIGURE_ARGS=\
 	$(STANDARD_CONFIGURE_MODULES) \
 	$(EXTRA_BASE_CONFIGURE_ARGS)
 
-BASE_DYNAMIC_MODULES_ARGS=\
-	--with-http_image_filter_module=dynamic \
-	--with-http_xslt_module=dynamic \
-	--with-http_perl_module=dynamic
+#BASE_DYNAMIC_MODULES_ARGS=\
+#	--with-http_image_filter_module=dynamic \
+#	--with-http_xslt_module=dynamic \
+#	--with-http_perl_module=dynamic
 
 ifeq ($(BASE_TARGET), plus)
 BASE_CONFIGURE_ARGS+= \
@@ -178,26 +221,26 @@ $(BUILD_SOURCES)/$(BASE_SRC):
 	@echo "===> $@ done!"
 
 #$(SRCPATH)/$(BASE_SRC):
-#        cd $(CONTRIB) && make .sum-nginx$(BASE_SUFFIX)
-#        cd $(SRCPATH) && ln -s $(CONTRIB)/tarballs/$(BASE_SRC) $(BASE_SRC)
+#	@cd $(CONTRIB) && make .sum-nginx$(BASE_SUFFIX)
+#	@cd $(SRCPATH) && ln -s $(CONTRIB)/tarballs/$(BASE_SRC) $(BASE_SRC)
 
 stage-sources: $(BUILD_SOURCES)/$(BASE_SRC)
 	@mkdir -p $(BUILD_SOURCES)
 	@find $(SRCPATH) -maxdepth 1 \( -type f -o -type l \) ! -name "$(BASE_SRC)" -exec cp -Lf {} $(BUILD_SOURCES)/ \;
 	@echo "===> $@ done!"
 
-base:	nginx.spec stage-sources attest-base
+base: nginx.spec stage-sources attest-base
 	@echo "===> Building base package" ; \
-	BUILDROOT=`rpmbuild -bc --short-circuit -D "_topdir \`pwd\`/../" -D "__spec_build_pre echo bdir=%{_builddir}; exit 0" nginx$(BASE_SUFFIX).spec | grep ^bdir= | cut -d'=' -f 2` ; \
-	$(SHELL) -c "time -p rpmbuild $(RPMBUILD_ARGS) $(RPMBUILD_EXTRA_DEFINES) nginx$(BASE_SUFFIX).spec" && \
+	$(SHELL) -c "time -p rpmbuild $(RPMBUILD_EXTRA_DEFINES) $(RPMBUILD_ARGS) nginx$(BASE_SUFFIX).spec" && \
 	if [ "$(COPY_ARTIFACTS)" = "1" ]; then \
 		mkdir -p $(ARTIFACTS_DIR) && \
 		find $(BUILD_ENV_PATH)/RPMS -type f -name "*.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; && \
 		find $(BUILD_ENV_PATH)/SRPMS -maxdepth 1 -type f -name "*.src.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; ; \
 	fi && \
-#	ln -s ../BUILD/nginx-$(BASE_VERSION)/objs base
-	ln -s $$BUILDROOT/nginx$(BASE_SUFFIX)-$(BASE_VERSION)/objs base
+	ln -s ../BUILD/nginx$(BASE_SUFFIX)-$(BASE_VERSION)/objs base
 	@echo "===> $@ done!"
+
+#	ln -s $$BUILDROOT/nginx$(BASE_SUFFIX)-$(BASE_VERSION)/objs base
 
 #base:   nginx.spec $(SRCPATH)/$(BASE_SRC) attest-base
 #	@echo "===> Building base package" ; \
@@ -226,7 +269,6 @@ endif
 	for patch in $$patch_files; do \
 		cp -v $(CONTRIB)/src/nginx$(BASE_SUFFIX)/$$patch $(SRCPATH) ; \
 	done; \
-#	cat nginx.spec.in | sed \
 	sed nginx$(BASE_SUFFIX).spec.in \
 		-e 's#%%PACKAGE_VENDOR%%#$(PACKAGE_VENDOR)#g' \
 		-e 's#%%PACKAGE_URL%%#$(PACKAGE_URL)#g' \
@@ -247,30 +289,38 @@ endif
 	}
 	@echo "===> $@ done!"
 
-
-#.deps-module-%:
-#	@if [ -n "$(MODULE_CONTRIB_DEPS_$(call modname,$*))" ]; then \
-#		cd $(CONTRIB) && make $(foreach dep,$(MODULE_CONTRIB_DEPS_$(call modname,$*)),.sum-$(dep)); \
-#	fi ; \
-#	touch $@
+#	cat nginx.spec.in | sed \
 
 .deps-module-%:
-	@if [ -n "$(MODULE_CONTRIB_DEPS_$*)" ]; then \
-		cd $(CONTRIB) && make $(foreach dep,$(MODULE_CONTRIB_DEPS_$*),.sum-$(dep)); \
-	fi; \
+	@if [ -n "$(MODULE_CONTRIB_DEPS_$(call modname,$*))" ]; then \
+		cd $(CONTRIB) && make $(foreach dep,$(MODULE_CONTRIB_DEPS_$(call modname,$*)),.sum-$(dep)); \
+	fi ; \
 	touch $@
 
-module-%: nginx-module-%.spec check-compat-% .deps-module-% stage-sources
-	@echo "===> Building nginx-$@ package" ; \
-	$(MAKE) --no-print-directory stage-sources && \
-	$(SHELL) -c "time -p rpmbuild $(RPMBUILD_ARGS) $(RPMBUILD_EXTRA_DEFINES) nginx-$@.spec" && \
-	if [ "$(COPY_ARTIFACTS)" = "1" ]; then \
-		mkdir -p $(ARTIFACTS_DIR) && \
-		find $(BUILD_ENV_PATH)/RPMS -type f -name "*.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; && \
-		find $(BUILD_ENV_PATH)/SRPMS -maxdepth 1 -type f -name "*.src.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; ; \
-	fi && \
-	ln -s ../BUILD/nginx-$@-$(BASE_VERSION)/objs $@
+#.deps-module-%:
+#	@if [ -n "$(MODULE_CONTRIB_DEPS_$*)" ]; then \
+#		cd $(CONTRIB) && make $(foreach dep,$(MODULE_CONTRIB_DEPS_$*),.sum-$(dep)); \
+#	fi; \
+#	touch $@
+
+module-%: nginx-module-%.spec check-compat-% $(BUILD_SOURCES)/$(BASE_SRC) .deps-module-% stage-sources attest-module-%
+	@if [ -e nginx-$@.skip ]; then \
+		echo "---> Skipping nginx-$@ package (`cat nginx-$@.skip`)" ; \
+	else \
+		@echo "===> Building nginx-$@ package" ; \
+		$(MAKE) --no-print-directory stage-sources && \
+		$(SHELL) -c "time -p rpmbuild $(RPMBUILD_EXTRA_DEFINES) $(RPMBUILD_ARGS) nginx-$@.spec" && \
+		if [ "$(COPY_ARTIFACTS)" = "1" ]; then \
+			mkdir -p $(ARTIFACTS_DIR) && \
+			find $(BUILD_ENV_PATH)/RPMS -type f -name "*.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; && \
+			find $(BUILD_ENV_PATH)/SRPMS -maxdepth 1 -type f -name "*.src.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; ; \
+		fi && \
+		ln -s ../BUILD/nginx-$@-$(BASE_VERSION)/objs $@
+	fi
 	@echo "===> $@ done!"
+
+#		BUILDROOT=`rpmbuild -bc --short-circuit -D "_topdir \`pwd\`/../" -D "__spec_build_pre echo bdir=%{_builddir}; exit 0" nginx-$@.spec | grep ^bdir= | cut -d'=' -f 2` ; \
+#		ln -s $$BUILDROOT/$(MODULE_PACKAGE_PREFIX)-$*-$(BASE_VERSION)/objs $@ ; \
 
 #module-%: nginx-module-%.spec check-compat-% $(SRCPATH)/$(BASE_SRC) .deps-module-% attest-module-%
 #	@if [ -e nginx-$@.skip ]; then \
@@ -281,6 +331,10 @@ module-%: nginx-module-%.spec check-compat-% .deps-module-% stage-sources
 #		$(SHELL) -c "time -p rpmbuild --noclean -D \"_topdir `pwd`/../\" -ba nginx-$@.spec" && \
 #		ln -s $$BUILDROOT/$(MODULE_PACKAGE_PREFIX)-$*-$(BASE_VERSION)/objs $@ ; \
 #	fi
+
+nginx-module-%.rpm-changelog:
+	@echo "===> Generating $@"
+	@cd $(DOCS) && DEST=$(CURDIR) VERSIONMASK=1 make $(CURDIR)/$@
 
 nginx-module-%.spec:
 	@echo "===> Creating $@"

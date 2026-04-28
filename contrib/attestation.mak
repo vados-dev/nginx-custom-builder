@@ -12,6 +12,6 @@ attest: attest-base $(addprefix attest-module-, $(MODULES))
 
 attest-base:
 	if [ "$(BASE_TARGET)" = "oss" ]; then \
-	    checksum=$$(grep "$(BASE_VERSION)" "$(CONTRIB)/src/nginx/SHA512SUMS" | cut -d' ' -f1) ; \
-	    printf "%s %s %s\n" "nginx" "$(BASE_VERSION)" "$$checksum" >> "$@"; \
+		checksum=$$(grep "$(BASE_VERSION)" "$(CONTRIB)/src/nginx/SHA512SUMS" | cut -d' ' -f1) ; \
+		printf "%s %s %s\n" "nginx" "$(BASE_VERSION)" "$$checksum" >> "$@"; \
 	fi
