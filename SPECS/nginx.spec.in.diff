@@ -1,0 +1,66 @@
+2,4d1
+< %global debug_package %{nil}
+< %global _debuginfo_subpackages 0
+< 
+104c101
+< Source0: %{name}-%{version}.tar.gz
+---
+> Source0: https://nginx.org/download/%{name}-%{version}.tar.gz
+114,115d110
+< Source10: nginx.tar.gz
+< Source11: html.tar.gz
+124,127d118
+< BuildRequires: gd-devel
+< BuildRequires: libxslt-devel
+< BuildRequires: perl-devel
+< BuildRequires: perl-ExtUtils-Embed
+139a131,134
+> %if ( 0%{?suse_version} && 0%{?suse_version} < 1600 )
+> %debug_package
+> %endif
+> 
+145,147d139
+<     --with-http_image_filter_module=dynamic \
+<     --with-http_xslt_module=dynamic \
+<     --with-http_perl_module=dynamic \
+155,157d146
+<     --with-http_image_filter_module=dynamic \
+<     --with-http_xslt_module=dynamic \
+<     --with-http_perl_module=dynamic \
+191,201d179
+< # Install additional nginx config snippets from Source10 archive.
+< %{__mkdir} -p $RPM_BUILD_ROOT%{_sysconfdir}/nginx
+< tmpcfgdir=$(mktemp -d)
+< tar -xzf %{SOURCE10} -C "${tmpcfgdir}"
+< if [ -d "${tmpcfgdir}/nginx" ]; then
+<     %{__cp} -a "${tmpcfgdir}/nginx/." "$RPM_BUILD_ROOT%{_sysconfdir}/nginx/"
+< else
+<     %{__cp} -a "${tmpcfgdir}/." "$RPM_BUILD_ROOT%{_sysconfdir}/nginx/"
+< fi
+< %{__rm} -rf "${tmpcfgdir}"
+< 
+229,231d206
+< %{__rm} -f $RPM_BUILD_ROOT%{_libdir}/perl5/perllocal.pod
+< %{__rm} -f $RPM_BUILD_ROOT%{_libdir}/perl5/vendor_perl/auto/nginx/.packlist
+< 
+260,263d234
+< %config(noreplace) %{_sysconfdir}/nginx/conf.d/ssl.conf
+< %config(noreplace) %{_sysconfdir}/nginx/snippets/error-page.conf
+< %config(noreplace) %{_sysconfdir}/nginx/snippets/http-statuses.conf
+< %config(noreplace) %{_sysconfdir}/nginx/snippets/shared-locations.conf
+277,282d247
+< %{_libdir}/nginx/modules/ngx_http_image_filter_module.so
+< %{_libdir}/nginx/modules/ngx_http_perl_module.so
+< %{_libdir}/nginx/modules/ngx_http_xslt_filter_module.so
+< %{_libdir}/perl5/vendor_perl/nginx.pm
+< %{_libdir}/perl5/vendor_perl/auto/nginx/nginx.so
+< %{_mandir}/man3/nginx.3pm*
+352a318,320
+> %if 0%{?suse_version} >= 1600
+>     %{_libexecdir}/initscripts/legacy-actions/nginx/upgrade >/dev/null 2>&1 || echo \
+> %else
+353a322
+> %endif
+358,359d326
+< * Sat Mar 21 2026 vados <noreply@example.com>
+< - Fix Source10 extraction in %%install and keep %%files declarative.
