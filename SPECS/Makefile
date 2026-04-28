@@ -57,7 +57,7 @@ MODULES?=
 -include Makefile.module-*
 
 DISCOVERED_MODULES := $(strip $(MODULES))
-ENABLED_MODULES ?= acme geoip image-filter njs otel perl xslt markdown-filter 	error-page-inherit include-server
+ENABLED_MODULES ?= acme geoip2 image-filter njs otel perl xslt markdown-filter 	error-page-inherit include-server
 MODULES := $(strip $(filter $(ENABLED_MODULES),$(DISCOVERED_MODULES)))
 
 STANDARD_CONFIGURE_MODULES=\
