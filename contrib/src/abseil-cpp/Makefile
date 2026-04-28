@@ -16,3 +16,6 @@ abseil-cpp: abseil-cpp-$(ABSEIL_CPP_VERSION).tar.gz .sum-abseil-cpp
 	$(APPLY) $(SRC)/abseil-cpp/4500c2fada4e952037c59bd65e8be1ba0b29f21e.patch
 	$(MOVE)
 
+.abseil-cpp: abseil-cpp
+	cd $< && $(MAKE) $(_SMP_MFLAGS) install PREFIX=$(PREFIX)
+	touch $@
