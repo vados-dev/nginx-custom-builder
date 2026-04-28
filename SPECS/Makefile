@@ -108,6 +108,11 @@ BASE_CONFIGURE_ARGS=\
 	$(STANDARD_CONFIGURE_MODULES) \
 	$(EXTRA_BASE_CONFIGURE_ARGS)
 
+BASE_DYNAMIC_MODULES_ARGS=\
+	--with-http_image_filter_module=dynamic \
+	--with-http_xslt_module=dynamic \
+	--with-http_perl_module=dynamic
+
 ifeq ($(BASE_TARGET), plus)
 BASE_CONFIGURE_ARGS+= \
         --build=nginx-plus-r$(PLUS_VERSION) \
@@ -199,6 +204,7 @@ nginx.spec:
 		-e 's#%%MAIN_RELEASE%%#$(BASE_RELEASE)#g' \
 		-e "s#%%BASE_PATCHES%%#$$patches#g" \
 		-e 's#%%BASE_CONFIGURE_ARGS%%#$(BASE_CONFIGURE_ARGS)#g' \
+		-e 's#%%BASE_DYNAMIC_MODULES_ARGS%%#$(BASE_DYNAMIC_MODULES_ARGS)#g' \
 		> nginx.spec ; \
 	}
 	@echo "===> $@ done!"
