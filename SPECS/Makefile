@@ -3,6 +3,9 @@ SHELL=		/bin/bash
 CONTRIB?=       ../contrib
 CONTRIB:=       $(abspath $(CONTRIB))
 
+SPECS?=       $(shell pwd)
+SPECS:=       $(abspath $(SPECS))
+
 BASE_TARGET?=   oss
 
 ifeq ($(BASE_TARGET), plus)
@@ -12,6 +15,7 @@ MODULE_TARGET?= plus
 endif
 
 DOCS?=          ../docs
+DOCS:=       $(abspath $(DOCS))
 MODULE_TARGET?= oss
 
 include $(CONTRIB)/src/nginx$(BASE_SUFFIX)/version
@@ -22,6 +26,7 @@ PLUS_VERSION=   $(NGINX_PLUS_VERSION)
 PLUS_RELEASE=   $(BASE_RELEASE)
 BASE_SRC=       nginx$(BASE_SUFFIX)-$(BASE_VERSION).tar.gz
 SRCPATH?=       ../SOURCES
+SRCPATH:=       $(abspath $(SRCPATH))
 BUILD_ENV_PATH= ${HOME}/rpmbuild
 MODSRC_PREFIX=
 BUILD_DIR=      %{bdir}
@@ -29,23 +34,11 @@ BUILD_DIR=      %{bdir}
 #BASE_VERSION=   1.29.6
 #BASE_RELEASE=	1
 #BASE_SRC=	nginx-$(BASE_VERSION).tar.gz
-#SRCPATH?=	../SOURCES
-#CONTRIB?=       ../contrib
-#CONTRIB:=       $(abspath $(CONTRIB))
 
-#BASE_TARGET?= oss
-
-#ifeq ($(BASE_TARGET), plus)
-#BASE_SUFFIX=-plus
-#DOCS?=          ../docs-plus
-#MODULE_TARGET?= plus
-#endif
-
-#BUILD_ENV_PATH=	${HOME}/rpmbuild
 ARTIFACTS_DIR?=	/.data/nfs/dst/nginx/RPMS all
 COPY_ARTIFACTS?=	1 #$(if $(CI),1,0)
 BUILD_SOURCES=	$(BUILD_ENV_PATH)/SOURCES
-#DOCS?=          ../docs
+
 MODULE_TARGET?=	oss
 MODSRC_PREFIX=
 MODSRC_PATH=	$(SRCPATH)
@@ -64,12 +57,14 @@ endif
 GIT ?= $(error git not found)
 
 ifeq ($(MODULE_TARGET), plus)
+MODULE_SPEC_TEMPLATE=	nginx-plus-module.spec.in
 MODULE_SUMMARY_PREFIX=  NGINX Plus
 TARGET_VERSION=$(PLUS_VERSION)
 MODULE_SUFFIX=-plus
 MODULE_PACKAGE_URL=     https://www.nginx.com/
 MODULE_PACKAGE_LICENSE= Proprietary (EULA included)
 else
+MODULE_SPEC_TEMPLATE=	nginx-module.spec.in
 MODULE_SUMMARY_PREFIX=  nginx
 TARGET_VERSION=$(BASE_VERSION)
 MODULE_PACKAGE_URL=     https://nginx.org/
@@ -90,18 +85,21 @@ MODULE_TARGET_PREFIX=$(TARGET_VERSION)+
 
 PACKAGE_VENDOR=	NGINX Inc.
 
-BASE_MODULES=   acme geoip2 image-filter njs otel perl xslt
+BASE_MODULES=acme geoip2 njs perl image-filter xslt otel
+CUSTOM_MODULES=markdown-filter error-page-inherit include-server
 
 # Unified module selection point:
 # - module metadata stays in Makefile.module-*
 # - enabled set is controlled only here.
-MODULES?=
+MODULES= 
 
 -include Makefile.module-*
 
-DISCOVERED_MODULES := $(strip $(MODULES))
-ENABLED_MODULES ?= markdown-filter error-page-inherit include-server
-MODULES := $(strip $(filter $(ENABLED_MODULES),$(DISCOVERED_MODULES)))
+DISCOVERED_MODULES := $(patsubst Makefile.module-%,%,$(wildcard Makefile.module-*))
+
+SELECTED_MODULES := $(strip $(MODULES))
+ENABLED_MODULES ?= $(BASE_MODULES) $(CUSTOM_MODULES)
+MODULES := $(strip $(filter $(ENABLED_MODULES),$(SELECTED_MODULES)))
 
 STANDARD_CONFIGURE_MODULES=\
 	--with-compat \
@@ -171,7 +169,7 @@ BASE_CONFIGURE_ARGS+= \
         --with-stream_proxy_protocol_vendor_module
 endif
 
-include $(CONTRIB)/attestation.mak
+-include $(CONTRIB)/attestation.mak
 
 export CR=\\n
 
@@ -179,21 +177,26 @@ modname = $(shell echo $1 | tr '-' '_')
 #modname = $(shell basename "$(1)" | sed -e 's#^nginx-module-##' -e 's#\.spec$$##' | tr '-' '_')
 
 default:
-	@echo "valid targets: all clean cln tree base $(addprefix module-, $(MODULES)) test test-debug"
-	@echo "list targets: list list-all-modules"
+	@{ \
+		echo "SPECS Directory: $(SPECS)" ; \
+		echo "Base Version: $(BASE_VERSION)" ; \
+		echo "Base Suorces: $(BASE_SRC)" ; \
+		echo "Contrib Directory: $(CONTRIB)" ; \
+		echo "Source Path: $(SRCPATH)" ; \
+		echo "Build Environment Path: $(BUILD_ENV_PATH)" ; \
+		echo "Build Directory: $(BUILD_DIR)" ; \
+		echo "Build Sources Directory: $(BUILD_SOURCES)" ; \
+		echo ; \
+		echo "valid targets: all clean cln tree base $(addprefix module-, $(MODULES)) test test-debug" ; \
+		echo "list targets: list list-base list-base-modules list-all-modules" ; \
+	}
 
-all:
-	@$(MAKE) clean
-	@$(MAKE) tree
-	@$(MAKE) specs
-	@$(MAKE) base modules
+all: clean base modules
 	@echo "===> $@ done!"
 
-base-modules:	$(addprefix module-, $(BASE_MODULES))
-
-modules:	$(addprefix module-, $(MODULES))
-
-tree:
+tree: 
+	@rpmdev-wipetree
+	@echo "===> wipetree done"
 	@rpmdev-setuptree
 	@echo "===> setuptree done"
 
@@ -202,22 +205,30 @@ list-base:
 
 list-module-%:
 	@printf "%-20s\t%s\n" $* $(MODULE_VERSION_$(call modname, $*))-$(MODULE_RELEASE_$(call modname, $*))
-#	@printf '%s\n' "$*"
 
-list-all-modules: $(addprefix list-module-, $(MODULES))
+list-all-modules: $(addprefix list-module-, $(DISCOVERED_MODULES))
 
 list-base-modules: $(addprefix list-module-, $(BASE_MODULES))
 
-list: list-base list-all-modules
+list-selected-modules: $(addprefix list-module-, $(MODULES))
+
+list: list-base list-selected-modules
+
+base-modules:   $(addprefix module-, $(BASE_MODULES))
+
+modules:        $(addprefix module-, $(MODULES))
 
 specs:
-	@rm -f nginx.spec nginx-module-*.spec
+	@cd $(SPECS) && rm -f nginx.spec nginx-module-*.spec
 	@$(MAKE) nginx.spec $(addsuffix .spec, $(addprefix nginx-module-, $(MODULES)))
 	@echo "===> $@ done!"
 
 $(BUILD_SOURCES)/$(BASE_SRC):
-	@mkdir -p $(BUILD_SOURCES)
-	@cd $(BUILD_SOURCES) && wget -N http://nginx.org/download/$(BASE_SRC)
+	@$(MAKE) tree
+	@cd $(CONTRIB) && make .sum-nginx$(BASE_SUFFIX)
+	@cd $(SRCPATH) && ln -s $(CONTRIB)/tarballs/$(BASE_SRC) $(BASE_SRC)
+#	@mkdir -p $(BUILD_SOURCES)
+#	@cd $(BUILD_SOURCES) && wget -N http://nginx.org/download/$(BASE_SRC)
 	@echo "===> $@ done!"
 
 #$(SRCPATH)/$(BASE_SRC):
@@ -225,13 +236,13 @@ $(BUILD_SOURCES)/$(BASE_SRC):
 #	@cd $(SRCPATH) && ln -s $(CONTRIB)/tarballs/$(BASE_SRC) $(BASE_SRC)
 
 stage-sources: $(BUILD_SOURCES)/$(BASE_SRC)
-	@mkdir -p $(BUILD_SOURCES)
-	@find $(SRCPATH) -maxdepth 1 \( -type f -o -type l \) ! -name "$(BASE_SRC)" -exec cp -Lf {} $(BUILD_SOURCES)/ \;
+	@cd $(BUILD_SOURCES) && ln -s $(CONTRIB)/tarballs/$(BASE_SRC) $(BASE_SRC)
+#	@find $(SRCPATH) -maxdepth 1 \( -type f -o -type l \) ! -name "$(BASE_SRC)" -exec cp -Lf {} $(BUILD_SOURCES)/ \;
 	@echo "===> $@ done!"
 
-base: nginx.spec stage-sources attest-base
+base: nginx.spec stage-sources
 	@echo "===> Building base package" ; \
-	$(SHELL) -c "time -p rpmbuild $(RPMBUILD_EXTRA_DEFINES) $(RPMBUILD_ARGS) nginx$(BASE_SUFFIX).spec" && \
+	$(SHELL) -c "time -p rpmbuild --noclean -D \"_topdir `pwd`/../\" $(RPMBUILD_EXTRA_DEFINES) $(RPMBUILD_ARGS) nginx$(BASE_SUFFIX).spec" && \
 	if [ "$(COPY_ARTIFACTS)" = "1" ]; then \
 		mkdir -p $(ARTIFACTS_DIR) && \
 		find $(BUILD_ENV_PATH)/RPMS -type f -name "*.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; && \
@@ -240,13 +251,18 @@ base: nginx.spec stage-sources attest-base
 	ln -s ../BUILD/nginx$(BASE_SUFFIX)-$(BASE_VERSION)/objs base
 	@echo "===> $@ done!"
 
-#	ln -s $$BUILDROOT/nginx$(BASE_SUFFIX)-$(BASE_VERSION)/objs base
-
-#base:   nginx.spec $(SRCPATH)/$(BASE_SRC) attest-base
+#base: nginx.spec stage-sources attest-base
 #	@echo "===> Building base package" ; \
 #	BUILDROOT=`rpmbuild -bc --short-circuit -D "_topdir \`pwd\`/../" -D "__spec_build_pre echo bdir=%{_builddir}; exit 0" nginx$(BASE_SUFFIX).spec | grep ^bdir= | cut -d'=' -f 2` ; \
-#	$(SHELL) -c "time -p rpmbuild --noclean -D \"_topdir `pwd`/../\" -ba nginx$(BASE_SUFFIX).spec" && \
+#	$(SHELL) -c "time -p rpmbuild --noclean -D \"_topdir `pwd`/../\" $(RPMBUILD_EXTRA_DEFINES) $(RPMBUILD_ARGS) nginx$(BASE_SUFFIX).spec" && \
+#	if [ "$(COPY_ARTIFACTS)" = "1" ]; then \
+#		mkdir -p $(ARTIFACTS_DIR) && \
+#		find $(BUILD_ENV_PATH)/RPMS -type f -name "*.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; && \
+#		find $(BUILD_ENV_PATH)/SRPMS -maxdepth 1 -type f -name "*.src.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; ; \
+#	fi && \
+#	ln -s ../BUILD/nginx$(BASE_SUFFIX)-$(BASE_VERSION)/objs base
 #	ln -s $$BUILDROOT/nginx$(BASE_SUFFIX)-$(BASE_VERSION)/objs base
+#	@echo "===> $@ done!"
 
 nginx.rpm-changelog:
 	@echo "===> Generating $@"
@@ -291,50 +307,57 @@ endif
 
 #	cat nginx.spec.in | sed \
 
-.deps-module-%:
-	@if [ -n "$(MODULE_CONTRIB_DEPS_$(call modname,$*))" ]; then \
-		cd $(CONTRIB) && make $(foreach dep,$(MODULE_CONTRIB_DEPS_$(call modname,$*)),.sum-$(dep)); \
-	fi ; \
-	touch $@
-
 #.deps-module-%:
-#	@if [ -n "$(MODULE_CONTRIB_DEPS_$*)" ]; then \
-#		cd $(CONTRIB) && make $(foreach dep,$(MODULE_CONTRIB_DEPS_$*),.sum-$(dep)); \
-#	fi; \
+#	@if [ -n "$(MODULE_CONTRIB_DEPS_$(call modname,$*))" ]; then \
+#		cd $(CONTRIB) && make $(foreach dep,$(MODULE_CONTRIB_DEPS_$(call modname,$*)),.sum-$(dep)); \
+#	fi ; \
 #	touch $@
 
-module-%: nginx-module-%.spec check-compat-% $(BUILD_SOURCES)/$(BASE_SRC) .deps-module-% stage-sources attest-module-%
+.deps-module-%:
+	@if [ -n "$(MODULE_CONTRIB_DEPS_$*)" ]; then \
+		cd $(CONTRIB) && make $(foreach dep,$(MODULE_CONTRIB_DEPS_$*),.sum-$(dep)); \
+	fi; \
+	touch $@
+
+#module-%: nginx-module-%.spec check-compat-% $(BUILD_SOURCES)/$(BASE_SRC) .deps-module-% stage-sources attest-module-%
+
+#module-%: nginx-module-%.spec check-compat-% $(SRCPATH)/$(BASE_SRC) .deps-module-% attest-module-%
+#	@if [ -e nginx-$@.skip ]; then \
+#		echo "---> Skipping nginx-$@ package (`cat nginx-$@.skip`)" ; \
+#	else \
+#		@echo "===> Building nginx-$@ package" ; \
+#		$(MAKE) --no-print-directory stage-sources && \
+#		$(SHELL) -c "time -p rpmbuild $(RPMBUILD_EXTRA_DEFINES) $(RPMBUILD_ARGS) nginx-$@.spec" && \
+#		if [ "$(COPY_ARTIFACTS)" = "1" ]; then \
+#			mkdir -p $(ARTIFACTS_DIR) && \
+#			find $(BUILD_ENV_PATH)/RPMS -type f -name "*.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; && \
+#			find $(BUILD_ENV_PATH)/SRPMS -maxdepth 1 -type f -name "*.src.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; ; \
+#		fi && \
+#		ln -s ../BUILD/nginx-$@-$(BASE_VERSION)/objs $@
+#	fi
+#	@echo "===> $@ done!"
+#stage-sources
+
+module-%: nginx-module-%.spec check-compat-% .deps-module-%
 	@if [ -e nginx-$@.skip ]; then \
 		echo "---> Skipping nginx-$@ package (`cat nginx-$@.skip`)" ; \
 	else \
 		@echo "===> Building nginx-$@ package" ; \
 		$(MAKE) --no-print-directory stage-sources && \
-		$(SHELL) -c "time -p rpmbuild $(RPMBUILD_EXTRA_DEFINES) $(RPMBUILD_ARGS) nginx-$@.spec" && \
+		$(SHELL) -c "time -p rpmbuild --noclean -D \"_topdir `pwd`/../\" $(RPMBUILD_EXTRA_DEFINES) $(RPMBUILD_ARGS) nginx-$@.spec" && \
 		if [ "$(COPY_ARTIFACTS)" = "1" ]; then \
 			mkdir -p $(ARTIFACTS_DIR) && \
 			find $(BUILD_ENV_PATH)/RPMS -type f -name "*.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; && \
 			find $(BUILD_ENV_PATH)/SRPMS -maxdepth 1 -type f -name "*.src.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; ; \
 		fi && \
 		ln -s ../BUILD/nginx-$@-$(BASE_VERSION)/objs $@
+#		ln -s $$BUILDROOT/$(MODULE_PACKAGE_PREFIX)-$*-$(BASE_VERSION)/objs $@
 	fi
 	@echo "===> $@ done!"
 
-#		BUILDROOT=`rpmbuild -bc --short-circuit -D "_topdir \`pwd\`/../" -D "__spec_build_pre echo bdir=%{_builddir}; exit 0" nginx-$@.spec | grep ^bdir= | cut -d'=' -f 2` ; \
-#		ln -s $$BUILDROOT/$(MODULE_PACKAGE_PREFIX)-$*-$(BASE_VERSION)/objs $@ ; \
-
-#module-%: nginx-module-%.spec check-compat-% $(SRCPATH)/$(BASE_SRC) .deps-module-% attest-module-%
-#	@if [ -e nginx-$@.skip ]; then \
-#		echo "---> Skipping nginx-$@ package (`cat nginx-$@.skip`)" ; \
-#	else \
-#		echo "===> Building nginx-$@ package" ; \
-#		BUILDROOT=`rpmbuild -bc --short-circuit -D "_topdir \`pwd\`/../" -D "__spec_build_pre echo bdir=%{_builddir}; exit 0" nginx-$@.spec | grep ^bdir= | cut -d'=' -f 2` ; \
-#		$(SHELL) -c "time -p rpmbuild --noclean -D \"_topdir `pwd`/../\" -ba nginx-$@.spec" && \
-#		ln -s $$BUILDROOT/$(MODULE_PACKAGE_PREFIX)-$*-$(BASE_VERSION)/objs $@ ; \
-#	fi
-
-nginx-module-%.rpm-changelog:
-	@echo "===> Generating $@"
-	@cd $(DOCS) && DEST=$(CURDIR) VERSIONMASK=1 make $(CURDIR)/$@
+#nginx-module-%.rpm-changelog:
+#	@echo "===> Generating $@"
+#	@cd $(DOCS) && DEST=$(CURDIR) VERSIONMASK=1 make $(CURDIR)/$@
 
 nginx-module-%.spec:
 	@echo "===> Creating $@"
@@ -344,145 +367,145 @@ nginx-module-%.spec:
 	sources= ; \
 	prepsources= ; \
 	for src in $(MODULE_SOURCES_$(call modname,$*)); do \
-		is_archive=0 ; \
-		case "$${src}" in \
-			http://*.tar|https://*.tar|http://*.tar.gz|https://*.tar.gz|http://*.tgz|https://*.tgz|http://*.tar.bz2|https://*.tar.bz2|http://*.tbz2|https://*.tbz2|http://*.tar.xz|https://*.tar.xz|http://*.txz|https://*.txz) \
-				s="`printf "Source%d: %s\n" $${i} $${src}`" ; \
-				sources="$${sources}\n$${s}" ; \
-				is_archive=1 ; \
-				s="`printf "src=%%{SOURCE%d}; file=$${src##*/}; curl -fL \"$${src}\" -o \"$${file}\"; tar -xf \"$${file}\"" $${i}`" ;; \
-			*.tar|*.tar.gz|*.tgz|*.tar.bz2|*.tbz2|*.tar.xz|*.txz) \
-				if [ -f "$(CONTRIB)/tarballs/$${src}" ]; then \
-					cp -f "$(CONTRIB)/tarballs/$${src}" "$(SRCPATH)/$${src}" ; \
-				fi ; \
-				s="`printf "Source%d: %s\n" $${i} $${src}`" ; \
-				sources="$${sources}\n$${s}" ; \
-				is_archive=1 ; \
-				s="`printf "tar -xf %%{SOURCE%d}" $${i}`" ;; \
-			*.git) \
-				s="`printf "git clone %s" $${src}`" ;; \
-			*) \
-				s="`printf "Source%d: %s\n" $${i} $${src}`" ; \
-				sources="$${sources}\n$${s}" ; \
-				s="`printf "echo Skipping non-archive SOURCE%d" $${i}`" ;; \
-		esac ; \
-		prepsources="$${prepsources}\n$${s}" ; \
-		if [ "$${is_archive}" = "1" ]; then \
-			sn=`echo $${src##*/} | sed -e 's/[?].*$$//' -e 's/\(\\.tar\\.gz\\|\\.tgz\\|\\.tar\\.bz2\\|\\.tbz2\\|\\.tar\\.xz\\|\\.txz\\|\\.tar\\)$$//' -e 's/-[0-9].*$$//'` ; \
-			[ -n "$${sn}" ] && prepsources="$${prepsources}\nln -sfn $${sn}-* $${sn} || true" ; \
+	is_archive=0 ; \
+	case "$${src}" in \
+	    http://*.tar|https://*.tar|http://*.tar.gz|https://*.tar.gz|http://*.tgz|https://*.tgz|http://*.tar.bz2|https://*.tar.bz2|http://*.tbz2|https://*.tbz2|http://*.tar.xz|https://*.tar.xz|http://*.txz|https://*.txz) \
+		s="`printf "Source%d: %s\n" $${i} $${src}`" ; \
+		sources="$${sources}\n$${s}" ; \
+		is_archive=1 ; \
+		s="`printf "src=%%{SOURCE%d}; file=$${src##*/}; curl -fL \"$${src}\" -o \"$${file}\"; tar -xf \"$${file}\"" $${i}`" ;; \
+	    *.tar|*.tar.gz|*.tgz|*.tar.bz2|*.tbz2|*.tar.xz|*.txz) \
+		if [ -f "$(CONTRIB)/tarballs/$${src}" ]; then \
+		    cp -f "$(CONTRIB)/tarballs/$${src}" "$(SRCPATH)/$${src}" ; \
 		fi ; \
-		i=$$(($${i}+1)) ; \
+		s="`printf "Source%d: %s\n" $${i} $${src}`" ; \
+		sources="$${sources}\n$${s}" ; \
+		is_archive=1 ; \
+		s="`printf "tar -xf %%{SOURCE%d}" $${i}`" ;; \
+	    *.git) \
+		s="`printf "git clone %s" $${src}`" ;; \
+	    *) \
+		s="`printf "Source%d: %s\n" $${i} $${src}`" ; \
+		sources="$${sources}\n$${s}" ; \
+		s="`printf "echo Skipping non-archive SOURCE%d" $${i}`" ;; \
+	esac ; \
+	prepsources="$${prepsources}\n$${s}" ; \
+	if [ "$${is_archive}" = "1" ]; then \
+	    sn=`echo $${src##*/} | sed -e 's/[?].*$$//' -e 's/\(\\.tar\\.gz\\|\\.tgz\\|\\.tar\\.bz2\\|\\.tbz2\\|\\.tar\\.xz\\|\\.txz\\|\\.tar\\)$$//' -e 's/-[0-9].*$$//'` ; \
+	    [ -n "$${sn}" ] && prepsources="$${prepsources}\nln -sfn $${sn}-* $${sn} || true" ; \
+	fi ; \
+	i=$$(($${i}+1)) ; \
 	done ; \
 	i=100 ; \
 	patches= ; \
 	preppatches= ; \
 	for src in $(MODULE_PATCHES_$(call modname,$*)); do \
-		patch_src="$${src}" ; \
-		patch_dir="" ; \
-		case "$${src}" in \
-			*::* ) \
-				patch_dir="$${src%%::*}" ; \
-				patch_src="$${src#*::}" ;; \
-		esac ; \
-		dn=`dirname "$${patch_src}"` ; \
-		bdn=`basename "$${dn}"` ; \
-		pn="$${bdn}_`basename "$${patch_src}"`" ; \
-		cp -f "$${patch_src}" "$(SRCPATH)/$${pn}" ; \
-		s="`printf "Patch%d: %s\n" $${i} $${pn}`" ; \
-		patches="$${patches}\n$${s}" ; \
-		if [ -n "$${patch_dir}" ]; then \
-			s="`printf "(cd %s \\&\\& %%{__patch} -p1 < %%{PATCH%d})" "$${patch_dir}" $${i}`" ; \
-		else \
-			s="`printf "%%patch%d -p1" $${i}`" ; \
-		fi ; \
-		preppatches="$${preppatches}\n$${s}" ; \
-		i=$$(($${i}+1)) ; \
-	done ; \
-	module_copyright=`echo $@ | sed -e "s#.spec#.copyright#"` ; \
-	module_package_license="$(strip $(MODULE_PACKAGE_LICENSE_$(call modname,$*)))" ; \
-	module_changelog=`echo $@ | sed -e "s#.spec#.changelog.in#"` ; \
-	if [ -f $${module_changelog} ]; then \
-		changelog_file=$${module_changelog} ; \
+	patch_src="$${src}" ; \
+	patch_dir="" ; \
+	case "$${src}" in \
+	  *::* ) \
+		patch_dir="$${src%%::*}" ; \
+		patch_src="$${src#*::}" ;; \
+	esac ; \
+	dn=`dirname "$${patch_src}"` ; \
+	bdn=`basename "$${dn}"` ; \
+	pn="$${bdn}_`basename "$${patch_src}"`" ; \
+	cp -f "$${patch_src}" "$(SRCPATH)/$${pn}" ; \
+	s="`printf "Patch%d: %s\n" $${i} $${pn}`" ; \
+	patches="$${patches}\n$${s}" ; \
+	if [ -n "$${patch_dir}" ]; then \
+	    s="`printf "(cd %s \\&\\& %%{__patch} -p1 < %%{PATCH%d})" "$${patch_dir}" $${i}`" ; \
 	else \
-		changelog_file=nginx-module.changelog.in ; \
+	    s="`printf "%%patch%d -p1" $${i}`" ; \
 	fi ; \
-	pkgname=`echo $@ | cut -d '.' -f 1` ; \
-	if [ "$(MODULE_TARGET)" = "plus" ]; then \
-		pkgname=`echo $${pkgname} | sed -e "s#^nginx-#nginx-plus-#"` ; \
-	fi ; \
-	if [ -z "$${module_package_license}" ]; then \
-		tmplic=`mktemp -d` ; \
-		found_license="" ; \
-		for src in $(MODULE_SOURCES_$(call modname,$*)); do \
-			work="$${tmplic}/scan" ; \
-			rm -rf "$${work}" ; \
-			mkdir -p "$${work}" ; \
-			case "$${src}" in \
-				*.git) \
-					git clone --depth 1 "$${src}" "$${work}/src" >/dev/null 2>&1 || true ; \
-					[ -d "$${work}/src" ] && found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ;; \
-				http://*|https://*) \
-					case "$${src}" in \
-						*.git) \
-							git clone --depth 1 "$${src}" "$${work}/src" >/dev/null 2>&1 || true ; \
-							[ -d "$${work}/src" ] && found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ;; \
-						*.tar|*.tar.gz|*.tgz|*.tar.bz2|*.tbz2|*.tar.xz|*.txz) \
-							file="$${work}/$${src##*/}" ; \
-							curl -fsSL "$${src}" -o "$${file}" >/dev/null 2>&1 || true ; \
-							if [ -f "$${file}" ]; then \
-								mkdir -p "$${work}/src" ; \
-								tar -xf "$${file}" -C "$${work}/src" >/dev/null 2>&1 || true ; \
-								found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ; \
-							fi ;; \
-					esac ;; \
-				*) \
-					file="$(SRCPATH)/$${src}" ; \
-					if [ -f "$${file}" ]; then \
-						case "$${file}" in \
-							*.tar|*.tar.gz|*.tgz|*.tar.bz2|*.tbz2|*.tar.xz|*.txz) \
-								mkdir -p "$${work}/src" ; \
-								tar -xf "$${file}" -C "$${work}/src" >/dev/null 2>&1 || true ; \
-								found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ;; \
-						esac ; \
-					fi ;; \
+	preppatches="$${preppatches}\n$${s}" ; \
+	i=$$(($${i}+1)) ; \
+    done ; \
+    module_copyright=`echo $@ | sed -e "s#.spec#.copyright#"` ; \
+    module_package_license="$(strip $(MODULE_PACKAGE_LICENSE_$(call modname,$*)))" ; \
+    module_changelog=`echo $@ | sed -e "s#.spec#.changelog.in#"` ; \
+    if [ -f $${module_changelog} ]; then \
+	changelog_file=$${module_changelog} ; \
+    else \
+	changelog_file=nginx-module.changelog.in ; \
+    fi ; \
+    pkgname=`echo $@ | cut -d '.' -f 1` ; \
+    if [ "$(MODULE_TARGET)" = "plus" ]; then \
+	pkgname=`echo $${pkgname} | sed -e "s#^nginx-#nginx-plus-#"` ; \
+    fi ; \
+    if [ -z "$${module_package_license}" ]; then \
+	tmplic=`mktemp -d` ; \
+	found_license="" ; \
+	for src in $(MODULE_SOURCES_$(call modname,$*)); do \
+	    work="$${tmplic}/scan" ; \
+	    rm -rf "$${work}" ; \
+	    mkdir -p "$${work}" ; \
+	    case "$${src}" in \
+		*.git) \
+		    git clone --depth 1 "$${src}" "$${work}/src" >/dev/null 2>&1 || true ; \
+		    [ -d "$${work}/src" ] && found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ;; \
+		http://*|https://*) \
+		    case "$${src}" in \
+			*.git) \
+			    git clone --depth 1 "$${src}" "$${work}/src" >/dev/null 2>&1 || true ; \
+			    [ -d "$${work}/src" ] && found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ;; \
+			*.tar|*.tar.gz|*.tgz|*.tar.bz2|*.tbz2|*.tar.xz|*.txz) \
+			    file="$${work}/$${src##*/}" ; \
+			    curl -fsSL "$${src}" -o "$${file}" >/dev/null 2>&1 || true ; \
+			    if [ -f "$${file}" ]; then \
+				mkdir -p "$${work}/src" ; \
+				tar -xf "$${file}" -C "$${work}/src" >/dev/null 2>&1 || true ; \
+				found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ; \
+			    fi ;; \
+		    esac ;; \
+		*) \
+		    file="$(SRCPATH)/$${src}" ; \
+		    if [ -f "$${file}" ]; then \
+			case "$${file}" in \
+			    *.tar|*.tar.gz|*.tgz|*.tar.bz2|*.tbz2|*.tar.xz|*.txz) \
+				mkdir -p "$${work}/src" ; \
+				tar -xf "$${file}" -C "$${work}/src" >/dev/null 2>&1 || true ; \
+				found_license=`find "$${work}/src" -maxdepth 4 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' \) | head -n 1` ;; \
 			esac ; \
-			[ -n "$${found_license}" ] && break ; \
-		done ; \
-		if [ -n "$${found_license}" ]; then \
-			if [ ! -f ../SOURCES/$${module_copyright} ]; then \
-				cp -f "$${found_license}" ../SOURCES/$${module_copyright} || true ; \
-			fi ; \
-			if grep -qiE 'apache[[:space:]-]*2(\.0)?|apache license' "$${found_license}"; then \
-				module_package_license="Apache-2.0" ; \
-			elif grep -qiE 'mit license|permission is hereby granted, free of charge' "$${found_license}"; then \
-				module_package_license="MIT" ; \
-			elif grep -qiE 'bsd|redistribution and use in source and binary forms' "$${found_license}"; then \
-				module_package_license="BSD-2-Clause" ; \
-			elif grep -qiE 'gnu general public license|\\bgpl\\b' "$${found_license}"; then \
-				module_package_license="GPL-2.0-or-later" ; \
-			else \
-				module_package_license="LicenseRef-See-Source" ; \
-			fi ; \
-		else \
-			module_package_license="MIT" ; \
-			if [ ! -f ../SOURCES/$${module_copyright} ]; then \
-				printf '%s\n' 'MIT' > ../SOURCES/$${module_copyright} ; \
-			fi ; \
-		fi ; \
-		rm -rf "$${tmplic}" ; \
+		    fi ;; \
+	    esac ; \
+	    [ -n "$${found_license}" ] && break ; \
+	done ; \
+	if [ -n "$${found_license}" ]; then \
+	    if [ ! -f ../SOURCES/$${module_copyright} ]; then \
+		cp -f "$${found_license}" ../SOURCES/$${module_copyright} || true ; \
+	    fi ; \
+	    if grep -qiE 'apache[[:space:]-]*2(\.0)?|apache license' "$${found_license}"; then \
+		module_package_license="Apache-2.0" ; \
+	    elif grep -qiE 'mit license|permission is hereby granted, free of charge' "$${found_license}"; then \
+		module_package_license="MIT" ; \
+	    elif grep -qiE 'bsd|redistribution and use in source and binary forms' "$${found_license}"; then \
+		module_package_license="BSD-2-Clause" ; \
+	    elif grep -qiE 'gnu general public license|\\bgpl\\b' "$${found_license}"; then \
+		module_package_license="GPL-2.0-or-later" ; \
+	    else \
+		module_package_license="LicenseRef-See-Source" ; \
+	    fi ; \
+	else \
+	    module_package_license="MIT" ; \
+	    if [ ! -f ../SOURCES/$${module_copyright} ]; then \
+		printf '%s\n' 'MIT' > ../SOURCES/$${module_copyright} ; \
+	    fi ; \
+	fi ; \
+	rm -rf "$${tmplic}" ; \
 	fi ; \
 	if [ -f ../SOURCES/$${module_copyright} ]; then \
 		copyright_source=$${module_copyright} ; \
 	else \
-		if [ -f ../docs/$${module_copyright} ]; then \
-			cp -f ../docs/$${module_copyright} ../SOURCES/$${module_copyright} ; \
-		else \
-			printf '%s\n' 'MIT' > ../SOURCES/$${module_copyright} ; \
-		fi ; \
-		copyright_source=$${module_copyright} ; \
+	if [ -f ../docs/$${module_copyright} ]; then \
+	    cp -f ../docs/$${module_copyright} ../SOURCES/$${module_copyright} ; \
+	else \
+	    printf '%s\n' 'MIT' > ../SOURCES/$${module_copyright} ; \
+	fi ; \
+	copyright_source=$${module_copyright} ; \
 	fi ; \
 	if [ -z "$${module_package_license}" ]; then \
-		module_package_license="MIT" ; \
+	    module_package_license="MIT" ; \
 	fi ; \
 	definitions=`echo "$$MODULE_DEFINITIONS_$(call modname,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
 	prebuild=`echo "$$MODULE_PREBUILD_$(call modname,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
@@ -491,41 +514,41 @@ nginx-module-%.spec:
 	files=`echo "$$MODULE_FILES_$(call modname,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
 	post=`echo "$$MODULE_POST_$(call modname,$*)" | sed -e ':a' -e 'N' -e '$$!ba' -e "s/\n/\$$CR/g"` ; \
 	cat $(MODULE_SPEC_TEMPLATE) | sed \
-			-e "s#%%NAME%%#$${pkgname}#g" \
-			-e "s#%%PACKAGE_VENDOR%%#$(if $(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(PACKAGE_VENDOR))#g" \
-			-e "s#%%MODULE_PACKAGE_VENDOR%%#$(if $(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(PACKAGE_VENDOR))#g" \
-			-e "s#%%MODULE_PACKAGE_URL%%#$(if $(strip $(MODULE_PACKAGE_URL_$(call modname,$*))),$(strip $(MODULE_PACKAGE_URL_$(call modname,$*))),$(PACKAGE_URL))#g" \
-			-e "s#%%MODULE_PACKAGE_LICENSE%%#$${module_package_license}#g" \
-			-e "s#%%SUMMARY%%#$(MODULE_SUMMARY_PREFIX) $(MODULE_SUMMARY_$(call modname,$*))#g" \
-		-e "s#%%SHORT_SUMMARY%%#$(MODULE_SUMMARY_$(call modname,$*))#g" \
-		-e "s#%%TARGET_VERSION%%#$(TARGET_VERSION)#g" \
-		-e "s#%%MAIN_VERSION%%#$(BASE_VERSION)#g" \
-		-e "s#%%MAIN_RELEASE%%#$(BASE_RELEASE)#g" \
-		-e "s#%%BASE_VERSION%%#$(BASE_VERSION)#g" \
-		-e "s#%%BASE_RELEASE%%#$(BASE_RELEASE)#g" \
-		-e "s#%%VERSION_PREFIX%%#$(MODULE_VERSION_PREFIX_$(call modname,$*))#g" \
-		-e "s#%%MODULE_VERSION_PREFIX%%#$(MODULE_VERSION_PREFIX_$(call modname,$*))#g" \
-		-e "s#%%VERSION%%#$(MODULE_VERSION_$(call modname,$*))#g" \
-		-e "s#%%RELEASE%%#$(MODULE_RELEASE_$(call modname,$*))#g" \
-		-e "s#%%BASE_CONFIGURE_ARGS%%#$(BASE_CONFIGURE_ARGS)#g" \
-		-e "s#%%MODULE_CONFIGURE_ARGS%%#$(MODULE_CONFARGS_$(call modname,$*))#g" \
-		-e "s#%%COPYRIGHT_SOURCE%%#$${copyright_source}#g" \
-		-e "s#%%MODULE_SOURCES%%#$${sources}#g" \
-		-e "s#%%MODULE_PATCHES%%#$${patches}#g" \
-		-e "s#%%MODULE_PREP_SOURCES%%#$${prepsources}#g" \
-		-e "s#%%MODULE_PREP_PATCHES%%#$${preppatches}#g" \
-		-e "s#%%MODULE_DEFINITIONS%%#$${definitions}#g" \
-		-e "s#%%MODULE_PREBUILD%%#$${prebuild}#g" \
-		-e "s#%%MODULE_ENV%%#$${buildenv}#g" \
-		-e "s#%%MODULE_CC_OPT%%#$(MODULE_CC_OPT_$(call modname,$*))#g" \
-		-e "s#%%MODULE_LD_OPT%%#$(MODULE_LD_OPT_$(call modname,$*))#g" \
-		-e "s#%%MODULE_CC_OPT_DEBUG%%#$(MODULE_CC_OPT_DEBUG_$(subst -,_,$*))#g" \
-		-e "s#%%MODULE_LD_OPT_DEBUG%%#$(MODULE_LD_OPT_DEBUG_$(subst -,_,$*))#g" \
-		-e "s#%%MODULE_CC_OPT_NODEBUG%%#$(MODULE_CC_OPT_NODEBUG_$(subst -,_,$*))#g" \
-		-e "s#%%MODULE_PREINSTALL%%#$${preinstall}#g" \
-		-e "s#%%MODULE_FILES%%#$${files}#g" \
-		-e "s#%%MODULE_POST%%#$${post}#g" \
-		> $@.tmp && \
+	-e "s#%%NAME%%#$${pkgname}#g" \
+	-e "s#%%PACKAGE_VENDOR%%#$(if $(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(PACKAGE_VENDOR))#g" \
+	-e "s#%%MODULE_PACKAGE_VENDOR%%#$(if $(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(strip $(MODULE_PACKAGE_VENDOR_$(call modname,$*))),$(PACKAGE_VENDOR))#g" \
+	-e "s#%%MODULE_PACKAGE_URL%%#$(if $(strip $(MODULE_PACKAGE_URL_$(call modname,$*))),$(strip $(MODULE_PACKAGE_URL_$(call modname,$*))),$(PACKAGE_URL))#g" \
+	-e "s#%%MODULE_PACKAGE_LICENSE%%#$${module_package_license}#g" \
+	-e "s#%%SUMMARY%%#$(MODULE_SUMMARY_PREFIX) $(MODULE_SUMMARY_$(call modname,$*))#g" \
+	-e "s#%%SHORT_SUMMARY%%#$(MODULE_SUMMARY_$(call modname,$*))#g" \
+	-e "s#%%TARGET_VERSION%%#$(TARGET_VERSION)#g" \
+	-e "s#%%MAIN_VERSION%%#$(BASE_VERSION)#g" \
+	-e "s#%%MAIN_RELEASE%%#$(BASE_RELEASE)#g" \
+	-e "s#%%BASE_VERSION%%#$(BASE_VERSION)#g" \
+	-e "s#%%BASE_RELEASE%%#$(BASE_RELEASE)#g" \
+	-e "s#%%VERSION_PREFIX%%#$(MODULE_VERSION_PREFIX_$(call modname,$*))#g" \
+	-e "s#%%MODULE_VERSION_PREFIX%%#$(MODULE_VERSION_PREFIX_$(call modname,$*))#g" \
+	-e "s#%%VERSION%%#$(MODULE_VERSION_$(call modname,$*))#g" \
+	-e "s#%%RELEASE%%#$(MODULE_RELEASE_$(call modname,$*))#g" \
+	-e "s#%%BASE_CONFIGURE_ARGS%%#$(BASE_CONFIGURE_ARGS)#g" \
+	-e "s#%%MODULE_CONFIGURE_ARGS%%#$(MODULE_CONFARGS_$(call modname,$*))#g" \
+	-e "s#%%COPYRIGHT_SOURCE%%#$${copyright_source}#g" \
+	-e "s#%%MODULE_SOURCES%%#$${sources}#g" \
+	-e "s#%%MODULE_PATCHES%%#$${patches}#g" \
+	-e "s#%%MODULE_PREP_SOURCES%%#$${prepsources}#g" \
+	-e "s#%%MODULE_PREP_PATCHES%%#$${preppatches}#g" \
+	-e "s#%%MODULE_DEFINITIONS%%#$${definitions}#g" \
+	-e "s#%%MODULE_PREBUILD%%#$${prebuild}#g" \
+	-e "s#%%MODULE_ENV%%#$${buildenv}#g" \
+	-e "s#%%MODULE_CC_OPT%%#$(MODULE_CC_OPT_$(call modname,$*))#g" \
+	-e "s#%%MODULE_LD_OPT%%#$(MODULE_LD_OPT_$(call modname,$*))#g" \
+	-e "s#%%MODULE_CC_OPT_DEBUG%%#$(MODULE_CC_OPT_DEBUG_$(subst -,_,$*))#g" \
+	-e "s#%%MODULE_LD_OPT_DEBUG%%#$(MODULE_LD_OPT_DEBUG_$(subst -,_,$*))#g" \
+	-e "s#%%MODULE_CC_OPT_NODEBUG%%#$(MODULE_CC_OPT_NODEBUG_$(subst -,_,$*))#g" \
+	-e "s#%%MODULE_PREINSTALL%%#$${preinstall}#g" \
+	-e "s#%%MODULE_FILES%%#$${files}#g" \
+	-e "s#%%MODULE_POST%%#$${post}#g" \
+	> $@.tmp && \
 	sed -i -e 's#^Vendor URL:#URL:#' $@.tmp && \
 	cat $${changelog_file} | grep -v "^#" >> $@.tmp && \
 	mv $@.tmp $@ ; \
@@ -660,9 +683,13 @@ prepare-build-env: $(BASE_SRC)
 
 cln:
 	@rm -f base module-*
-	@rm -f nginx.spec nginx-module-*.spec
+	@rm -f nginx.spec nginx-module-*.spec nginx-module-*.skip
 	@rm -rf nginx-tets
-	@rm -rf $(SRCPATH)/$(BASE_SRC)
+	@rm -f $(BASE_SRC) $(BUILD_SOURCES)/$(BASE_SRC)
+	@rm -f nginx.rpm-changelog nginx-*.rpm-changelog nginx-module-*.rpm-changelog
+	@rm -f .deps-module-*
+	@rm -f attest-base attest-module-*
+	@find $(SRCPATH)/ -type l -delete
 	@echo "===> $@ done!"
 
 clean: cln
@@ -800,7 +827,6 @@ detect-module-licenses:
 	fi ; \
 	}
 
-.PHONY:	default all modules specs stage-sources test test-debug clean cln detect-module-licenses list list-base list-base-modules list-all-modules
-
+.PHONY:	default detect-module-licenses list list-base list-base-modules list-all-modules all modules specs stage-sources test test-debug clean cln
 
 .SECONDARY:

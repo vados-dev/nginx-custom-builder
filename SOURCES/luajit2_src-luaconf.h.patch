@@ -1,0 +1,15 @@
+--- a/src/luaconf.h   2024-10-17 16:10:07.646171377 +0000
++++ b/src/luaconf.h.orig      2024-10-17 16:08:29.306337588 +0000
+@@ -49,11 +49,11 @@
+ #define LUA_RLPATH
+ #define LUA_RCPATH
+ #endif
+
+ #ifndef LUA_LJDIR
+-#define LUA_LJDIR	LUA_JROOT "/share/luajit-2.1"
++#define LUA_LJDIR	LUA_JROOT "/share/nginx-luajit-2.1"
+ #endif
+
+ #define LUA_JPATH	";" LUA_LJDIR "/?.lua"
+ #define LUA_LLDIR	LUA_LROOT "/share" LUA_LUADIR
+ #define LUA_LCDIR	LUA_LROOT "/" LUA_LMULTILIB LUA_LUADIR

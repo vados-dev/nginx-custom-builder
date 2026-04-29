@@ -2,7 +2,11 @@ MODULES+=	error-page-inherit
 
 MODULE_SUMMARY_error_page_inherit=	enable support to error_page_inherit derective in nginx.conf.
 
-MODULE_VERSION_error_page_inherit=	0.01
+MODULE_CONTRIB_DEPS_error_page_inherit=       nginx-error-page-inherit
+
+include $(foreach dep,$(MODULE_CONTRIB_DEPS_error_page_inherit),$(CONTRIB)/src/$(dep)/version)
+
+MODULE_VERSION_error_page_inherit=	$(NGINX_ERROR_PAGE_INHERIT_VERSION)
 MODULE_RELEASE_error_page_inherit=	1
 
 MODULE_VERSION_PREFIX_error_page_inherit=$(MODULE_TARGET_PREFIX)

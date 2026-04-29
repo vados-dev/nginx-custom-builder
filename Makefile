@@ -27,9 +27,10 @@ TARBALL?=       https://nginx.org/download/nginx-$(VERSION).tar.gz
 
 TARBALL_NJS?=   https://github.com/nginx/njs/archive/refs/tags/${VERSION_NJS}.tar.gz
 
+
 BASE_MAKEFILES= alpine/Makefile \
-                debian/Makefile \
-                SPECS/Makefile
+		debian/Makefile \
+		SPECS/Makefile
 
 #MODULES=        geoip image-filter perl xslt
 #EXTERNAL_MODULES=       acme error-page-inherit include-server markdown-filter njs
@@ -231,18 +232,18 @@ clean:
 
 version-check:
 	@{ \
-	if [ "$(VERSION)-$(RELEASE)" = "$(CURRENT_VERSION)-$(CURRENT_RELEASE)" ]; then \
-	echo "Version $(VERSION)-$(RELEASE) is the latest one, nothing to do." >&2 ; \
-	exit 1 ; \
-	fi ; \
+		if [ "$(VERSION)-$(RELEASE)" = "$(CURRENT_VERSION)-$(CURRENT_RELEASE)" ]; then \
+			echo "Version $(VERSION)-$(RELEASE) is the latest one, nothing to do." >&2 ; \
+			exit 1 ; \
+		fi ; \
 	}
 
 version-check-njs:
 	@{ \
-	if [ "$(VERSION_NJS)-$(RELEASE_NJS)" = "$(CURRENT_VERSION_NJS)-$(CURRENT_RELEASE_NJS)" ]; then \
-		echo "Version $(VERSION_NJS)-$(RELEASE_NJS) is the latest one, nothing to do." >&2 ; \
-		exit 1 ; \
-	fi ; \
+		if [ "$(VERSION_NJS)-$(RELEASE_NJS)" = "$(CURRENT_VERSION_NJS)-$(CURRENT_RELEASE_NJS)" ]; then \
+			echo "Version $(VERSION_NJS)-$(RELEASE_NJS) is the latest one, nothing to do." >&2 ; \
+			exit 1 ; \
+		fi ; \
 	}
 
 nginx-$(VERSION).tar.gz:
@@ -260,7 +261,7 @@ release: version-check nginx-$(VERSION).tar.gz
 		for f in $(BASE_MAKEFILES); do \
 			echo "--> $${f}" ; \
 			sed -e "s,^BASE_RELEASE=.*,BASE_RELEASE=        $(RELEASE),g" \
-			-i.bak $${f} ; \
+				-i.bak $${f} ; \
 		done ; \
 		reldate=`date +"%Y-%m-%d"` ; \
 		reltime=`date +"%H:%M:%S %z"` ; \
@@ -272,6 +273,7 @@ release: version-check nginx-$(VERSION).tar.gz
 			module_underscore=`echo $${module} | tr '-' '_'` ; \
 			CHANGESADD="\n\n\n<changes apply=\"nginx-module-$${module}\" ver=\"$(VERSION)\" rev=\"$(RELEASE)\"\n         date=\"$${reldate}\" time=\"$${reltime}\"\n         packager=\"$${packager}\">\n<change>\n<para>\nbase version updated to $(VERSION)-$(RELEASE)\n</para>\n</change>\n\n</changes>" ; \
 			sed -i.bak -e "s,title=\"nginx_module_$${module_underscore}\">,title=\"nginx_module_$${module_underscore}\">$${CHANGESADD}," docs/nginx-module-$${module}.xml ; \
+			sed -i.bak -e "s,^MODULE_RELEASE_$${module_underscore}=.*,MODULE_RELEASE_$${module_underscore}=\t1," {alpine,debian,rpm/SPECS}/Makefile.module-$${module} ; \
 		done ; \
 		for module in $(EXTERNAL_MODULES); do \
 			echo "--> changelog for nginx-module-$${module}" ; \
@@ -279,7 +281,7 @@ release: version-check nginx-$(VERSION).tar.gz
 			module_underscore=`echo $${module} | tr '-' '_'` ; \
 			CHANGESADD="\n\n\n<changes apply=\"nginx-module-$${module}\" ver=\"$${module_version}\" rev=\"$(RELEASE)\" basever=\"$(VERSION)\"\n         date=\"$${reldate}\" time=\"$${reltime}\"\n         packager=\"$${packager}\">\n<change>\n<para>\nbase version updated to $(VERSION)-$(RELEASE)\n</para>\n</change>\n\n</changes>" ; \
 			sed -i.bak -e "s,title=\"nginx_module_$${module_underscore}\">,title=\"nginx_module_$${module_underscore}\">$${CHANGESADD}," docs/nginx-module-$${module}.xml ; \
-			sed -i.bak -e "s,^MODULE_RELEASE_$${module_underscore}=.*,MODULE_RELEASE_$${module_underscore}=\t1," {alpine,debian}/Makefile.module-$${module} ; \
+			sed -i.bak -e "s,^MODULE_RELEASE_$${module_underscore}=.*,MODULE_RELEASE_$${module_underscore}=\t1," {alpine,debian,rpm/SPECS}/Makefile.module-$${module} ; \
 		done ; \
 		echo ; \
 		echo "Done. Please carefully check the diff. Use \"make revert\" to revert any changes." ; \
@@ -298,10 +300,12 @@ release-njs: version-check-njs njs-$(VERSION_NJS).tar.gz
 		echo "--> changelog for nginx-module-njs" ; \
 		CHANGESADD="\n\n\n<changes apply=\"nginx-module-njs\" ver=\"$(VERSION_NJS)\" rev=\"$(RELEASE_NJS)\" basever=\"$(CURRENT_VERSION)\"\n         date=\"$${reldate}\" time=\"$${reltime}\"\n         packager=\"$${packager}\">\n<change>\n<para>\nnjs updated to $(VERSION_NJS)\n</para>\n</change>\n\n</changes>" ; \
 		sed -i.bak -e "s,title=\"nginx_module_njs\">,title=\"nginx_module_njs\">$${CHANGESADD}," docs/nginx-module-njs.xml ; \
+		sed -i.bak -e "s,^MODULE_RELEASE_njs=.*,MODULE_RELEASE_njs=\t1," {alpine,debian,rpm/SPECS}/Makefile.module-njs ; \
 		echo ; \
 		echo "Done. Please carefully check the diff. Use \"make revert\" to revert any changes." ; \
 		echo ; \
 	}
+
 
 revert:
 	@git checkout -- contrib/src/nginx/ docs/ $(BASE_MAKEFILES) contrib/src/njs/
