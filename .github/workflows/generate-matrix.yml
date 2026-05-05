@@ -49,7 +49,7 @@ on:
     inputs:
       target_os:
         required: false
-        default: "all"
+        default: "centos"
         type: string
       nginx_channel:
         required: false

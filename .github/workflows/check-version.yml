@@ -147,7 +147,7 @@ on:
       modules_common:
         description: "Legacy mode: common modules for all platforms (space-separated)"
         required: true
-        default: "geoip2 image-filter otel perl xslt error-page-inherit include-server markdown-filter"
+        default: "geoip2 image-filter perl xslt error-page-inherit include-server markdown-filter"
         type: string
 
       modules_alpine_extra:
