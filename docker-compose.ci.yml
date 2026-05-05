@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile.ci
       args:
-        CI_BASE_IMAGE: ${CI_BASE_IMAGE:-almalinux:9}
+        CI_BASE_IMAGE: ${CI_BASE_IMAGE:-centos:stream10}
     environment:
       HOME: /work/.ci-home
       USER: git

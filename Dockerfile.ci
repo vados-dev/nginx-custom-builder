@@ -1,4 +1,4 @@
-ARG CI_BASE_IMAGE=almalinux:9
+ARG CI_BASE_IMAGE=centos:stream10
 FROM ${CI_BASE_IMAGE}
 
 LABEL maintainer="AmsterdamNL"
@@ -7,12 +7,11 @@ LABEL com.docker.compose.project="nginx-ci"
 
 RUN set -eux; dnf -y update || true
 RUN set -eux; dnf -y install dnf-plugins-core || true
-RUN set -eux; dnf config-manager --set-enabled crb || true
-RUN set -eux; dnf -y install epel-release || true
-#RUN set -eux; dnf -y install http://repo.okay.com.mx/centos/9/x86_64/release/okay-release-1-1.noarch.rpm
+RUN set -eux; dnf -y install epel-release || true || true
+#RUN set -eux; dnf -y install http://repo.okay.com.mx/centos/10/x86_64/release/okay-release-1-1.noarch.rpm
 RUN set -eux; dnf -y update || true
 RUN set -eux; dnf -y install rpm-build rpmdevtools rpm-sign redhat-rpm-config gcc make mc wget git gnupg2 cpio createrepo_c rust cargo clang pkgconf-pkg-config which jq;
-RUN set -eux; dnf -y install zlib-devel pcre2-devel openssl-devel gd-devel libxslt-devel perl-devel perl-ExtUtils-Embed perl-macros cmark-devel mercurial libedit-devel libmaxminddb-devel && dnf clean all ;
+RUN set -eux; dnf -y install zlib-devel pcre2-devel openssl-devel gd-devel libxslt-devel perl-devel perl-ExtUtils-Embed cmark-devel mercurial libedit-devel libmaxminddb-devel && dnf clean all || true ;
 
 ENV HOME=/work/.ci-home
 ENV USER=git
