@@ -274,8 +274,8 @@ cat /dev/null > debugsourcefiles.list
 %{_libdir}/nginx/modules/ngx_http_image_filter_module.so
 %{_libdir}/nginx/modules/ngx_http_perl_module.so
 %{_libdir}/nginx/modules/ngx_http_xslt_filter_module.so
-%{_libdir}/perl5/vendor_perl/nginx.pm
-%{_libdir}/perl5/vendor_perl/auto/nginx/nginx.so
+%{perl_vendorarch}/nginx.pm
+%{perl_vendorarch}/auto/nginx/nginx.so
 %{_mandir}/man3/nginx.3pm*
 %dir %{_datadir}/nginx
 %dir %{_datadir}/nginx/html
