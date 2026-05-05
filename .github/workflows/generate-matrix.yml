@@ -1,11 +1,6 @@
 name: Generate Matrix
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/generate-matrix.yml
   workflow_dispatch:
     inputs:
       target_os:
