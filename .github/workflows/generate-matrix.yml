@@ -486,6 +486,7 @@ jobs:
             libxslt \
             make \
             rpm-build \
+            rpmdevtools \
             which \
             wget \
             xz \
