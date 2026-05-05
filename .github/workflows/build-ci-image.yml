@@ -5,15 +5,6 @@ permissions:
   packages: write
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - ci-stack.yml
-      - docker-compose.ci.yml
-      - Dockerfile.ci
-      - .github/workflows/build-ci-image.yml
-      - Makefile
   workflow_dispatch:
     inputs:
       operation:
