@@ -84,6 +84,7 @@ MODULE_PACKAGE_PREFIX=nginx$(MODULE_SUFFIX)-module
 MODULE_TARGET_PREFIX=$(TARGET_VERSION)+
 
 PACKAGE_VENDOR=	NGINX Inc.
+PACKAGE_URL=	https://nginx.org/
 
 BASE_MODULES=acme geoip2 njs perl image-filter xslt otel
 CUSTOM_MODULES=markdown-filter error-page-inherit include-server
