@@ -343,7 +343,7 @@ module-%: nginx-module-%.spec check-compat-% .deps-module-%
 	@if [ -e nginx-$@.skip ]; then \
 		echo "---> Skipping nginx-$@ package (`cat nginx-$@.skip`)" ; \
 	else \
-		@echo "===> Building nginx-$@ package" ; \
+		echo "===> Building nginx-$@ package" ; \
 		$(MAKE) --no-print-directory stage-sources && \
 		$(SHELL) -c "time -p rpmbuild --noclean -D \"_topdir `pwd`/../\" $(RPMBUILD_EXTRA_DEFINES) $(RPMBUILD_ARGS) nginx-$@.spec" && \
 		if [ "$(COPY_ARTIFACTS)" = "1" ]; then \
@@ -351,8 +351,7 @@ module-%: nginx-module-%.spec check-compat-% .deps-module-%
 			find $(BUILD_ENV_PATH)/RPMS -type f -name "*.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; && \
 			find $(BUILD_ENV_PATH)/SRPMS -maxdepth 1 -type f -name "*.src.rpm" -exec cp -f {} $(ARTIFACTS_DIR)/ \; ; \
 		fi && \
-		ln -s ../BUILD/nginx-$@-$(BASE_VERSION)/objs $@
-#		ln -s $$BUILDROOT/$(MODULE_PACKAGE_PREFIX)-$*-$(BASE_VERSION)/objs $@
+		ln -s ../BUILD/nginx-$@-$(BASE_VERSION)/objs $@; \
 	fi
 	@echo "===> $@ done!"
 
