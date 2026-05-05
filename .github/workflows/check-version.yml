@@ -38,13 +38,13 @@ on:
       force_build:
         description: "Force build or generate-matrix even if version is unchanged"
         required: true
-        default: false
+        default: true
         type: boolean
 
       run_generate_matrix:
         description: "Run force generate-matrix only workflow after version/module resolve for all OS`s and releses"
         required: true
-        default: false
+        default: true
         type: boolean
 
       matrix_module_mode:
@@ -59,7 +59,7 @@ on:
       matrix_modules_override:
         description: "Space-separated module list for generate-matrix when mode=custom"
         required: false
-        default: "acme geoip image-filter njs otel perl xslt markdown-filter error-page-inherit include-server"
+        default: "acme geoip image-filter njs perl xslt markdown-filter error-page-inherit include-server"
         type: string
 
       show_available_matrix_modules:
