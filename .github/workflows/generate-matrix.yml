@@ -6,7 +6,7 @@ on:
       target_os:
         description: "Debug mode only: which OS matrix to run"
         required: true
-        default: "all"
+        default: "redhat"
         type: choice
         options:
           - redhat
@@ -33,7 +33,7 @@ on:
       custom_modules:
         description: "Space-separated module list when module_mode=custom"
         required: false
-        default: "geoip2 image-filter perl xslt markdown-filter acme njs error-page-inherit include-server"
+        default: "geoip2 markdown-filter acme njs error-page-inherit include-server"
         type: string
       show_available_modules:
         description: "Print available modules from debian/list-all-modules"
