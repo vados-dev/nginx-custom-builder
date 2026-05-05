@@ -268,6 +268,7 @@ nginx.rpm-changelog:
 	@cd $(DOCS) && DEST=$(CURDIR) VERSIONMASK=1 make $(CURDIR)/nginx$(BASE_SUFFIX).rpm-changelog
 
 nginx.spec: nginx.rpm-changelog
+	@rm -f nginx$(BASE_SUFFIX).spec
 ifeq ($(BASE_TARGET), plus)
 	cp -v $(CONTRIB)/tarballs/dashboard.html $(SRCPATH)
 	cp -v $(DOCS)/EULA* $(SRCPATH)
@@ -358,6 +359,7 @@ module-%: nginx-module-%.spec check-compat-% .deps-module-%
 #	@cd $(DOCS) && DEST=$(CURDIR) VERSIONMASK=1 make $(CURDIR)/$@
 
 nginx-module-%.spec:
+	@rm -f $@
 	@echo "===> Creating $@"
 	@{ \
 	set -e ; \
