@@ -50,7 +50,7 @@ on:
       matrix_module_mode:
         description: "Module selection mode for generate-matrix"
         required: true
-        default: "auto"
+        default: "custom"
         type: choice
         options:
           - auto
