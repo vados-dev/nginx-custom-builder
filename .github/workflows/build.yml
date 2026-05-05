@@ -50,7 +50,7 @@ on:
       alpine_version:
         description: "Alpine major.minor for apk repo layout, e.g. 3.20"
         required: true
-        default: "3.20"
+        default: ""
         type: string
       publish_alpine_structure:
         description: "Publish Alpine repo directory structure to gh-pages"
@@ -87,7 +87,7 @@ on:
       enabled_modules:
         description: "Space-separated module list override for RPM build"
         required: false
-        default: "acme error-page-inherit include-server markdown-filter njs"
+        default: "acme njs error-page-inherit include-server markdown-filter"
         type: string
       publish_dnf_repo:
         description: "Publish DNF repository to gh-pages"
@@ -102,7 +102,7 @@ on:
       rpm_repo_release:
         description: "DNF repo release path segment override (empty = auto-detect)"
         required: false
-        default: ""
+        default: "10"
         type: string
       alpine_version:
         description: "Alpine major.minor for apk repo layout, e.g. 3.20"

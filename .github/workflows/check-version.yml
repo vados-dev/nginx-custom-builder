@@ -44,7 +44,7 @@ on:
       run_generate_matrix:
         description: "Run force generate-matrix only workflow after version/module resolve for all OS`s and releses"
         required: true
-        default: true
+        default: false
         type: boolean
 
       matrix_module_mode:
@@ -59,7 +59,7 @@ on:
       matrix_modules_override:
         description: "Space-separated module list for generate-matrix when mode=custom"
         required: false
-        default: "acme geoip2 image-filter njs perl xslt markdown-filter error-page-inherit include-server"
+        default: "perl xslt acme image-filter geoip2 njs markdown-filter error-page-inherit include-server"
         type: string
 
       show_available_matrix_modules:
@@ -86,18 +86,6 @@ on:
           - "almalinux"
           - "rhel"
 
-      alpine_version:
-        description: "APK repo OS version"
-        required: true
-        default: "3.20"
-        type: choice
-        options:
-          - "3.23"
-          - "3.22"
-          - "3.21"
-          - "3.20"
-          - "3.19"
-
       rpm_repo_release:
         description: "DNF repo release"
         required: true
@@ -116,6 +104,18 @@ on:
           - "-bb"
           - "-ba"
 
+      alpine_version:
+        description: "APK repo OS version"
+        required: true
+        default: "3.20"
+        type: choice
+        options:
+          - "3.23"
+          - "3.22"
+          - "3.21"
+          - "3.20"
+          - "3.19"
+
       modules_mode:
         description: "How to resolve module base set"
         required: true
@@ -129,13 +129,13 @@ on:
       modules_global_base:
         description: "Base modules for explicit-global mode (space-separated)"
         required: false
-        default: "acme geoip2 image-filter njs perl xslt image-filter markdown-filter error-page-inherit include-server"
+        default: "perl xslt image-filter geoip2"
         type: string
 
       modules_add:
         description: "Add modules to resolved base (space-separated)"
         required: false
-        default: ""
+        default: "acme njs markdown-filter error-page-inherit include-server"
         type: string
 
       modules_remove:
@@ -147,23 +147,11 @@ on:
       modules_common:
         description: "Legacy mode: common modules for all platforms (space-separated)"
         required: true
-        default: "geoip2 image-filter perl xslt error-page-inherit include-server markdown-filter"
+        default: "perl image-filter xslt error-page-inherit include-server markdown-filter"
         type: string
 
       modules_alpine_extra:
         description: "Legacy mode: extra modules for Alpine"
-        required: true
-        default: "acme njs"
-        type: string
-
-      modules_deb_extra:
-        description: "Legacy mode: extra modules for Debian"
-        required: true
-        default: "acme njs"
-        type: string
-
-      modules_rpm_extra:
-        description: "Legacy mode: extra modules for RPM"
         required: true
         default: "acme njs"
         type: string
@@ -174,14 +162,26 @@ on:
         default: ""
         type: string
 
-      modules_deb_override:
-        description: "Override Debian modules completely"
-        required: false
-        default: ""
+      modules_rpm_extra:
+        description: "Legacy mode: extra modules for RPM"
+        required: true
+        default: "acme njs"
         type: string
 
       modules_rpm_override:
         description: "Override RPM modules completely"
+        required: false
+        default: ""
+        type: string
+
+      modules_deb_extra:
+        description: "Legacy mode: extra modules for Debian"
+        required: true
+        default: "acme njs"
+        type: string
+
+      modules_deb_override:
+        description: "Override Debian modules completely"
         required: false
         default: ""
         type: string

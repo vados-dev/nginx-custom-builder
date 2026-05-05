@@ -33,7 +33,7 @@ on:
       custom_modules:
         description: "Space-separated module list when module_mode=custom"
         required: false
-        default: "geoip2 markdown-filter acme njs error-page-inherit include-server"
+        default: "geoip2 acme njs markdown-filter error-page-inherit include-server"
         type: string
       show_available_modules:
         description: "Print available modules from debian/list-all-modules"
@@ -49,7 +49,7 @@ on:
     inputs:
       target_os:
         required: false
-        default: "all"
+        default: "centos"
         type: string
       nginx_channel:
         required: false
@@ -61,7 +61,7 @@ on:
         type: string
       custom_modules:
         required: false
-        default: "image-filter perl xslt markdown-filter acme njs error-page-inherit include-server"
+        default: "markdown-filter error-page-inherit include-server"
         type: string
       show_available_modules:
         required: false
