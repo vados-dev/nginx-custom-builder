@@ -59,7 +59,7 @@ on:
       matrix_modules_override:
         description: "Space-separated module list for generate-matrix when mode=custom"
         required: false
-        default: "acme geoip image-filter njs perl xslt markdown-filter error-page-inherit include-server"
+        default: "acme geoip2 image-filter njs perl xslt markdown-filter error-page-inherit include-server"
         type: string
 
       show_available_matrix_modules:
@@ -129,7 +129,7 @@ on:
       modules_global_base:
         description: "Base modules for explicit-global mode (space-separated)"
         required: false
-        default: "acme geoip2 image-filter njs otel perl xslt image-filter markdown-filter error-page-inherit include-server"
+        default: "acme geoip2 image-filter njs perl xslt image-filter markdown-filter error-page-inherit include-server"
         type: string
 
       modules_add:
@@ -403,7 +403,7 @@ jobs:
           GLOBAL_BASE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_global_base || '' }}
           GLOBAL_ADD: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_add || '' }}
           GLOBAL_REMOVE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_remove || '' }}
-          IN_COMMON: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_common || 'geoip image-filter otel perl xslt error-page-inherit include-server markdown-filter' }}
+          IN_COMMON: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_common || 'geoip2 image-filter perl xslt error-page-inherit include-server markdown-filter' }}
           IN_RPM_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_rpm_extra || 'acme njs' }}
           IN_DEB_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_deb_extra || 'acme njs' }}
           IN_ALPINE_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_alpine_extra || 'acme njs' }}
