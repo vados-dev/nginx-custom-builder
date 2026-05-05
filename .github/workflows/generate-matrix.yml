@@ -461,7 +461,7 @@ jobs:
     needs: generate-matrix
     if: ${{ needs.generate-matrix.outputs.run-redhat == 'true' }}
     runs-on: ubuntu-24.04
-    container: centos:stream10
+    container: quay.io/centos/centos:stream10
     strategy:
       fail-fast: false
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix-redhat)}}
