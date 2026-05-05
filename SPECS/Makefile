@@ -86,7 +86,8 @@ MODULE_TARGET_PREFIX=$(TARGET_VERSION)+
 PACKAGE_VENDOR=	NGINX Inc.
 PACKAGE_URL=	https://nginx.org/
 
-BASE_MODULES=acme geoip2 njs perl image-filter xslt otel
+BASE_MODULES=acme geoip2 njs
+#perl image-filter xslt otel
 CUSTOM_MODULES=markdown-filter error-page-inherit include-server
 
 # Unified module selection point:
@@ -150,10 +151,10 @@ BASE_CONFIGURE_ARGS=\
 	$(STANDARD_CONFIGURE_MODULES) \
 	$(EXTRA_BASE_CONFIGURE_ARGS)
 
-#BASE_DYNAMIC_MODULES_ARGS=\
-#	--with-http_image_filter_module=dynamic \
-#	--with-http_xslt_module=dynamic \
-#	--with-http_perl_module=dynamic
+BASE_DYNAMIC_MODULES_ARGS= \
+	--with-http_image_filter_module=dynamic \
+	--with-http_xslt_module=dynamic \
+	--with-http_perl_module=dynamic
 
 ifeq ($(BASE_TARGET), plus)
 BASE_CONFIGURE_ARGS+= \
