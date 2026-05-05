@@ -493,7 +493,7 @@ jobs:
           channel="${{ matrix.channel }}"
           version_string="$(curl -fsSL "https://version.nginx.com/nginx/${channel}")"
           nginx_version="${version_string%%-*}"
-          sed -i -E "s/^BASE_VERSION[[:space:]]*=.*/BASE_VERSION=\t${nginx_version}/" SPECS/Makefile
+          sed -i -E "s/^NGINX_VERSION[[:space:]]*:=.*/NGINX_VERSION := ${nginx_version}/" contrib/src/nginx/version
 
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1

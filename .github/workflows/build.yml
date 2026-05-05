@@ -182,7 +182,7 @@ jobs:
           rm -f SOURCES/nginx-*.tar.gz SOURCES/nginx-*.tar.xz SOURCES/nginx-*.tgz
           cp -f "/tmp/nginx-srpm/${tarball}" "SOURCES/${tarball}"
 
-          sed -i -E "s/^BASE_VERSION[[:space:]]*=.*/BASE_VERSION=\t${ver}/" SPECS/Makefile
+          sed -i -E "s/^NGINX_VERSION[[:space:]]*:=.*/NGINX_VERSION := ${ver}/" contrib/src/nginx/version
           enabled_modules="${{ inputs.enabled_modules }}"
           if [[ -n "${enabled_modules}" ]]; then
             for mod in ${enabled_modules}; do
