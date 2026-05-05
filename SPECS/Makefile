@@ -268,7 +268,6 @@ nginx.rpm-changelog:
 	@cd $(DOCS) && DEST=$(CURDIR) VERSIONMASK=1 make $(CURDIR)/nginx$(BASE_SUFFIX).rpm-changelog
 
 nginx.spec: nginx.rpm-changelog
-	@rm -f nginx$(BASE_SUFFIX).spec
 ifeq ($(BASE_TARGET), plus)
 	cp -v $(CONTRIB)/tarballs/dashboard.html $(SRCPATH)
 	cp -v $(DOCS)/EULA* $(SRCPATH)
@@ -358,8 +357,7 @@ module-%: nginx-module-%.spec check-compat-% .deps-module-%
 #	@echo "===> Generating $@"
 #	@cd $(DOCS) && DEST=$(CURDIR) VERSIONMASK=1 make $(CURDIR)/$@
 
-nginx-module-%.spec:
-	@rm -f $@
+nginx-module-%.spec: FORCE
 	@echo "===> Creating $@"
 	@{ \
 	set -e ; \
@@ -827,6 +825,8 @@ detect-module-licenses:
 	fi ; \
 	}
 
-.PHONY:	default detect-module-licenses list list-base list-base-modules list-all-modules all modules specs stage-sources test test-debug clean cln
+.PHONY:	default detect-module-licenses list list-base list-base-modules list-all-modules all modules specs stage-sources test test-debug clean cln FORCE
+
+FORCE:
 
 .SECONDARY:
