@@ -274,6 +274,9 @@ nginx-module-%.deb-changelog:
 	fi
 	@sed -i -e 's,nginx-module-,nginx$(MODULE_SUFFIX)-module-,g' $(CURDIR)/$@
 
+# Custom module packages: orig tarball = nginx source + module source in debian/extra/.
+# 3.0 (quilt) works because orig tarball is pre-placed in $${builddir}/ (parent of SRCDIR).
+# Known: acme/njs may fail on newer dpkg if version format mismatches; fix: switch to 3.0 (native).
 rules-module-%: $(BASE_SRC) nginx-module-%.deb-changelog .deps-module-%
 	@echo "===> Creating $@"
 	@{ \
