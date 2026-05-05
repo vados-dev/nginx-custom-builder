@@ -461,7 +461,7 @@ jobs:
     needs: generate-matrix
     if: ${{ needs.generate-matrix.outputs.run-redhat == 'true' }}
     runs-on: ubuntu-24.04
-    container: quay.io/centos/centos:stream10
+    container: ghcr.io/vados-dev/nginx-custom-builder/ci:lts
     strategy:
       fail-fast: false
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix-redhat)}}
@@ -469,24 +469,6 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-
-      - name: Setup CentOS
-        run: |
-          dnf makecache
-          dnf install -y \
-            g++ \
-            gcc \
-            git \
-            epel-release \
-            libxslt \
-            make \
-            rpm-build \
-            rpmdevtools \
-            which \
-            wget \
-            xz \
-            'dnf-command(config-manager)' || true
-          dnf config-manager --set-enabled crb || true
 
       - name: Resolve nginx version for channel
         run: |
