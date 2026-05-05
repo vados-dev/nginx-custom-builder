@@ -196,9 +196,7 @@ all: clean base modules
 	@echo "===> $@ done!"
 
 tree: 
-	@rpmdev-wipetree
-	@echo "===> wipetree done"
-	@rpmdev-setuptree
+	@mkdir -p $(HOME)/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 	@echo "===> setuptree done"
 
 list-base:
