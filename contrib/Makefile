@@ -44,10 +44,10 @@ download = $(error Neither curl nor wget nor fetch found)
 endif
 
 ifdef CONTRIB_FAIL_EARLY
-download_pkg = $(call download,$(CONTRIB_NGINX)/$(2)/$(lastword $(subst /, ,$(@))))
+download_pkg = mkdir -p $(TARBALLS) && $(call download,$(1))
 else
-download_pkg = $(call download,$(CONTRIB_NGINX)/$(2)/$(lastword $(subst /, ,$(@)))) || \
-	( $(call download,$(1)) && echo "Please upload $(lastword $(subst /, ,$(@))) to $(CONTRIB_NGINX)" && echo "mkdir -p contrib/$(2); cd contrib/$(2) && curl -f -L -- \"$(1)\" > \"$(lastword $(subst /, ,$(@)))\" && cd ../.." )
+download_pkg = mkdir -p $(TARBALLS) && { $(call download,$(1)) || \
+	( $(call download,$(CONTRIB_NGINX)/$(2)/$(lastword $(subst /, ,$(@)))) && echo "Downloaded from CONTRIB_NGINX fallback" ); }
 endif
 
 ifeq ($(shell which xz >/dev/null 2>&1 || echo FAIL),)
