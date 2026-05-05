@@ -5,9 +5,17 @@ LABEL maintainer="AmsterdamNL"
 LABEL com.docker.compose.service="nginx-ci-runner"
 LABEL com.docker.compose.project="nginx-ci"
 
-RUN set -eux; dnf -y install dnf-plugins-core epel-release || true
+RUN set -eux; dnf -y update || true
+RUN set -eux; dnf -y install dnf-plugins-core || true
+RUN set -eux; dnf config-manager --set-enabled crb || true
+RUN set -eux; dnf -y install epel-release || true
+RUN set -eux; dnf -y update || true
 RUN set -eux; dnf -y install rpm-build rpmdevtools rpm-sign redhat-rpm-config gcc make curl mc wget git gnupg2 cpio systemd createrepo_c rust cargo clang pkgconf-pkg-config jq;
 RUN set -eux; dnf -y install zlib-devel pcre2-devel openssl-devel gd-devel libxslt-devel perl-devel perl-ExtUtils-Embed perl-macros cmark-devel mercurial libedit-devel libmaxminddb-devel && dnf clean all ;
+
+ENV HOME=/work/.ci-home
+ENV USER=git
+ENV LOGNAME=git
 
 COPY SOURCES/mc.tar.gz /tmp/mc.tar.gz
 RUN set -eux; \
@@ -16,9 +24,5 @@ RUN set -eux; \
     tar -xzf /tmp/mc.tar.gz -C "${HOME}/.config"; \
     chown -R root:root /root/.config; \
     rm -f /tmp/mc.tar.gz
-
-ENV HOME=/work/.ci-home
-ENV USER=git
-ENV LOGNAME=git
 
 WORKDIR /work
