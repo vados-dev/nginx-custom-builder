@@ -1,6 +1,6 @@
 /* 
- * Copyright (C) Igor Sysoev
- * Copyright (C) Nginx, Inc.
+ * Copyright (C) 2014 Maxim Dounin
+ * Copyright (C) 2014 Nginx, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

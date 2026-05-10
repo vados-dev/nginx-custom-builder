@@ -102,7 +102,7 @@ Vendor: %%PACKAGE_VENDOR%%
 URL: https://nginx.org/
 Group: %{_group}
 
-Source0: %{name}-%{version}.tar.gz
+Source0: https://nginx.org/download/%{name}-%{version}.tar.gz
 Source1: logrotate
 Source2: nginx.conf
 Source3: nginx.default.conf
@@ -122,10 +122,6 @@ License: 2-clause BSD-like license
 BuildRoot: %{_tmppath}/%{name}-%{base_version}-%{base_release}-root
 BuildRequires: zlib-devel
 BuildRequires: pcre2-devel
-BuildRequires: gd-devel
-BuildRequires: libxslt-devel
-BuildRequires: perl-devel
-BuildRequires: perl-ExtUtils-Embed
 
 Provides: webserver
 Provides: nginx-r%{base_version}
@@ -137,6 +133,10 @@ Recommends: logrotate
 %description
 nginx [engine x] is an HTTP and reverse proxy server, as well as
 a mail proxy server.
+
+%if ( 0%{?suse_version} && 0%{?suse_version} < 1600 )
+%debug_package
+%endif
 
 %prep
 %autosetup -p1
@@ -223,9 +223,6 @@ fi
 %{__install} -m755 %{bdir}/objs/nginx-debug \
     $RPM_BUILD_ROOT%{_sbindir}/nginx-debug
 
-%{__rm} -f $RPM_BUILD_ROOT%{_libdir}/perl5/perllocal.pod
-%{__rm} -f $RPM_BUILD_ROOT%{_libdir}/perl5/vendor_perl/auto/nginx/.packlist
-
 %{__rm} $RPM_BUILD_ROOT%{_sysconfdir}/nginx/koi-utf
 %{__rm} $RPM_BUILD_ROOT%{_sysconfdir}/nginx/koi-win
 %{__rm} $RPM_BUILD_ROOT%{_sysconfdir}/nginx/win-utf
@@ -271,12 +268,6 @@ cat /dev/null > debugsourcefiles.list
 
 %attr(0755,root,root) %dir %{_libdir}/nginx
 %attr(0755,root,root) %dir %{_libdir}/nginx/modules
-%{_libdir}/nginx/modules/ngx_http_image_filter_module.so
-%{_libdir}/nginx/modules/ngx_http_perl_module.so
-%{_libdir}/nginx/modules/ngx_http_xslt_filter_module.so
-%{perl_vendorarch}/nginx.pm
-%{perl_vendorarch}/auto/nginx/nginx.so
-%{_mandir}/man3/nginx.3pm*
 %dir %{_datadir}/nginx
 %dir %{_datadir}/nginx/html
 %{_datadir}/nginx/html/*
@@ -347,7 +338,11 @@ fi
 /usr/bin/systemctl daemon-reload >/dev/null 2>&1 ||:
 if [ $1 -ge 1 ]; then
     /sbin/service nginx status  >/dev/null 2>&1 || exit 0
+%if 0%{?suse_version} >= 1600
+    %{_libexecdir}/initscripts/legacy-actions/nginx/upgrade >/dev/null 2>&1 || echo \
+%else
     /sbin/service nginx upgrade >/dev/null 2>&1 || echo \
+%endif
         "Binary upgrade failed, please check nginx's error.log"
 fi
 

@@ -14,9 +14,6 @@ RUN set -eux; dnf -y install rpm-build rpmdevtools rpm-sign redhat-rpm-config gc
 RUN set -eux; dnf -y install zlib-devel pcre2-devel openssl-devel gd-devel libxslt-devel perl-devel perl-ExtUtils-Embed perl-macros cmark-devel mercurial libedit-devel libmaxminddb-devel;
 RUN set -eux; dnf -y install krb5-devel rust cargo clang && dnf clean all ;
 
-ENV HOME=/work/.ci-home
-ENV USER=git
-ENV LOGNAME=git
 
 COPY SOURCES/mc.tar.gz /tmp/mc.tar.gz
 RUN set -eux; \
@@ -27,3 +24,7 @@ RUN set -eux; \
     rm -f /tmp/mc.tar.gz
 
 WORKDIR /work
+
+ENV HOME=/work/.ci-home
+ENV USER=git
+ENV LOGNAME=git

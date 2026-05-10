@@ -1,4 +1,7 @@
 #
+%global debug_package %{nil}
+%global _debuginfo_subpackages 0
+
 %define nginx_user nginx
 %define nginx_group nginx
 
@@ -16,12 +19,16 @@ BuildRequires: openssl-devel
 %if 0%{?suse_version} >= 1315
 %define _group Productivity/Networking/Web/Servers
 BuildRequires: libopenssl-devel
-%define _debugsource_template %{nil}
 %endif
 
 %if (0%{?rhel} == 7) && (0%{?amzn} == 0)
+BuildRequires: redhat-lsb-core
 %define epoch 1
 Epoch: %{epoch}
+%define os_minor %(lsb_release -rs | cut -d '.' -f 2)
+%if %{os_minor} >= 4
+%define dist .el7_4
+%else
 %define dist .el7
 %endif
 
@@ -33,7 +40,6 @@ Epoch: %{epoch}
 %if 0%{?rhel} == 8
 %define epoch 1
 Epoch: %{epoch}
-%define _debugsource_template %{nil}
 %endif
 
 %if 0%{?rhel} == 9

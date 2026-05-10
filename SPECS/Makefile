@@ -20,9 +20,9 @@ MODULE_TARGET?= oss
 
 include $(CONTRIB)/src/nginx$(BASE_SUFFIX)/version
 
-BASE_VERSION=   $(NGINX_VERSION)
-BASE_RELEASE=   1
-PLUS_VERSION=   $(NGINX_PLUS_VERSION)
+BASE_VERSION=	$(NGINX_VERSION)
+BASE_RELEASE=	1
+PLUS_VERSION=	$(NGINX_PLUS_VERSION)
 PLUS_RELEASE=   $(BASE_RELEASE)
 BASE_SRC=       nginx$(BASE_SUFFIX)-$(BASE_VERSION).tar.gz
 SRCPATH?=       ../SOURCES
@@ -57,33 +57,23 @@ endif
 GIT ?= $(error git not found)
 
 ifeq ($(MODULE_TARGET), plus)
-MODULE_SPEC_TEMPLATE=	nginx-plus-module.spec.in
-MODULE_SUMMARY_PREFIX=  NGINX Plus
+MODULE_SUMMARY_PREFIX=	NGINX Plus
 TARGET_VERSION=$(PLUS_VERSION)
 MODULE_SUFFIX=-plus
-MODULE_PACKAGE_URL=     https://www.nginx.com/
-MODULE_PACKAGE_LICENSE= Proprietary (EULA included)
+MODULE_PACKAGE_URL=	https://www.nginx.com/
+MODULE_PACKAGE_LICENSE=	Proprietary (EULA included)
 else
-MODULE_SPEC_TEMPLATE=	nginx-module.spec.in
-MODULE_SUMMARY_PREFIX=  nginx
+MODULE_SUMMARY_PREFIX=	nginx
 TARGET_VERSION=$(BASE_VERSION)
-MODULE_PACKAGE_URL=     https://nginx.org/
+MODULE_PACKAGE_URL=	https://nginx.org/
 MODULE_PACKAGE_LICENSE=2-clause BSD-like license
 endif
 
-#ifeq ($(MODULE_TARGET), plus)
-#MODULE_SPEC_TEMPLATE=	nginx-plus-module.spec.in
-#MODULE_SUMMARY_PREFIX=	NGINX Plus
-#else
-#MODULE_SPEC_TEMPLATE=	nginx-module.spec.in
-#MODULE_SUMMARY_PREFIX=	nginx
-#endif
-
-MODULE_SPEC_TEMPLATE=   nginx$(MODULE_SUFFIX)-module.spec.in
+MODULE_SPEC_TEMPLATE=	nginx$(MODULE_SUFFIX)-module.spec.in
 MODULE_PACKAGE_PREFIX=nginx$(MODULE_SUFFIX)-module
 MODULE_TARGET_PREFIX=$(TARGET_VERSION)+
 
-PACKAGE_VENDOR=	NGINX Inc.
+PACKAGE_VENDOR=	NGINX Packaging <nginx-packaging@f5.com>
 PACKAGE_URL=	https://nginx.org/
 
 BASE_MODULES=acme geoip2 njs
@@ -122,7 +112,12 @@ STANDARD_CONFIGURE_MODULES=\
 	--with-http_stub_status_module \
 	--with-http_sub_module \
 	--with-http_v2_module \
-	--with-http_v3_module \
+$$( if [ 0%{?rhel} -eq 7 ] || [ 0%{?suse_version} -eq 1315 ]; then \
+	continue; \
+else \
+	echo "--with-http_v3_module"; \
+fi; \
+) \
 	--with-mail \
 	--with-mail_ssl_module \
 	--with-stream \
