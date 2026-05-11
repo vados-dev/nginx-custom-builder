@@ -307,6 +307,7 @@ jobs:
 
           echo "Using GPG key: ${RPM_GPG_KEYID}"
           gpg --list-secret-keys --keyid-format LONG
+          if [[ "${{ inputs.build_args }}" == "-ba" ]]; then
           find rpm/RPMS rpm/SRPMS -type f -name '*.rpm' -print0 | xargs -0 -r rpmsign --addsign
         continue-on-error: true
 
