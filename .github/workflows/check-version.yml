@@ -274,7 +274,6 @@ jobs:
           echo "BASE_MODULES=${{ github.event_name == 'workflow_dispatch' && inputs.base_modules || vars.BASE_MODULES || env.DEFAULT_BASE_MODULES }}" >> "$GITHUB_ENV"
           echo "RPM_REPO_OS=${{ matrix.rpm_repo_os }}" >> "$GITHUB_ENV"
           echo "RPM_REPO_OS=${{ matrix.rpm_repo_release }}" >> "$GITHUB_ENV"
-          echo "SOURCE_TARBALL=${{ steps.prepare.outputs.source_tarball }}" >> "$GITHUB_ENV"
           echo "BUILD_ARGS=${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}" >> "$GITHUB_ENV"
 
       - name: Build via pkg-oss
