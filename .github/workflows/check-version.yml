@@ -273,7 +273,7 @@ jobs:
           echo "SOURCE_REPO=${{ steps.prepare.outputs.source_repo }}" >> "$GITHUB_ENV"
           echo "SOURCE_RPM=${{ steps.prepare.outputs.source_rpm }}" >> "$GITHUB_ENV"
           echo "SOURCE_TARBALL=${{ steps.prepare.outputs.source_tarball }}" >> "$GITHUB_ENV"
-          ${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}" >> "$GITHUB_ENV"
+          echo "${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}" >> "$GITHUB_ENV"
 
       - name: Build via pkg-oss
         shell: bash
