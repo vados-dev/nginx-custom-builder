@@ -311,6 +311,7 @@ jobs:
           find rpm/RPMS rpm/SRPMS -type f -name '*.rpm' -print0 | xargs -0 -r rpmsign --addsign
           else
           find rpm/RPMS -type f -name '*.rpm' -print0 | xargs -0 -r rpmsign --addsign
+          fi
         continue-on-error: true
 
       - name: Verify RPM signatures
