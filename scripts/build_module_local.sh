@@ -69,13 +69,13 @@ else
       ;;
     zip)
       wget -O "${BUILD_DIR}/module.zip" "${MODULE_SOURCE}"
-      archive_dir="$(zipinfo -1 "${BUILD_DIR}/module.zip" | head -n1 | cut -d/ -f1)"
+      archive_dir="$(zipinfo -1 "${BUILD_DIR}/module.zip" | sed -n '1{s#/.*##;p;q;}')"
       unzip "${BUILD_DIR}/module.zip" -d "${BUILD_DIR}" >/dev/null
       mv "${BUILD_DIR}/${archive_dir}" "${MODULE_DIR}"
       ;;
     *)
       wget -O "${BUILD_DIR}/module.tgz" "${MODULE_SOURCE}"
-      archive_dir="$(tar tfz "${BUILD_DIR}/module.tgz" | head -n1 | cut -d/ -f1)"
+      archive_dir="$(tar tfz "${BUILD_DIR}/module.tgz" | sed -n '1{s#/.*##;p;q;}')"
       ( cd "${BUILD_DIR}" && tar xfz module.tgz )
       mv "${BUILD_DIR}/${archive_dir}" "${MODULE_DIR}"
       ;;
@@ -112,7 +112,7 @@ cp -a "${PKG_OSS_ROOT}" "${BUILD_DIR}/pkg-oss"
 
 if [[ -n "${OSS_VER}" ]]; then
   # best effort checkout tag in local clone
-  ( cd "${BUILD_DIR}/pkg-oss" && git checkout "$(git tag -l | grep "^${OSS_VER}" | head -n1)" ) || true
+  ( cd "${BUILD_DIR}/pkg-oss" && git checkout "$(git tag -l | sed -n "/^${OSS_VER}/ {p;q;}")" ) || true
 fi
 
 if [[ -d "${BUILD_DIR}/pkg-oss/contrib" ]]; then
