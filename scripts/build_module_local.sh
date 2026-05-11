@@ -49,7 +49,7 @@ if [[ -z "${MODULE_NAME}" ]]; then
   exit 1
 fi
 
-if [[ "${MODULE_NAME}" =~ ["\$#@] ]]; then
+if printf '%s' "${MODULE_NAME}" | grep -q '["$#@]'; then
   echo "$ME: WARNING: nickname contains characters that may break packaging: ${MODULE_NAME}" >&2
 fi
 
