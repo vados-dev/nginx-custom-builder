@@ -362,7 +362,7 @@ jobs:
           files: |
             rpm/RPMS/**/*.rpm
             rpm/SRPMS/*.src.rpm
-          name: "Build custom: ${{ env.RELEASE_TAG }} nginx ${{ env.NGINX_VERSION }} (${{ env.CHAN }})"
+          name: "Build custom: ${{ env.RELEASE_TAG }} nginx ${{ env.NGINX_VERSION }} (${{ env.CHANNEL }})"
           tag_name: ${{ env.RELEASE_TAG }}
           body: |
             Build info:
