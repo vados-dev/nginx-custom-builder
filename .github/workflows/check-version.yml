@@ -360,7 +360,7 @@ jobs:
             - nginx version: ${{ env.NGINX_VERSION }}
             - rpmbuild arguments: ${{ inputs.build_args }}
             - debug packages disabled: ${{ inputs.disable_debug_packages }}
-            - enabled modules: ${{ inputs.base_modules }}
+            - enabled base modules: ${{ inputs.base_modules }}
         continue-on-error: true
 
       - name: Telegram notify build result
