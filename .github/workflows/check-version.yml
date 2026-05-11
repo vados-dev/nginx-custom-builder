@@ -269,7 +269,7 @@ jobs:
           echo "GITHUB_RUN_ID=${{ github.run_id }}" >> "$GITHUB_ENV"
           echo "SHA=${{ github.sha }}" >> "$GITHUB_ENV"
           echo "NGINX_VERSION=${{ steps.prepare.outputs.nginx_version }}" >> "$GITHUB_ENV"
-          echo "NGINX_VERSION=${{ steps.prepare.outputs.nginx_version }}" >> "$GITHUB_ENV"
+          echo "BASE=${{ steps.prepare.outputs.nginx_version }}" >> "$GITHUB_ENV"
           echo "SOURCE_REPO=${{ steps.prepare.outputs.source_repo }}" >> "$GITHUB_ENV"
           echo "SOURCE_RPM=${{ steps.prepare.outputs.source_rpm }}" >> "$GITHUB_ENV"
           echo "SOURCE_TARBALL=${{ steps.prepare.outputs.source_tarball }}" >> "$GITHUB_ENV"
