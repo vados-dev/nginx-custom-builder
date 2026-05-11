@@ -14,7 +14,7 @@ BUILD_PLATFORM="OSS"
 OSS_VER=""
 PKG_OSS_ROOT="${PKG_OSS_ROOT:-}"
 RPMBUILD_ARGS_VALUE="${BUILD_ARGS:--bb}"
-PACKAGE_OUT_DIR=RPMS
+PACKAGE_OUTPUT_DIR=RPMS
 
 if [[ $# -eq 0 ]]; then
   echo "USAGE: $ME [options] <URL | path to module source>"
