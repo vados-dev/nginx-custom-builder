@@ -3,18 +3,20 @@ name: Check And Build pkg-oss
 permissions:
   contents: write
 
+env:
+  DEFAULT_BASE_MODULES: "acme geoip2 image-filter njs otel perl xslt"
+
 on:
+  schedule:
+    - cron: "17 * * 3 1"
+
   workflow_dispatch:
     inputs:
       base_modules:
         description: "Space-separated RPM modules for pkg-oss (example: acme geoip image-filter njs otel perl xslt)"
         required: false
-        default: "acme geoip image-filter njs otel perl xslt"
+        default: "acme geoip2 image-filter njs otel perl xslt"
         type: string
-  schedule:
-    - cron: "17 * * 3 1"
-env:
-  DEFAULT_BASE_MODULES: "acme geoip image-filter njs otel perl xslt"
 
 jobs:
   detect:
@@ -75,13 +77,17 @@ jobs:
           echo "changed_any=${changed_any}" >> "${GITHUB_OUTPUT}"
           echo "state_changed=${state_changed}" >> "${GITHUB_OUTPUT}"
           echo "channels_json=${channels_json}" >> "${GITHUB_OUTPUT}"
-          echo "detect_report<<EOF" >> "${GITHUB_OUTPUT}"
+          delim1="DETECT_REPORT_$(date +%s)_$RANDOM"
+          echo "detect_report<<${delim1}" >> "${GITHUB_OUTPUT}"
           printf '%s' "${detect_report}" >> "${GITHUB_OUTPUT}"
-          echo "EOF" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim1}" >> "${GITHUB_OUTPUT}"
           echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
-          echo "modules_report<<EOF" >> "${GITHUB_OUTPUT}"
+          delim2="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim2}" >> "${GITHUB_OUTPUT}"
           printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
-          echo "EOF" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim2}" >> "${GITHUB_OUTPUT}"
 
       - name: Commit version state
         if: ${{ steps.detect.outputs.state_changed == 'true' }}
