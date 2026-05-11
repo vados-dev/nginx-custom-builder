@@ -154,7 +154,7 @@ jobs:
           git push
 
       - name: Telegram notify updates
-        if: ${{ steps.detect.outputs.changed_any == 'true' }}
+        if: ${{ steps.detect.outputs.changed_any == 'true' && env.NOTIFY_ON_UPDATE == 'true' }}
         shell: bash
         env:
           TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
