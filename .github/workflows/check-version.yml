@@ -240,21 +240,6 @@ jobs:
           echo "build_matrix=${build_matrix}" >> "${GITHUB_OUTPUT}"
           echo "has_targets=${has_targets}" >> "${GITHUB_OUTPUT}"
 
-      - name: Get env variables
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "DT_STAMP=$(date +%Y%m%d%H%M)" >> "$GITHUB_ENV"
-          echo "DateTime=$(date +%d.%m.%Y-%T)" >> "$GITHUB_ENV"
-          echo "REF=${{ github.ref }}" >> "$GITHUB_ENV"
-          echo "REF_NAME=${{ github.ref_name }}" >> "$GITHUB_ENV"
-          echo "GITHUB_RUN_ID=${{ github.run_id }}" >> "$GITHUB_ENV"
-          echo "SHA=${{ github.sha }}" >> "$GITHUB_ENV"
-          echo "NGINX_VERSION=${{ steps.prepare.outputs.nginx_version }}" >> "$GITHUB_ENV"
-          echo "SOURCE_REPO=${{ steps.prepare.outputs.source_repo }}" >> "$GITHUB_ENV"
-          echo "SOURCE_RPM=${{ steps.prepare.outputs.source_rpm }}" >> "$GITHUB_ENV"
-          echo "SOURCE_TARBALL=${{ steps.prepare.outputs.source_tarball }}" >> "$GITHUB_ENV"
-
   build-rpm:
     if: ${{ needs.resolve-targets.outputs.has_targets == 'true' }}
     needs:
