@@ -6,7 +6,6 @@ channel="${CHANNEL:?CHANNEL is required}"
 target_id="${TARGET_ID:?TARGET_ID is required}"
 base_modules="${BASE_MODULES:-}"
 
-pkg_branch="$(jq -r --arg c "${channel}" '.channels[$c].pkg_oss_branch' config/modules.json)"
 nginx_version_url="$(jq -r --arg c "${channel}" '.channels[$c].nginx_version_url' config/modules.json)"
 
 target_json="$(jq -c --arg id "${target_id}" '.targets[] | select(.id == $id and .enabled == true)' config/targets.json)"
@@ -37,7 +36,7 @@ if ! command -v make >/dev/null 2>&1; then
 fi
 
 pkg_oss_repo="$(jq -r '.pkg_oss_repo' config/targets.json)"
-git clone --depth 1 --branch "${pkg_branch}" "${pkg_oss_repo}" "${work_root}/pkg-oss"
+git clone --depth 1 "${pkg_oss_repo}" "${work_root}/pkg-oss"
 cp -a "${repo_root}/src/." "${work_root}/pkg-oss/" 2>/dev/null || true
 
 pushd "${work_root}/pkg-oss/${pkg_dir}" >/dev/null

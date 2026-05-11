@@ -12,6 +12,28 @@ on:
 
   workflow_dispatch:
     inputs:
+      nginx_channel:
+        description: "Channel"
+        required: true
+        default: "all"
+        type: choice
+        options: [all, mainline, stable]
+      build_os:
+        description: "Build target OS"
+        required: true
+        default: "centos-10"
+        type: choice
+        options: [all, centos-10, almalinux-9]
+      ci_base_image:
+        description: "Container image override for build jobs"
+        required: false
+        default: ""
+        type: string
+      force_build:
+        description: "Build even if no updates detected"
+        required: true
+        default: false
+        type: boolean
       base_modules:
         description: "Space-separated RPM modules for pkg-oss (example: acme geoip image-filter njs otel perl xslt)"
         required: false
@@ -35,6 +57,10 @@ jobs:
       - name: Detect updates
         id: detect
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_NGINX_CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.nginx_channel || 'all' }}
+          INPUT_FORCE_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.force_build || false }}
         run: |
           set -euo pipefail
 
@@ -45,7 +71,17 @@ jobs:
           detect_report=""
           modules_report=""
 
-          for channel in mainline stable; do
+          channels=(mainline stable)
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            case "${INPUT_NGINX_CHANNEL}" in
+              all) channels=(mainline stable) ;;
+              mainline) channels=(mainline) ;;
+              stable) channels=(stable) ;;
+              *) echo "Unsupported nginx_channel: ${INPUT_NGINX_CHANNEL}" >&2; exit 1 ;;
+            esac
+          fi
+
+          for channel in "${channels[@]}"; do
             out="$(bash scripts/detect-channel-update.sh "${channel}")"
             changed="$(awk -F= '/^changed=/{print $2}' <<< "${out}")"
             oldv="$(awk -F= '/^old=/{print $2}' <<< "${out}")"
@@ -72,6 +108,13 @@ jobs:
             changed_any="true"
             state_changed="true"
             channels_json='{"include":[{"channel":"mainline"},{"channel":"stable"}]}'
+          fi
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" && "${INPUT_FORCE_BUILD}" == "true" ]]; then
+            changed_any="true"
+            channels_json='{"include":[]}'
+            for ch in "${channels[@]}"; do
+              channels_json="$(jq -c --arg ch "${ch}" '.include += [{channel:$ch}]' <<< "${channels_json}")"
+            done
           fi
 
           echo "changed_any=${changed_any}" >> "${GITHUB_OUTPUT}"
@@ -148,10 +191,19 @@ jobs:
         shell: bash
         env:
           CHANNELS_JSON: ${{ needs.detect.outputs.channels_json }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_BUILD_OS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_os || 'all' }}
+          INPUT_CI_BASE_IMAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_base_image || '' }}
         run: |
           set -euo pipefail
 
           enabled_targets="$(jq -c '[.targets[] | select(.enabled == true)]' config/targets.json)"
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" && "${INPUT_BUILD_OS}" != "all" ]]; then
+            enabled_targets="$(jq -c --arg id "${INPUT_BUILD_OS}" '[.targets[] | select(.id == $id and .enabled == true)]' config/targets.json)"
+          fi
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" && -n "${INPUT_CI_BASE_IMAGE}" ]]; then
+            enabled_targets="$(jq -c --arg img "${INPUT_CI_BASE_IMAGE}" 'map(.container_image = $img)' <<< "${enabled_targets}")"
+          fi
           channels="$(jq -c '.include // []' <<< "${CHANNELS_JSON}")"
 
           build_matrix="$(jq -nc --argjson targets "${enabled_targets}" --argjson channels "${channels}" '
