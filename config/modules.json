@@ -1,5 +1,5 @@
 {
-  "common_args": "-y",
+  "common_args": "",
   "channels": {
     "mainline": {
       "pkg_oss_branch": "mainline",
