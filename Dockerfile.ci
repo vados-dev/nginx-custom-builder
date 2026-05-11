@@ -8,6 +8,9 @@ LABEL com.docker.compose.project="nginx-ci"
 RUN set -eux; dnf -y update || true
 RUN set -eux; dnf -y install dnf-plugins-core || true
 RUN set -eux; dnf config-manager --set-enabled crb || true
+# nedded for otel module
+# RUN set -eux; dnf config-manager --set-enabled appstream || true
+# cmake re2-devel c-ares-devel grpc-devel protobuf
 RUN set -eux; dnf config-manager --set-enabled appstream || true
 RUN set -eux; dnf -y install epel-release || true
 RUN set -eux; dnf -y update || true
