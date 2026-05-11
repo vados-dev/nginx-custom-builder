@@ -54,7 +54,8 @@ if [[ -n "${base_modules//[[:space:]]/}" ]]; then
     RPMBUILD_ARGS="${build_args}" make "${pkg_target}"
   fi
 else
-  RPMBUILD_ARGS="${build_args}" make "${pkg_target}"
+  echo "BASE_MODULES is empty, fallback to: make base"
+  RPMBUILD_ARGS="${build_args}" make base
 fi
 popd >/dev/null
 
