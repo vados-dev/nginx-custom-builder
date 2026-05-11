@@ -5,7 +5,8 @@ permissions:
 
 env:
   DEFAULT_BASE_MODULES: "acme geoip2 image-filter njs perl xslt"
-  DEFAULT_NOTIFY_RESULT: false
+  NOTIFY_ON_UPDATE: false
+  NOTIFY_ON_RESULT: false
 
 on:
   schedule:
@@ -153,7 +154,7 @@ jobs:
           git push
 
       - name: Telegram notify updates
-        if: ${{ steps.detect.outputs.changed_any == 'true' }}
+        if: ${{ steps.detect.outputs.changed_any == 'true' && env.NOTIFY_ON_UPDATE == 'true' }}
         shell: bash
         env:
           TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -266,7 +267,7 @@ jobs:
           bash scripts/build-pkg-oss.sh
 
       - name: Telegram notify build result
-        if: ${{ env.DEFAULT_NOTIFY_RESULT == 'true' }}
+        if: ${{ env.NOTIFY_ON_RESULT == 'true' }}
         shell: bash
         env:
           TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
