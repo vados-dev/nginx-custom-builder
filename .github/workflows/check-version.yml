@@ -272,7 +272,7 @@ jobs:
           echo "CHANEL=${{ matrix.channel }}" >> "$GITHUB_ENV"
           echo "TARGET_ID=${{ matrix.target_id }}"  >> "$GITHUB_ENV"
           echo "BASE_MODULES=${{ github.event_name == 'workflow_dispatch' && inputs.base_modules || vars.BASE_MODULES || env.DEFAULT_BASE_MODULES }}" >> "$GITHUB_ENV"
-          echo "SOURCE_REPO=${{ matrix.rpm_repo }}" >> "$GITHUB_ENV"
+          echo "SOURCE_REPO=${{ matrix.rpm_repo_release }}" >> "$GITHUB_ENV"
           echo "SOURCE_RPM=${{ steps.prepare.outputs.source_rpm }}" >> "$GITHUB_ENV"
           echo "SOURCE_TARBALL=${{ steps.prepare.outputs.source_tarball }}" >> "$GITHUB_ENV"
           echo "BUILD_ARGS=${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}" >> "$GITHUB_ENV"
