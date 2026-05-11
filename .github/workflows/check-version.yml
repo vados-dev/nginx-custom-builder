@@ -1,360 +1,101 @@
-name: Check nginx version
+name: Check And Build pkg-oss
 
 permissions:
   contents: write
-  packages: write
-env:
-  DEFAULT_CI_CONTAINER_IMAGE: lts
-  DEFAULT_RPM_REPO_OS: centos
-  DEFAULT_RPM_REPO_RELEASE: "10"
-  DEFAULT_DEB_REPO_OS: debian
-  DEFAULT_DEB_SUITE: trixie
-  DEFAULT_ALPINE_VERSION: "3.20"
-  DEFAULT_PUBLISH_REPOS: true
-  DEFAULT_NOTIFY_ON_SCHEDULE: true
-  DEFAULT_NOTIFY_ONLY: true
 
 on:
-  schedule:
-    - cron: "17 * * 3 1"
   workflow_dispatch:
     inputs:
-      nginx_channel:
-        description: "nginx source channel"
-        required: true
-        default: "mainline"
-        type: choice
-        options:
-          - all
-          - mainline
-          - stable
-
-      disable_debug_packages:
-        description: "Disable debug/debuginfo packages"
-        required: true
-        default: true
-        type: boolean
-
-      force_build:
-        description: "Force build or generate-matrix even if version is unchanged"
-        required: true
-        default: true
-        type: boolean
-
-      run_generate_matrix:
-        description: "Run force generate-matrix only workflow after version/module resolve for all OS`s and releses"
-        required: true
-        default: false
-        type: boolean
-
-      matrix_module_mode:
-        description: "Module selection mode for generate-matrix"
-        required: true
-        default: "custom"
-        type: choice
-        options:
-          - auto
-          - custom
-
-      matrix_modules_override:
-        description: "Space-separated module list for generate-matrix when mode=custom"
+      base_modules:
+        description: "Space-separated RPM modules for pkg-oss (example: acme geoip image-filter njs otel perl xslt)"
         required: false
-        default: "perl xslt acme image-filter geoip2 njs markdown-filter error-page-inherit include-server"
+        default: "acme geoip image-filter njs otel perl xslt"
         type: string
-
-      show_available_matrix_modules:
-        description: "Print available modules in generate-matrix logs"
-        required: false
-        default: false
-        type: boolean
-
-      build_os:
-        description: "Build for OS"
-        required: true
-        default: "centos"
-        type: choice
-        options:
-          - "All"
-          - "APK"
-          - "debian-trixie"
-          - "debian-bookworm"
-          - "debian-bullseye"
-          - "ubuntu-noble"
-          - "ubuntu-jammy"
-          - "ubuntu-focal"
-          - "centos"
-          - "almalinux"
-          - "rhel"
-
-      rpm_repo_release:
-        description: "DNF repo release"
-        required: true
-        default: "10"
-        type: choice
-        options:
-          - "10"
-          - "9"
-
-      build_args:
-        description: "rpmbuild arguments"
-        required: true
-        default: "-bb"
-        type: choice
-        options:
-          - "-bb"
-          - "-ba"
-
-      alpine_version:
-        description: "APK repo OS version"
-        required: true
-        default: "3.20"
-        type: choice
-        options:
-          - "3.23"
-          - "3.22"
-          - "3.21"
-          - "3.20"
-          - "3.19"
-
-      modules_mode:
-        description: "How to resolve module base set"
-        required: true
-        default: "repo-defaults"
-        type: choice
-        options:
-          - repo-defaults
-          - legacy-inputs
-          - explicit-global
-
-      modules_global_base:
-        description: "Base modules for explicit-global mode (space-separated)"
-        required: false
-        default: "perl xslt image-filter geoip2"
-        type: string
-
-      modules_add:
-        description: "Add modules to resolved base (space-separated)"
-        required: false
-        default: "acme njs markdown-filter error-page-inherit include-server"
-        type: string
-
-      modules_remove:
-        description: "Remove modules from resolved base (space-separated)"
-        required: false
-        default: ""
-        type: string
-
-      modules_common:
-        description: "Legacy mode: common modules for all platforms (space-separated)"
-        required: true
-        default: "perl image-filter xslt error-page-inherit include-server markdown-filter"
-        type: string
-
-      modules_alpine_extra:
-        description: "Legacy mode: extra modules for Alpine"
-        required: true
-        default: "acme njs"
-        type: string
-
-      modules_alpine_override:
-        description: "Override Alpine modules completely"
-        required: false
-        default: ""
-        type: string
-
-      modules_rpm_extra:
-        description: "Legacy mode: extra modules for RPM"
-        required: true
-        default: "acme njs"
-        type: string
-
-      modules_rpm_override:
-        description: "Override RPM modules completely"
-        required: false
-        default: ""
-        type: string
-
-      modules_deb_extra:
-        description: "Legacy mode: extra modules for Debian"
-        required: true
-        default: "acme njs"
-        type: string
-
-      modules_deb_override:
-        description: "Override Debian modules completely"
-        required: false
-        default: ""
-        type: string
-
-      ci_container_image:
-        description: "CI container tag for detect/build jobs"
-        required: false
-        default: "lts"
-        type: string
+  schedule:
+    - cron: "17 * * 3 1"
+env:
+  DEFAULT_BASE_MODULES: "acme geoip image-filter njs otel perl xslt"
 
 jobs:
   detect:
-    if: ${{ github.event_name != 'schedule' || vars.CHECK_VERSION_CRON_ENABLED == 'true' }}
     runs-on: ubuntu-latest
-    container: ${{ format('ghcr.io/vados-dev/nginx-custom-builder/ci:{0}', (github.event_name == 'workflow_dispatch' && inputs.ci_container_image || 'lts')) }}
     outputs:
-      should_build_any: ${{ steps.detect.outputs.should_build_any }}
-      build_matrix: ${{ steps.detect.outputs.build_matrix }}
+      channels_json: ${{ steps.detect.outputs.channels_json }}
+      changed_any: ${{ steps.detect.outputs.changed_any }}
       state_changed: ${{ steps.detect.outputs.state_changed }}
       detect_report: ${{ steps.detect.outputs.detect_report }}
-      notify_only_mode: ${{ steps.detect.outputs.notify_only_mode }}
-      notify_enabled_mode: ${{ steps.detect.outputs.notify_enabled_mode }}
+      modules_changed_any: ${{ steps.detect.outputs.modules_changed_any }}
+      modules_report: ${{ steps.detect.outputs.modules_report }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Debug trigger context
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "event_name=${{ github.event_name }}"
-          echo "ref=${{ github.ref }}"
-          echo "ref_name=${{ github.ref_name }}"
-          echo "sha=${{ github.sha }}"
-          echo "actor=${{ github.actor }}"
-          echo "utc_now=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-
-      - name: Detect latest source version
+      - name: Detect updates
         id: detect
         shell: bash
-        env:
-          MANUAL_CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.nginx_channel || '' }}
-          EVENT_NAME: ${{ github.event_name }}
-          FORCE_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.force_build || false }}
         run: |
           set -euo pipefail
 
-          source /etc/os-release
-          os_token="${ID}"
-          case "${os_token}" in
-            almalinux|rocky|rhel|ol|oraclelinux)
-              os_token="centos"
-              ;;
-          esac
-          release_token="${VERSION_ID%%.*}"
-          state_dir=".github/version-state"
-          requested_channel="${MANUAL_CHANNEL:-}"
-          if [[ -z "${requested_channel}" ]]; then
-            if [[ "${EVENT_NAME}" == "schedule" ]]; then
-              requested_channel="all"
-            else
-              requested_channel="mainline"
-            fi
-          fi
-
-          channels=("${requested_channel}")
-          if [[ "${requested_channel}" == "all" ]]; then
-            channels=("mainline" "stable")
-          fi
-
-          notify_only_mode="false"
-          notify_enabled_mode="false"
-          if [[ "${EVENT_NAME}" == "schedule" ]]; then
-            notify_enabled_mode="${{ env.DEFAULT_NOTIFY_ON_SCHEDULE }}"
-            notify_only_mode="${{ env.DEFAULT_NOTIFY_ONLY }}"
-          fi
-
-          should_build_any="false"
+          changed_any="false"
           state_changed="false"
+          modules_changed_any="false"
+          channels_json='{"include":[]}'
           detect_report=""
-          build_matrix='{"include":[]}'
+          modules_report=""
 
-          mkdir -p "${state_dir}"
+          for channel in mainline stable; do
+            out="$(bash scripts/detect-channel-update.sh "${channel}")"
+            changed="$(awk -F= '/^changed=/{print $2}' <<< "${out}")"
+            oldv="$(awk -F= '/^old=/{print $2}' <<< "${out}")"
+            newv="$(awk -F= '/^new=/{print $2}' <<< "${out}")"
 
-          for channel in "${channels[@]}"; do
-            source_repo="nginx-mainline-source"
-            if [[ "${channel}" == "stable" ]]; then
-              source_repo="nginx-source"
-            fi
-
-            repo_file="/tmp/nginx-${channel}.repo"
-            cp SOURCES/nginx.repo "${repo_file}"
-            sed -i \
-              -e "s|OS|${os_token}|g" \
-              -e "s|RELEASEVER|${release_token}|g" \
-              "${repo_file}"
-            sed -i -E 's/^enabled=1$/enabled=0/' "${repo_file}"
-            sed -i -E "/^\[${source_repo}\]/,/^\[/{s/^enabled=.*/enabled=1/}" "${repo_file}"
-            cp "${repo_file}" /etc/yum.repos.d/nginx.repo
-
-            rm -f nginx-*.src.rpm
-            ok=0
-            for i in 1 2 3; do
-              if dnf -y --disablerepo="*" --enablerepo="${source_repo}" download --source nginx; then
-                ok=1
-                break
-              fi
-              echo "Retry dnf source download ${channel} ($i/3)" >&2
-              sleep 5
-            done
-            if [[ "${ok}" -ne 1 ]]; then
-              echo "Failed to download nginx source after retries from ${source_repo}" >&2
-              exit 1
-            fi
-
-            src_rpm="$(ls -1t nginx-*.src.rpm | head -n 1)"
-            new_version="$(rpm -qp --queryformat '%{VERSION}\n' "${src_rpm}")"
-
-            state_file="${state_dir}/nginx-${channel}.txt"
-            previous_version=""
-            if [[ -f "${state_file}" ]]; then
-              previous_version="$(tr -d '\r\n' < "${state_file}")"
-            fi
-
-            should_build="false"
-            reason="unchanged"
-            if [[ "${FORCE_BUILD}" == "true" ]]; then
-              should_build="true"
-              reason="manual-force"
-            elif [[ -z "${previous_version}" || "${new_version}" != "${previous_version}" ]]; then
-              should_build="true"
-              reason="new-version"
-            fi
-
-            if [[ "${should_build}" == "true" ]]; then
-              should_build_any="true"
-              build_matrix="$(jq -c --arg channel "${channel}" '.include += [{channel:$channel}]' <<< "${build_matrix}")"
-            fi
-
-            if [[ "${reason}" == "new-version" ]]; then
-              printf '%s\n' "${new_version}" > "${state_file}"
+            detect_report+="${channel}|${oldv}|${newv}|${changed}"$'\n'
+            if [[ "${changed}" == "true" ]]; then
+              changed_any="true"
               state_changed="true"
+              channels_json="$(jq -c --arg ch "${channel}" '.include += [{channel:$ch}]' <<< "${channels_json}")"
             fi
-
-            prev_print="${previous_version:-"(none)"}"
-            detect_report+="${channel}|${prev_print}|${new_version}|${reason}"$'\n'
           done
 
-          echo "should_build_any=${should_build_any}" >> "${GITHUB_OUTPUT}"
-          echo "build_matrix=${build_matrix}" >> "${GITHUB_OUTPUT}"
+          mod_out="$(bash scripts/detect-custom-module-updates.sh)"
+          modules_changed_any="$(awk -F= '/^changed_any=/{print $2}' <<< "${mod_out}" | head -n1)"
+          modules_report="$(awk '
+            BEGIN {capture=0}
+            /^report<<EOF$/ {capture=1; next}
+            /^EOF$/ {capture=0; next}
+            capture==1 {print}
+          ' <<< "${mod_out}")"
+
+          if [[ "${modules_changed_any}" == "true" ]]; then
+            changed_any="true"
+            state_changed="true"
+            channels_json='{"include":[{"channel":"mainline"},{"channel":"stable"}]}'
+          fi
+
+          echo "changed_any=${changed_any}" >> "${GITHUB_OUTPUT}"
           echo "state_changed=${state_changed}" >> "${GITHUB_OUTPUT}"
+          echo "channels_json=${channels_json}" >> "${GITHUB_OUTPUT}"
           echo "detect_report<<EOF" >> "${GITHUB_OUTPUT}"
           printf '%s' "${detect_report}" >> "${GITHUB_OUTPUT}"
           echo "EOF" >> "${GITHUB_OUTPUT}"
-          echo "notify_only_mode=${notify_only_mode}" >> "${GITHUB_OUTPUT}"
-          echo "notify_enabled_mode=${notify_enabled_mode}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          echo "modules_report<<EOF" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo "EOF" >> "${GITHUB_OUTPUT}"
 
       - name: Commit version state
         if: ${{ steps.detect.outputs.state_changed == 'true' }}
         shell: bash
-        working-directory: ${{ github.workspace }}
         run: |
           set -euo pipefail
-          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
-          git rev-parse --is-inside-work-tree
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .github/version-state/
           git diff --cached --quiet || git commit -m "ci: update nginx version state"
           git push
 
-      - name: Notify Telegram
-        if: ${{ github.event_name == 'schedule' && steps.detect.outputs.should_build_any == 'true' && steps.detect.outputs.notify_enabled_mode == 'true' }}
+      - name: Telegram notify updates
+        if: ${{ steps.detect.outputs.changed_any == 'true' }}
         shell: bash
         env:
           TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -362,416 +103,115 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "${TG_TOKEN:-}" || -z "${TG_CHAT_ID:-}" ]]; then
-            echo "Telegram secrets are missing, skip notification."
             exit 0
           fi
+
           report="$(printf '%s' "${{ steps.detect.outputs.detect_report }}" | sed '/^$/d')"
+          modules_report="$(printf '%s' "${{ steps.detect.outputs.modules_report }}" | sed '/^$/d')"
           message="nginx update detected%0Arepo: ${{ github.repository }}"
-          while IFS='|' read -r channel prev cur reason; do
+          while IFS='|' read -r channel prev cur changed; do
             [[ -z "${channel}" ]] && continue
-            message+="%0A%0Achannel: ${channel}%0Afrom: ${prev}%0Ato: ${cur}%0Areason: ${reason}"
+            if [[ "${changed}" == "true" ]]; then
+              message+="%0Achannel=${channel}: ${prev} -> ${cur}"
+            fi
           done <<< "${report}"
+          while IFS='|' read -r mod old_sha new_sha changed; do
+            [[ -z "${mod}" ]] && continue
+            if [[ "${changed}" == "true" ]]; then
+              message+="%0Amodule=${mod}: ${old_sha} -> ${new_sha}"
+            fi
+          done <<< "${modules_report}"
+
           curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
             -d "chat_id=${TG_CHAT_ID}" \
             -d "text=${message}"
 
-  resolve-modules:
-    if: >-
-      ${{
-        needs.detect.outputs.should_build_any == 'true' &&
-        !(github.event_name == 'schedule' && needs.detect.outputs.notify_only_mode == 'true') &&
-        !(github.event_name == 'workflow_dispatch' && inputs.run_generate_matrix)
-      }}
-    needs:
-      - detect
-      - resolve-targets
+  resolve-targets:
+    if: ${{ needs.detect.outputs.changed_any == 'true' }}
+    needs: detect
     runs-on: ubuntu-latest
     outputs:
-      alpine_modules: ${{ steps.resolve.outputs.alpine_modules }}
-      deb_modules: ${{ steps.resolve.outputs.deb_modules }}
-      rpm_modules: ${{ steps.resolve.outputs.rpm_modules }}
+      build_matrix: ${{ steps.resolve.outputs.build_matrix }}
+      has_targets: ${{ steps.resolve.outputs.has_targets }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Resolve module sets
+      - name: Resolve enabled targets
         id: resolve
         shell: bash
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          MODULES_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_mode || 'repo-defaults' }}
-          GLOBAL_BASE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_global_base || '' }}
-          GLOBAL_ADD: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_add || '' }}
-          GLOBAL_REMOVE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_remove || '' }}
-          IN_COMMON: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_common || 'geoip2 image-filter perl xslt error-page-inherit include-server markdown-filter' }}
-          IN_RPM_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_rpm_extra || 'acme njs' }}
-          IN_DEB_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_deb_extra || 'acme njs' }}
-          IN_ALPINE_EXTRA: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_alpine_extra || 'acme njs' }}
-          IN_RPM_OVERRIDE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_rpm_override || '' }}
-          IN_DEB_OVERRIDE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_deb_override || '' }}
-          IN_ALPINE_OVERRIDE: ${{ github.event_name == 'workflow_dispatch' && inputs.modules_alpine_override || '' }}
+          CHANNELS_JSON: ${{ needs.detect.outputs.channels_json }}
         run: |
           set -euo pipefail
 
-          normalize_modules() {
-            local raw="$1"
-            if [[ -z "${raw//[[:space:]]/}" ]]; then
-              echo ""
-              return
-            fi
-            echo "$raw" | xargs -n1 | awk 'NF && !seen[$0]++' | xargs
-          }
+          enabled_targets="$(jq -c '[.targets[] | select(.enabled == true)]' config/targets.json)"
+          channels="$(jq -c '.include // []' <<< "${CHANNELS_JSON}")"
 
-          remove_modules() {
-            local base="$1"
-            local to_remove="$2"
-            local out=""
-            if [[ -z "${to_remove//[[:space:]]/}" ]]; then
-              echo "${base}"
-              return
-            fi
-            for mod in ${base}; do
-              if ! grep -qw "${mod}" <<< "${to_remove}"; then
-                out="${out} ${mod}"
-              fi
-            done
-            normalize_modules "${out}"
-          }
+          build_matrix="$(jq -nc --argjson targets "${enabled_targets}" --argjson channels "${channels}" '
+            {
+              include: [
+                $channels[] as $c
+                | $targets[] as $t
+                | {
+                    channel: $c.channel,
+                    target_id: $t.id,
+                    container_image: $t.container_image,
+                    rpm_repo_os: $t.rpm_repo_os,
+                    rpm_repo_release: ($t.rpm_repo_release|tostring)
+                  }
+              ]
+            }
+          ')"
 
-          mode="${MODULES_MODE}"
-
-          rpm_modules=""
-          deb_modules=""
-          alpine_modules=""
-
-          case "${mode}" in
-            repo-defaults)
-              deb_modules="$(make --no-print-directory -C debian list-all-modules | awk '{print $1}' | xargs || true)"
-              alpine_modules="$(make --no-print-directory -C alpine list-all-modules | awk '{print $1}' | xargs || true)"
-              rpm_modules="$(make --no-print-directory -C SPECS list-all-modules | awk '{print $1}' | xargs || true)"
-              ;;
-            legacy-inputs)
-              common="$(normalize_modules "${IN_COMMON}")"
-              rpm_extra="$(normalize_modules "${IN_RPM_EXTRA}")"
-              deb_extra="$(normalize_modules "${IN_DEB_EXTRA}")"
-              alpine_extra="$(normalize_modules "${IN_ALPINE_EXTRA}")"
-              rpm_modules="$(normalize_modules "${common} ${rpm_extra}")"
-              deb_modules="$(normalize_modules "${common} ${deb_extra}")"
-              alpine_modules="$(normalize_modules "${common} ${alpine_extra}")"
-              ;;
-            explicit-global)
-              global_base="$(normalize_modules "${GLOBAL_BASE}")"
-              if [[ -z "${global_base}" ]]; then
-                echo "modules_mode=explicit-global requires non-empty modules_global_base" >&2
-                exit 1
-              fi
-              rpm_modules="${global_base}"
-              deb_modules="${global_base}"
-              alpine_modules="${global_base}"
-              ;;
-            *)
-              echo "Unsupported modules_mode: ${mode}" >&2
-              exit 1
-              ;;
-          esac
-
-          rpm_modules="$(normalize_modules "${rpm_modules}")"
-          deb_modules="$(normalize_modules "${deb_modules}")"
-          alpine_modules="$(normalize_modules "${alpine_modules}")"
-
-          global_add="$(normalize_modules "${GLOBAL_ADD}")"
-          global_remove="$(normalize_modules "${GLOBAL_REMOVE}")"
-
-          rpm_modules="$(normalize_modules "${rpm_modules} ${global_add}")"
-          deb_modules="$(normalize_modules "${deb_modules} ${global_add}")"
-          alpine_modules="$(normalize_modules "${alpine_modules} ${global_add}")"
-
-          rpm_modules="$(remove_modules "${rpm_modules}" "${global_remove}")"
-          deb_modules="$(remove_modules "${deb_modules}" "${global_remove}")"
-          alpine_modules="$(remove_modules "${alpine_modules}" "${global_remove}")"
-
-          rpm_override="$(normalize_modules "${IN_RPM_OVERRIDE}")"
-          deb_override="$(normalize_modules "${IN_DEB_OVERRIDE}")"
-          alpine_override="$(normalize_modules "${IN_ALPINE_OVERRIDE}")"
-
-          if [[ -n "${rpm_override}" ]]; then
-            rpm_modules="${rpm_override}"
-          fi
-          if [[ -n "${deb_override}" ]]; then
-            deb_modules="${deb_override}"
-          fi
-          if [[ -n "${alpine_override}" ]]; then
-            alpine_modules="${alpine_override}"
+          has_targets="false"
+          if [[ "$(jq '.include | length' <<< "${build_matrix}")" -gt 0 ]]; then
+            has_targets="true"
           fi
 
-          echo "rpm_modules=${rpm_modules}" >> "${GITHUB_OUTPUT}"
-          echo "deb_modules=${deb_modules}" >> "${GITHUB_OUTPUT}"
-          echo "alpine_modules=${alpine_modules}" >> "${GITHUB_OUTPUT}"
-
-          echo "Resolved modules:"
-          echo "- Mode: ${mode}"
-          echo "- RPM: ${rpm_modules}"
-          echo "- DEB: ${deb_modules}"
-          echo "- Alpine: ${alpine_modules}"
-
-  resolve-targets:
-    if: ${{ needs.detect.outputs.should_build_any == 'true' && !(github.event_name == 'schedule' && needs.detect.outputs.notify_only_mode == 'true') }}
-    needs: detect
-    runs-on: ubuntu-latest
-    outputs:
-      run_rpm: ${{ steps.resolve.outputs.run_rpm }}
-      run_deb: ${{ steps.resolve.outputs.run_deb }}
-      run_alpine: ${{ steps.resolve.outputs.run_alpine }}
-      matrix_target_os: ${{ steps.resolve.outputs.matrix_target_os }}
-      ci_container_image: ${{ steps.resolve.outputs.ci_container_image }}
-      rpm_repo_os: ${{ steps.resolve.outputs.rpm_repo_os }}
-      rpm_repo_release: ${{ steps.resolve.outputs.rpm_repo_release }}
-      deb_repo_os: ${{ steps.resolve.outputs.deb_repo_os }}
-      debian_suite: ${{ steps.resolve.outputs.debian_suite }}
-      alpine_version: ${{ steps.resolve.outputs.alpine_version }}
-      publish_repos: ${{ steps.resolve.outputs.publish_repos }}
-    steps:
-      - name: Resolve build targets and fallbacks
-        id: resolve
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          event_name="${{ github.event_name }}"
-          if [[ "${event_name}" == "workflow_dispatch" ]]; then
-            build_os="${{ inputs.build_os }}"
-            ci_image="${{ inputs.ci_container_image }}"
-            rpm_release="${{ inputs.rpm_repo_release }}"
-            alpine_version="${{ inputs.alpine_version }}"
-            publish_repos="${{ env.DEFAULT_PUBLISH_REPOS }}"
-          else
-            build_os="All"
-            ci_image="${{ env.DEFAULT_CI_CONTAINER_IMAGE }}"
-            rpm_release="${{ env.DEFAULT_RPM_REPO_RELEASE }}"
-            alpine_version="${{ env.DEFAULT_ALPINE_VERSION }}"
-            publish_repos="${{ env.DEFAULT_PUBLISH_REPOS }}"
-          fi
-
-          if [[ -z "${ci_image}" ]]; then
-            ci_image="${{ env.DEFAULT_CI_CONTAINER_IMAGE }}"
-          fi
-          if [[ -z "${rpm_release}" ]]; then
-            rpm_release="${{ env.DEFAULT_RPM_REPO_RELEASE }}"
-          fi
-          if [[ -z "${alpine_version}" ]]; then
-            alpine_version="${{ env.DEFAULT_ALPINE_VERSION }}"
-          fi
-
-          run_rpm="false"
-          run_deb="false"
-          run_alpine="false"
-          matrix_target_os="all"
-          rpm_repo_os="${{ env.DEFAULT_RPM_REPO_OS }}"
-          deb_repo_os="${{ env.DEFAULT_DEB_REPO_OS }}"
-          debian_suite="${{ env.DEFAULT_DEB_SUITE }}"
-
-          case "${build_os}" in
-            All)
-              run_rpm="true"
-              run_deb="true"
-              run_alpine="true"
-              matrix_target_os="all"
-              ;;
-            APK)
-              run_alpine="true"
-              matrix_target_os="alpine"
-              ;;
-            centos)
-              run_rpm="true"
-              rpm_repo_os="centos"
-              matrix_target_os="redhat"
-              ;;
-            almalinux)
-              run_rpm="true"
-              rpm_repo_os="almalinux"
-              matrix_target_os="redhat"
-              ;;
-            rhel)
-              run_rpm="true"
-              rpm_repo_os="rhel"
-              matrix_target_os="redhat"
-              ;;
-            debian-trixie)
-              run_deb="true"
-              deb_repo_os="debian"
-              debian_suite="trixie"
-              matrix_target_os="ubuntu"
-              ;;
-            debian-bookworm)
-              run_deb="true"
-              deb_repo_os="debian"
-              debian_suite="bookworm"
-              matrix_target_os="ubuntu"
-              ;;
-            debian-bullseye)
-              run_deb="true"
-              deb_repo_os="debian"
-              debian_suite="bullseye"
-              matrix_target_os="ubuntu"
-              ;;
-            ubuntu-noble)
-              run_deb="true"
-              deb_repo_os="ubuntu"
-              debian_suite="noble"
-              matrix_target_os="ubuntu"
-              ;;
-            ubuntu-jammy)
-              run_deb="true"
-              deb_repo_os="ubuntu"
-              debian_suite="jammy"
-              matrix_target_os="ubuntu"
-              ;;
-            ubuntu-focal)
-              run_deb="true"
-              deb_repo_os="ubuntu"
-              debian_suite="focal"
-              matrix_target_os="ubuntu"
-              ;;
-            *)
-              echo "Unsupported build_os: ${build_os}" >&2
-              exit 1
-              ;;
-          esac
-
-          echo "run_rpm=${run_rpm}" >> "${GITHUB_OUTPUT}"
-          echo "run_deb=${run_deb}" >> "${GITHUB_OUTPUT}"
-          echo "run_alpine=${run_alpine}" >> "${GITHUB_OUTPUT}"
-          echo "matrix_target_os=${matrix_target_os}" >> "${GITHUB_OUTPUT}"
-          echo "ci_container_image=${ci_image}" >> "${GITHUB_OUTPUT}"
-          echo "rpm_repo_os=${rpm_repo_os}" >> "${GITHUB_OUTPUT}"
-          echo "rpm_repo_release=${rpm_release}" >> "${GITHUB_OUTPUT}"
-          echo "deb_repo_os=${deb_repo_os}" >> "${GITHUB_OUTPUT}"
-          echo "debian_suite=${debian_suite}" >> "${GITHUB_OUTPUT}"
-          echo "alpine_version=${alpine_version}" >> "${GITHUB_OUTPUT}"
-          echo "publish_repos=${publish_repos}" >> "${GITHUB_OUTPUT}"
-
-  generate-matrix-checks:
-    if: >-
-      ${{
-        needs.detect.outputs.should_build_any == 'true' &&
-        !(github.event_name == 'schedule' && needs.detect.outputs.notify_only_mode == 'true') &&
-        github.event_name == 'workflow_dispatch' &&
-        inputs.run_generate_matrix
-      }}
-    needs:
-      - detect
-      - resolve-targets
-    uses: ./.github/workflows/generate-matrix.yml
-    with:
-      target_os: all
-      nginx_channel: all
-      debug_mode: true
-      module_mode: ${{ github.event_name == 'workflow_dispatch' && inputs.matrix_module_mode || 'auto' }}
-      custom_modules: ${{ github.event_name == 'workflow_dispatch' && inputs.matrix_modules_override || '' }}
-      show_available_modules: ${{ github.event_name == 'workflow_dispatch' && inputs.show_available_matrix_modules || false }}
+          echo "build_matrix=${build_matrix}" >> "${GITHUB_OUTPUT}"
+          echo "has_targets=${has_targets}" >> "${GITHUB_OUTPUT}"
 
   build-rpm:
-    if: >-
-      ${{
-        needs.detect.outputs.should_build_any == 'true' &&
-        !(github.event_name == 'schedule' && needs.detect.outputs.notify_only_mode == 'true') &&
-        needs.resolve-targets.outputs.run_rpm == 'true' &&
-        !(github.event_name == 'workflow_dispatch' && inputs.run_generate_matrix)
-      }}
+    if: ${{ needs.resolve-targets.outputs.has_targets == 'true' }}
     needs:
       - detect
-      - resolve-modules
       - resolve-targets
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       max-parallel: 1
-      matrix: ${{ fromJson(needs.detect.outputs.build_matrix) }}
-    uses: ./.github/workflows/build.yml
-    with:
-      nginx_channel: ${{ matrix.channel }}
-      build_args: ${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}
-      disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
-      enabled_modules: ${{ needs['resolve-modules'].outputs.rpm_modules }}
-      publish_dnf_repo: ${{ needs.resolve-targets.outputs.publish_repos == 'true' }}
-      rpm_repo_os: ${{ needs.resolve-targets.outputs.rpm_repo_os }}
-      rpm_repo_release: ${{ needs.resolve-targets.outputs.rpm_repo_release }}
-      ci_container_image: ${{ needs.resolve-targets.outputs.ci_container_image }}
-    secrets: inherit
+      matrix: ${{ fromJson(needs.resolve-targets.outputs.build_matrix) }}
+    container: ${{ matrix.container_image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
 
-  build-debian:
-    if: >-
-      ${{
-        needs.detect.outputs.should_build_any == 'true' &&
-        !(github.event_name == 'schedule' && needs.detect.outputs.notify_only_mode == 'true') &&
-        needs.resolve-targets.outputs.run_deb == 'true' &&
-        !(github.event_name == 'workflow_dispatch' && inputs.run_generate_matrix)
-      }}
-    needs:
-      - detect
-      - resolve-modules
-      - resolve-targets
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix: ${{ fromJson(needs.detect.outputs.build_matrix) }}
-    uses: ./.github/workflows/build-debian.yml
-    with:
-      nginx_channel: ${{ matrix.channel }}
-      enabled_modules: ${{ needs['resolve-modules'].outputs.deb_modules }}
-      disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
-      publish_deb_repo: ${{ needs.resolve-targets.outputs.publish_repos == 'true' }}
-      deb_repo_os: ${{ needs.resolve-targets.outputs.deb_repo_os }}
-      debian_suite: ${{ needs.resolve-targets.outputs.debian_suite }}
-    secrets: inherit
+      - name: Build via pkg-oss
+        shell: bash
+        env:
+          CHANNEL: ${{ matrix.channel }}
+          TARGET_ID: ${{ matrix.target_id }}
+          BASE_MODULES: ${{ github.event_name == 'workflow_dispatch' && inputs.base_modules || vars.BASE_MODULES || env.DEFAULT_BASE_MODULES }}
+        run: |
+          set -euo pipefail
+          bash scripts/build-pkg-oss.sh
 
-  build-alpine:
-    if: >-
-      ${{
-        needs.detect.outputs.should_build_any == 'true' &&
-        !(github.event_name == 'schedule' && needs.detect.outputs.notify_only_mode == 'true') &&
-        needs.resolve-targets.outputs.run_alpine == 'true' &&
-        !(github.event_name == 'workflow_dispatch' && inputs.run_generate_matrix)
-      }}
-    needs:
-      - detect
-      - resolve-modules
-      - resolve-targets
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix: ${{ fromJson(needs.detect.outputs.build_matrix) }}
-    uses: ./.github/workflows/build-custom-alpine.yml
-    with:
-      nginx_channel: ${{ matrix.channel }}
-      alpine_version: ${{ needs.resolve-targets.outputs.alpine_version }}
-      enabled_modules: ${{ needs['resolve-modules'].outputs.alpine_modules }}
-      disable_debug_packages: ${{ github.event_name == 'workflow_dispatch' && inputs.disable_debug_packages || true }}
-      publish_alpine_repo: ${{ needs.resolve-targets.outputs.publish_repos == 'true' }}
-    secrets: inherit
+      - name: Telegram notify build result
+        if: ${{ always() }}
+        shell: bash
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${TG_TOKEN:-}" || -z "${TG_CHAT_ID:-}" ]]; then
+            exit 0
+          fi
 
-  build-alpine-slim-image:
-    if: >-
-      ${{
-        needs.detect.outputs.should_build_any == 'true' &&
-        !(github.event_name == 'schedule' && needs.detect.outputs.notify_only_mode == 'true') &&
-        needs.resolve-targets.outputs.run_alpine == 'true' &&
-        !(github.event_name == 'workflow_dispatch' && inputs.run_generate_matrix)
-      }}
-    needs:
-      - detect
-      - resolve-targets
-      - build-alpine
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix: ${{ fromJson(needs.detect.outputs.build_matrix) }}
-    uses: ./.github/workflows/build-alpine-slim-image.yml
-    with:
-      nginx_channel: ${{ matrix.channel }}
-      alpine_version: ${{ needs.resolve-targets.outputs.alpine_version }}
-      apk_artifact_name: apk-packages-${{ matrix.channel }}
-      alpine_repo_url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/repo/alpine/v${{ needs.resolve-targets.outputs.alpine_version }}/${{ matrix.channel }}
-      alpine_key_url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/repo/alpine/keys/abuild-key.rsa.pub
-      enabled_modules: nginx-module-markdown-filter nginx-module-error-page-inherit nginx-module-include-server
-      push_image: ${{ needs.resolve-targets.outputs.publish_repos == 'true' }}
-    secrets: inherit
+          status="${{ job.status }}"
+          message="pkg-oss build ${status}%0Arepo: ${{ github.repository }}%0Achannel: ${{ matrix.channel }}%0Atarget: ${{ matrix.target_id }}"
+
+          curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d "chat_id=${TG_CHAT_ID}" \
+            -d "text=${message}"

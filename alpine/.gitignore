@@ -1,6 +1,0 @@
-abuild-*
-base
-.deps-*
-module-*
-*.skip
-*.tar.*

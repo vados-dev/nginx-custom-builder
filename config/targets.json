@@ -1,0 +1,25 @@
+{
+  "pkg_oss_repo": "https://github.com/nginx/pkg-oss.git",
+  "targets": [
+    {
+      "id": "centos-10",
+      "enabled": true,
+      "container_image": "ghcr.io/vados-dev/nginx-custom-builder/ci:lts",
+      "package_format": "rpm",
+      "pkg_oss_make_dir": "rpm/SPECS",
+      "pkg_oss_make_target": "all",
+      "rpm_repo_os": "centos",
+      "rpm_repo_release": "10"
+    },
+    {
+      "id": "almalinux-9",
+      "enabled": false,
+      "container_image": "ghcr.io/vados-dev/nginx-custom-builder/ci:lts",
+      "package_format": "rpm",
+      "pkg_oss_make_dir": "rpm/SPECS",
+      "pkg_oss_make_target": "all",
+      "rpm_repo_os": "almalinux",
+      "rpm_repo_release": "9"
+    }
+  ]
+}

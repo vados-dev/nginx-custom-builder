@@ -1,0 +1,39 @@
+{
+  "common_args": "-y",
+  "channels": {
+    "mainline": {
+      "pkg_oss_branch": "mainline",
+      "nginx_version_url": "https://version.nginx.com/nginx/mainline"
+    },
+    "stable": {
+      "pkg_oss_branch": "stable",
+      "nginx_version_url": "https://version.nginx.com/nginx/stable"
+    }
+  },
+  "custom_modules": [
+    {
+      "name": "markdown-filter",
+      "nickname": "markdown-filter",
+      "repo": "https://github.com/ukarim/ngx_markdown_filter_module",
+      "version_mode": "head_commit",
+      "base_version": "0.0.1",
+      "enabled": true
+    },
+    {
+      "name": "include-server",
+      "nickname": "include-server",
+      "repo": "https://github.com/RekGRpth/ngx_http_include_server_module",
+      "version_mode": "head_commit",
+      "base_version": "0.0.1",
+      "enabled": true
+    },
+    {
+      "name": "error-page-inherit",
+      "nickname": "error-page-inherit",
+      "repo": "https://github.com/RekGRpth/ngx_http_error_page_inherit_module",
+      "version_mode": "head_commit",
+      "base_version": "0.0.1",
+      "enabled": true
+    }
+  ]
+}

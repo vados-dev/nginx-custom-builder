@@ -1,8 +1,0 @@
-base
-*.deb-changelog
-debuild-*
-.deps-*
-module-*
-rules-*
-*.skip
-*.tar.*

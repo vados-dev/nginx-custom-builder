@@ -1,5 +1,0 @@
-#!/bin/sh
-
-%%MODULE_POST%%
-
-exit 0
