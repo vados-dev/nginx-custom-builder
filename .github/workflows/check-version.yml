@@ -325,7 +325,7 @@ jobs:
           fi
 
           if [[ "${{ inputs.build_args }}" == "-ba" ]]; then
-            rpm -Kv rpm/RPMS/x86_64/*.rpm rmp/SRPMS/*.src.rpm
+            rpm -Kv rpm/RPMS/x86_64/*.rpm rpm/SRPMS/*.src.rpm
           else
             rpm -Kv RPMS/x86_64/*.rpm 
           fi
