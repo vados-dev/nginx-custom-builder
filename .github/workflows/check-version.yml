@@ -310,38 +310,27 @@ jobs:
           find RPMS SRPMS -type f -name '*.rpm' -print0 | xargs -0 -r rpmsign --addsign
         continue-on-error: true
 
-      - name: Sign RPM packages
+      - name: Verify RPM signatures
         if: ${{ steps.import_gpg.outcome == 'success' }}
         shell: bash
         env:
           RPM_GPG_KEYID: ${{ steps.import_gpg.outputs.fingerprint }}
         run: |
           set -euo pipefail
-          export GPG_TTY="${GPG_TTY:-$(tty 2>/dev/null || true)}"
-          if [ -n "${RPM_GPG_PASSPHRASE:-}" ]; then
-          cat > ~/.rpmmacros <<EOF
-          %_signature gpg
-          %_gpg_name ${RPM_GPG_KEYID}
-          %_gpg_path %{getenv:HOME}/.gnupg
-          %_gpgbin /usr/bin/gpg
-          %__gpg /usr/bin/gpg
-          %__gpg_sign_cmd %{__gpg} --batch --yes --pinentry-mode loopback --passphrase '${RPM_GPG_PASSPHRASE}' --no-armor --local-user "%{_gpg_name}" --detach-sign --output %{__signature_filename} %{__plaintext_filename}
-          EOF
+          if [[ -f "SOURCES/RPM-GPG-KEY-nginx" ]]; then
+            rpm --import "SOURCES/RPM-GPG-KEY-nginx"
           else
-          cat > ~/.rpmmacros <<EOF
-          %_signature gpg
-          %_gpg_name ${RPM_GPG_KEYID}
-          %_gpg_path %{getenv:HOME}/.gnupg
-          %_gpgbin /usr/bin/gpg
-          %__gpg /usr/bin/gpg
-          %__gpg_sign_cmd %{__gpg} --batch --yes --no-armor --local-user "%{_gpg_name}" --detach-sign --output %{__signature_filename} %{__plaintext_filename}
-          EOF
+            gpg --batch --yes --armor --export "${RPM_GPG_KEYID}" > /tmp/RPM-GPG-KEY-build
+            rpm --import /tmp/RPM-GPG-KEY-build
           fi
 
-          echo "Using GPG key: ${RPM_GPG_KEYID}"
-          gpg --list-secret-keys --keyid-format LONG
-          find RPMS SRPMS -type f -name '*.rpm' -print0 | xargs -0 -r rpmsign --addsign
+          if [[ "${{ inputs.build_args }}" == "-ba" ]]; then
+            rpm -Kv RPMS/x86_64/*.rpm SRPMS/*.src.rpm
+          else
+            rpm -Kv RPMS/x86_64/*.rpm 
+          fi
         continue-on-error: true
+
 
         - name: Telegram notify build result
         if: ${{ env.NOTIFY_ON_RESULT == 'true' }}
