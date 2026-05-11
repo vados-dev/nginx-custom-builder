@@ -253,6 +253,9 @@ jobs:
           BASE_MODULES: ${{ github.event_name == 'workflow_dispatch' && inputs.base_modules || vars.BASE_MODULES || env.DEFAULT_BASE_MODULES }}
         run: |
           set -euo pipefail
+          if command -v dnf >/dev/null 2>&1; then
+            dnf -y install which || true
+          fi
           bash scripts/build-pkg-oss.sh
 
       - name: Telegram notify build result
