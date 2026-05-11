@@ -363,7 +363,7 @@ jobs:
             - enabled modules: ${{ inputs.enabled_modules }}
         continue-on-error: true
 
-        - name: Telegram notify build result
+      - name: Telegram notify build result
         if: ${{ env.NOTIFY_ON_RESULT == 'true' }}
         shell: bash
         env:
