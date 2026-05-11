@@ -91,7 +91,7 @@ while IFS= read -r row; do
 
   echo "Building custom module: ${module_name} (${module_version})"
   # shellcheck disable=SC2086
-
+#    -o "${repo_root}/artifacts/${module_name}" \
   PKG_OSS_ROOT="${work_root}/pkg-oss" bash "${repo_root}/scripts/build_module_local.sh" ${common_args} \
     --force-dynamic \
     -n "${nickname}" \
