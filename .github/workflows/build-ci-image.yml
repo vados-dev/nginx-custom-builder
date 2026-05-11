@@ -84,7 +84,28 @@ jobs:
             base_numeric_tag="v0.0.0"
           fi
 
-          tag="$(next_tag "${base_numeric_tag}")${suffix_input}"
+          # Discover latest numeric tag from existing GHCR image versions.
+          owner_lc="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          package_name="${repo_name}/ci"
+          package_name_enc="${package_name//\//%2F}"
+          tags_json="$(gh api -H "Accept: application/vnd.github+json" "/users/${owner_lc}/packages/container/${package_name_enc}/versions?per_page=100" 2>/dev/null || echo '[]')"
+          latest_registry_numeric_tag="$(
+            jq -r '
+              [
+                .[]?
+                | (.metadata.container.tags // [])[]
+                | capture("^(?<n>v[0-9]{1,2}\\.[0-9]{1,2}\\.[0-9]{1,2})").n
+              ] | unique | .[]
+            ' <<< "${tags_json}" 2>/dev/null | sort -V | tail -n1
+          )"
+          if [[ "${latest_registry_numeric_tag:-}" =~ ^v[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}$ ]]; then
+            highest_numeric_tag="$(printf '%s\n%s\n' "${base_numeric_tag}" "${latest_registry_numeric_tag}" | sort -V | tail -n1)"
+          else
+            highest_numeric_tag="${base_numeric_tag}"
+          fi
+
+          tag="$(next_tag "${highest_numeric_tag}")${suffix_input}"
           tag_sanitized="$(echo "${tag}" | tr '/:@ ' '-' | tr -cd 'a-zA-Z0-9._-')"
           echo "image=${image}" >> "${GITHUB_OUTPUT}"
           echo "tag=${tag_sanitized}" >> "${GITHUB_OUTPUT}"
