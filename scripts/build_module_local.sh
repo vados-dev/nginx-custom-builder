@@ -15,6 +15,7 @@ OSS_VER=""
 PKG_OSS_ROOT="${PKG_OSS_ROOT:-}"
 RPMBUILD_ARGS_VALUE="${BUILD_ARGS:--bb}"
 
+
 if [[ $# -eq 0 ]]; then
   echo "USAGE: $ME [options] <URL | path to module source>"
   echo " -n | --nickname <word>"
