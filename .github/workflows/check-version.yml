@@ -49,6 +49,12 @@ on:
         options:
           - "-bb"
           - "-ba"
+      release_tag:
+        description: "Optional release tag (must start with v, e.g. v0.0.1)"
+        required: false
+        default: ""
+        type: string
+
 
 jobs:
   detect:
