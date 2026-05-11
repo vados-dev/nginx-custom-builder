@@ -240,6 +240,7 @@ jobs:
           echo "build_matrix=${build_matrix}" >> "${GITHUB_OUTPUT}"
           echo "has_targets=${has_targets}" >> "${GITHUB_OUTPUT}"
 
+          
   build-rpm:
     if: ${{ needs.resolve-targets.outputs.has_targets == 'true' }}
     needs:
