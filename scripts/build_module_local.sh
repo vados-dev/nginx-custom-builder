@@ -131,7 +131,7 @@ cat > "${BUILD_DIR}/pkg-oss/docs/nginx-module-${MODULE_NAME}.xml" <<EOF
 <?xml version="1.0" ?>
 <!DOCTYPE change_log SYSTEM "changes.dtd" >
 <change_log title="nginx_module_${MODULE_NAME}">
-<changes apply="nginx-module-${MODULE_NAME}" ver="${MODULE_VERSION}" rev="${MODULE_RELEASE}" basever="${VERSION}" date="$(date +%Y-%m-%d)" time="$(date +%H:%M:%S%z)" packager="Build Script <build.script@example.com>">
+<changes apply="nginx-module-${MODULE_NAME}" ver="${MODULE_VERSION}" rev="${MODULE_RELEASE}" basever="${VERSION}" date="$(date +%Y-%m-%d)" time="$(date +%H:%M:%S%z)" packager="Build Script &lt;build.script@example.com&gt;">
 <change><para>initial release</para></change>
 </changes>
 </change_log>
