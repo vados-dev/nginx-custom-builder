@@ -1,5 +1,5 @@
 {
     "terminal.integrated.tabs.defaultIcon": "github",
-    "autocommit.enabled": false,
-    "autocommit.useAI": false
+    "autocommit.useAI": true,
+    "autocommit.enabled": true
 }
