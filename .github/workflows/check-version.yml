@@ -55,7 +55,6 @@ on:
         default: ""
         type: string
 
-
 jobs:
   detect:
     runs-on: ubuntu-latest
