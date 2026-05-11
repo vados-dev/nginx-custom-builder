@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ME="build_module_local.sh"
-OUTPUT_DIR="$(pwd)/build-module-artifacts"
+OUTPUT_DIR="$(pwd)/rpm"
 CHECK_DEPENDS=0
 SAY_YES=""
 COPY_CMD="cp -f"
