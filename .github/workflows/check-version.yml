@@ -275,6 +275,79 @@ jobs:
           echo "RPM_REPO_OS=${{ matrix.rpm_repo_os }}" >> "$GITHUB_ENV"
           echo "RPM_REPO_RELEASE=${{ matrix.rpm_repo_release }}" >> "$GITHUB_ENV"
           echo "BUILD_ARGS=${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}" >> "$GITHUB_ENV"
+          requested_tag='${{ inputs.release_tag }}'
+
+          calc_next_tag() {
+            local prev="$1"
+            local major minor patch
+            if [[ ! "${prev}" =~ ^v([0-9]{1,2})\.([0-9]{1,2})\.([0-9]{1,2})$ ]]; then
+              echo "Invalid previous release tag format: ${prev}" >&2
+              return 1
+            fi
+            major="${BASH_REMATCH[1]}"
+            minor="${BASH_REMATCH[2]}"
+            patch="${BASH_REMATCH[3]}"
+            patch=$((10#${patch} + 1))
+            if (( patch > 99 )); then
+              patch=0
+              minor=$((10#${minor} + 1))
+            fi
+            if (( minor > 99 )); then
+              minor=0
+              major=$((10#${major} + 1))
+            fi
+            if (( major > 99 )); then
+              echo "release_tag overflow: v99.99.99 is the maximum supported tag" >&2
+              return 1
+            fi
+            printf 'v%d.%d.%d\n' "${major}" "${minor}" "${patch}"
+          }
+
+          detect_previous_release_tag() {
+            local remote_url latest
+            remote_url="https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+            latest="$(
+              git ls-remote --refs --tags "${remote_url}" \
+                | awk -F/ '{print $NF}' \
+                | grep -E '^v([0-9]{1,2})\.([0-9]{1,2})\.([0-9]{1,2})$' \
+                | sort -t. -k1.2,1n -k2,2n -k3,3n \
+                | tail -n1
+            )"
+            if [[ -n "${latest}" ]]; then
+              printf '%s\n' "${latest}"
+            fi
+          }
+
+          suffix_input=""
+          explicit_tag=""
+          if [[ -n "${requested_tag}" ]]; then
+            if [[ "${requested_tag}" =~ ^v([0-9]{1,2})\.([0-9]{1,2})\.([0-9]{1,2})([a-z])?$ ]]; then
+              explicit_tag="${requested_tag}"
+            elif [[ "${requested_tag}" =~ ^[a-z]$ ]]; then
+              suffix_input="${requested_tag}"
+            else
+              echo "Invalid release_tag: ${requested_tag}" >&2
+              echo "Expected: full tag vX.Y.Z[letter] or single suffix letter (e.g. b)" >&2
+              exit 1
+            fi
+          fi
+
+          if [[ -n "${explicit_tag}" ]]; then
+            if [[ "${explicit_tag}" =~ ^(main|master|develop|dev)$ ]]; then
+              echo "Ref-like tag names are forbidden: ${explicit_tag}" >&2
+              exit 1
+            fi
+            echo "RELEASE_TAG=${explicit_tag}" >> "$GITHUB_ENV"
+          else
+            previous_tag="$(detect_previous_release_tag || true)"
+            if [[ -n "${previous_tag}" ]]; then
+              next_tag="$(calc_next_tag "${previous_tag}")"
+              echo "RELEASE_TAG=${next_tag}${suffix_input}" >> "$GITHUB_ENV"
+              echo "PREVIOUS_RELEASE_TAG=${previous_tag}" >> "$GITHUB_ENV"
+            else
+              echo "RELEASE_TAG=v0.0.1${suffix_input}" >> "$GITHUB_ENV"
+            fi
+          fi
         continue-on-error: true
 
       - name: Build via pkg-oss
