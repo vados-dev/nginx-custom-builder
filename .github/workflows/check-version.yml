@@ -307,7 +307,7 @@ jobs:
 
           echo "Using GPG key: ${RPM_GPG_KEYID}"
           gpg --list-secret-keys --keyid-format LONG
-          find RPMS SRPMS -type f -name '*.rpm' -print0 | xargs -0 -r rpmsign --addsign
+          find rpm/RPMS SRPMS -type f -name '*.rpm' -print0 | xargs -0 -r rpmsign --addsign
         continue-on-error: true
 
       - name: Verify RPM signatures
