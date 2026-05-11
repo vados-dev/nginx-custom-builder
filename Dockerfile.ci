@@ -13,8 +13,7 @@ RUN set -eux; dnf -y update || true
 RUN set -eux; dnf -y install rpm-build rpmdevtools rpm-sign redhat-rpm-config gcc make curl mc \
  wget git gnupg2 cpio systemd createrepo_c pkgconf-pkg-config jq which krb5-devel rust cargo clang cmake \
  zlib-devel pcre2-devel openssl-devel gd-devel libxslt-devel perl-devel perl-ExtUtils-Embed perl-macros \
- cmark-devel mercurial libedit-devel libmaxminddb-devel && dnf clean all ;
-
+ cmark-devel mercurial libedit-devel libmaxminddb-devel libcares re2 && dnf clean all ;
 
 COPY src/mc.tar.gz /tmp/mc.tar.gz
 RUN set -eux; \
