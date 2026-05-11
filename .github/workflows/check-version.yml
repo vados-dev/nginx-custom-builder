@@ -278,7 +278,7 @@ jobs:
         continue-on-error: true
 
       - name: Telegram notify build result
-        if: ${{ always() }}
+        if: ${{ env.NOTIFY_ON_RESULT == 'true' }}
         shell: bash
         env:
           TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
