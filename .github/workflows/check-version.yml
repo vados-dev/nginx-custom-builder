@@ -371,7 +371,7 @@ jobs:
             - Ref name: ${{ env.REF_NAME }}
             - SHA: ${{ env.SHA }}
             - nginx channel: ${{ inputs.nginx_channel }}
-            - rpm repo os: ${{ env.SOURCE_REPO }}
+            - rpm repo os: ${{ env.RPM_REPO }}
             - source rpm: ${{ env.SOURCE_RPM }}
             - source tarball: ${{ env.SOURCE_TARBALL }}
             - release tag: ${{ env.RELEASE_TAG }}
