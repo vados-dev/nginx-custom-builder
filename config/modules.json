@@ -13,7 +13,7 @@
   "custom_modules": [
     {
       "name": "markdown-filter",
-      "nickname": "markdown-filter",
+      "nickname": "markdown_filter",
       "repo": "https://github.com/ukarim/ngx_markdown_filter_module",
       "version_mode": "head_commit",
       "base_version": "0.0.1",
@@ -21,7 +21,7 @@
     },
     {
       "name": "include-server",
-      "nickname": "include-server",
+      "nickname": "include_server",
       "repo": "https://github.com/RekGRpth/ngx_http_include_server_module",
       "version_mode": "head_commit",
       "base_version": "0.0.1",
@@ -29,7 +29,7 @@
     },
     {
       "name": "error-page-inherit",
-      "nickname": "error-page-inherit",
+      "nickname": "error_page_inherit",
       "repo": "https://github.com/RekGRpth/ngx_http_error_page_inherit_module",
       "version_mode": "head_commit",
       "base_version": "0.0.1",
