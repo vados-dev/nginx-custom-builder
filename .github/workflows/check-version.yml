@@ -39,6 +39,14 @@ on:
         required: false
         default: "acme geoip2 image-filter njs otel perl xslt"
         type: string
+      build_args:
+        description: "rpmbuild mode"
+        required: true
+        default: "-bb"
+        type: choice
+        options:
+          - "-bb"
+          - "-ba"
 
 jobs:
   detect:
@@ -251,6 +259,7 @@ jobs:
           CHANNEL: ${{ matrix.channel }}
           TARGET_ID: ${{ matrix.target_id }}
           BASE_MODULES: ${{ github.event_name == 'workflow_dispatch' && inputs.base_modules || vars.BASE_MODULES || env.DEFAULT_BASE_MODULES }}
+          BUILD_ARGS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}
         run: |
           set -euo pipefail
           if command -v dnf >/dev/null 2>&1; then

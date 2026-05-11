@@ -5,6 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 channel="${CHANNEL:?CHANNEL is required}"
 target_id="${TARGET_ID:?TARGET_ID is required}"
 base_modules="${BASE_MODULES:-}"
+build_args="${BUILD_ARGS:--bb}"
 
 nginx_version_url="$(jq -r --arg c "${channel}" '.channels[$c].nginx_version_url' config/modules.json)"
 
@@ -48,12 +49,12 @@ if [[ -n "${base_modules//[[:space:]]/}" ]]; then
     make_targets+=("module-${mod}")
   done
   if [[ "${#make_targets[@]}" -gt 0 ]]; then
-    make "${make_targets[@]}"
+    RPMBUILD_ARGS="${build_args}" make "${make_targets[@]}"
   else
-    make "${pkg_target}"
+    RPMBUILD_ARGS="${build_args}" make "${pkg_target}"
   fi
 else
-  make "${pkg_target}"
+  RPMBUILD_ARGS="${build_args}" make "${pkg_target}"
 fi
 popd >/dev/null
 

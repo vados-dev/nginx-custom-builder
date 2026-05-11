@@ -13,6 +13,7 @@ MODULE_RELEASE="1"
 BUILD_PLATFORM="OSS"
 OSS_VER=""
 PKG_OSS_ROOT="${PKG_OSS_ROOT:-}"
+RPMBUILD_ARGS_VALUE="${BUILD_ARGS:--bb}"
 
 if [[ $# -eq 0 ]]; then
   echo "USAGE: $ME [options] <URL | path to module source>"
@@ -152,7 +153,7 @@ EOF
 
 cp "${BUILD_DIR}/Makefile.module-${MODULE_NAME}" "${BUILD_DIR}/pkg-oss/rpm/SPECS/"
 
-( cd "${BUILD_DIR}/pkg-oss/rpm/SPECS" && make "module-${MODULE_NAME}" )
+( cd "${BUILD_DIR}/pkg-oss/rpm/SPECS" && RPMBUILD_ARGS="${RPMBUILD_ARGS_VALUE}" make "module-${MODULE_NAME}" )
 
 find "${BUILD_DIR}/pkg-oss/rpm" -type f -name "*.rpm" -exec ${COPY_CMD} -v {} "${OUTPUT_DIR}/" \;
 rm -rf "${BUILD_DIR}"
