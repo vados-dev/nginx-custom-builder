@@ -15,8 +15,8 @@ OSS_VER=""
 PKG_OSS_ROOT="${PKG_OSS_ROOT:-}"
 RPMBUILD_ARGS_VALUE="${BUILD_ARGS:--bb}"
 PACKAGE_OUTPUT_DIR=RPMS
-
-
+SOURCES_OUTPUT_DIR=SRPMS
+PACKAGING_ROOT=pkg-oss/rpm/
 
 if [[ $# -eq 0 ]]; then
   echo "USAGE: $ME [options] <URL | path to module source>"
@@ -154,10 +154,15 @@ MODULE_CONFARGS_${MODULE_NAME}= --add-dynamic-module=\$(MODSRC_PREFIX)${MODULE_N
 MODULE_SOURCES_${MODULE_NAME}= ${MODULE_NAME}-$VERSION.tar.gz
 EOF
 
-cp "${BUILD_DIR}/Makefile.module-${MODULE_NAME}" "${BUILD_DIR}/pkg-oss/rpm/SPECS/"
+cp "${BUILD_DIR}/Makefile.module-${MODULE_NAME}" "${BUILD_DIR}/${PACKAGING_ROOT}SPECS/"
 
-( cd "${BUILD_DIR}/pkg-oss/rpm/SPECS" && RPMBUILD_ARGS="${RPMBUILD_ARGS_VALUE}" make "module-${MODULE_NAME}" )
+( cd "${BUILD_DIR}/${PACKAGING_ROOT}SPECS" && RPMBUILD_ARGS="${RPMBUILD_ARGS_VALUE}" make "module-${MODULE_NAME}" )
 
 #find "${BUILD_DIR}/pkg-oss/rpm" -type f -name "*.rpm" -exec ${COPY_CMD} -v {} "${OUTPUT_DIR}/" \;
-${COPY_CMD}
+echo "$ME: INFO: copy ${BUILD_DIR}/${PACKAGING_ROOT}${PACKAGE_OUTPUT_DIR} to ${OUTPUT_DIR}"
+${COPY_CMD} ${BUILD_DIR}/${PACKAGING_ROOT}${PACKAGE_OUTPUT_DIR} ${OUTPUT_DIR}
+if [[ "${RPMBUILD_ARGS_VALUE}" == "-ba" ]]; then
+  echo "$ME: INFO: copy ${BUILD_DIR}/${PACKAGING_ROOT}${SOURCES_OUTPUT_DIR} to ${OUTPUT_DIR}"
+  ${COPY_CMD} ${BUILD_DIR}/${PACKAGING_ROOT}${SOURCES_OUTPUT_DIR} ${OUTPUT_DIR}
+fi
 rm -rf "${BUILD_DIR}"
