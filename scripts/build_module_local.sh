@@ -15,7 +15,7 @@ OSS_VER=""
 PKG_OSS_ROOT="${PKG_OSS_ROOT:-}"
 RPMBUILD_ARGS_VALUE="${BUILD_ARGS:--bb}"
 PACKAGE_OUTPUT_DIR=RPMS
-#    -o "${repo_root}/artifacts/${module_name}" \
+
 
 
 if [[ $# -eq 0 ]]; then
