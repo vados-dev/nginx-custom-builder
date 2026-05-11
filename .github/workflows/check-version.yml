@@ -335,7 +335,35 @@ jobs:
           fi
         continue-on-error: true
 
-      - name: Telegram notify build result
+      - name: Upload to release
+        uses: softprops/action-gh-release@v3
+        env:
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+        with:
+          files: |
+            RPMS/**/*.rpm
+            SRPMS/*.src.rpm
+          name: "Build custom: ${{ env.RELEASE_TAG }} nginx ${{ env.NGINX_VERSION }} (${{ inputs.nginx_channel }})"
+          tag_name: ${{ env.RELEASE_TAG }}
+          body: |
+            Build info:
+            - Date: ${{ env.DateTime }}
+            - Run ID: ${{ env.GITHUB_RUN_ID }}
+            - Ref: ${{ env.REF }}
+            - Ref name: ${{ env.REF_NAME }}
+            - SHA: ${{ env.SHA }}
+            - nginx channel: ${{ inputs.nginx_channel }}
+            - source repo: ${{ env.SOURCE_REPO }}
+            - source rpm: ${{ env.SOURCE_RPM }}
+            - source tarball: ${{ env.SOURCE_TARBALL }}
+            - release tag: ${{ env.RELEASE_TAG }}
+            - nginx version: ${{ env.NGINX_VERSION }}
+            - rpmbuild arguments: ${{ inputs.build_args }}
+            - debug packages disabled: ${{ inputs.disable_debug_packages }}
+            - enabled modules: ${{ inputs.enabled_modules }}
+        continue-on-error: true
+
+        - name: Telegram notify build result
         if: ${{ env.NOTIFY_ON_RESULT == 'true' }}
         shell: bash
         env:
