@@ -375,7 +375,7 @@ jobs:
             - rpm repo release: ${{ env.RPM_REPO_RELEASE }}
             - release tag: ${{ env.RELEASE_TAG }}
             - nginx version: ${{ env.NGINX_VERSION }}
-            - rpmbuild arguments: ${{ env.BU }}
+            - rpmbuild arguments: ${{ env.BUILD }}
             - enabled base modules: ${{ inputs.base_modules }}
         continue-on-error: true
 
