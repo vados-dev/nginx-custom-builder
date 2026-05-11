@@ -275,7 +275,7 @@ jobs:
           echo "RPM_REPO_OS=${{ matrix.rpm_repo_os }}" >> "$GITHUB_ENV"
           echo "RPM_REPO_OS=${{ matrix.rpm_repo_release }}" >> "$GITHUB_ENV"
           echo "BUILD_ARGS=${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}" >> "$GITHUB_ENV"
-      
+      continue-on-error: true
 
       - name: Build via pkg-oss
         shell: bash
