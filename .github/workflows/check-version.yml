@@ -262,9 +262,6 @@ jobs:
           BUILD_ARGS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}
         run: |
           set -euo pipefail
-          if command -v dnf >/dev/null 2>&1; then
-            dnf -y install which || true
-          fi
           bash scripts/build-pkg-oss.sh
 
       - name: Telegram notify build result
