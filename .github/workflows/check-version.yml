@@ -373,7 +373,6 @@ jobs:
             - nginx channel: ${{ inputs.nginx_channel }}
             - rpm repo os: ${{ env.RPM_REPO_OS }}
             - rpm repo release: ${{ env.RPM_REPO_RELEASE }}
-            - source tarball: ${{ env.SOURCE_TARBALL }}
             - release tag: ${{ env.RELEASE_TAG }}
             - nginx version: ${{ env.NGINX_VERSION }}
             - rpmbuild arguments: ${{ inputs.build_args }}
