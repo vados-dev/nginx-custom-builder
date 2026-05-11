@@ -318,7 +318,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -f "SOURCES/RPM-GPG-KEY-nginx" ]]; then
-            rpm --import "SOURCES/RPM-GPG-KEY-nginx"
+            rpm --import "src/RPM-GPG-KEY-nginx"
           else
             gpg --batch --yes --armor --export "${RPM_GPG_KEYID}" > /tmp/RPM-GPG-KEY-build
             rpm --import /tmp/RPM-GPG-KEY-build
