@@ -54,7 +54,7 @@ on:
         required: true
         default: "none"
         type: choice
-        options: [none, release, ]
+        options: [none, release, prerelease]
       release_tag:
         description: "Optional release tag (must start with v, e.g. v0.0.1)"
         required: false
