@@ -49,7 +49,7 @@ on:
         options:
           - "-bb"
           - "-ba"
-      :
+      upload_release:
         description: "Build target OS"
         required: true
         default: "centos-10"
