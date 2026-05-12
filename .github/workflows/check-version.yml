@@ -50,7 +50,7 @@ on:
           - "-bb"
           - "-ba"
       upload_release:
-        description: "Build target OS"
+        description: "Upload"
         required: true
         default: "centos-10"
         type: choice
