@@ -14,4 +14,4 @@ index 1111111..2222222 100755
 +  git -C "${work_root}/pkg-oss" checkout -B "${pkg_oss_branch}" "origin/${pkg_oss_branch}"
 +fi
 +
- cp -a "${repo_root}/src/." "${work_root}/pkg-oss/" 2>/dev/null || true
+ cp -a "${repo_root}/src/." "${work_root}/pkg-oss/SOURCES/" 2>/dev/null || true
