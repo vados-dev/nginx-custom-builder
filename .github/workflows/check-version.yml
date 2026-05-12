@@ -152,334 +152,981 @@ jobs:
           printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
           echo >> "${GITHUB_OUTPUT}"
           echo "${delim2}" >> "${GITHUB_OUTPUT}"
-
-      - name: Commit version state
-        if: ${{ steps.detect.outputs.state_changed == 'true' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/version-state/
-          git diff --cached --quiet || git commit -m "ci: update nginx version state"
-          git push
-
-      - name: Telegram notify updates
-        if: ${{ steps.detect.outputs.changed_any == 'true' && env.NOTIFY_ON_UPDATE == 'true' }}
-        shell: bash
-        env:
-          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TG_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${TG_TOKEN:-}" || -z "${TG_CHAT_ID:-}" ]]; then
-            exit 0
-          fi
-
-          report="$(printf '%s' "${{ steps.detect.outputs.detect_report }}" | sed '/^$/d')"
-          modules_report="$(printf '%s' "${{ steps.detect.outputs.modules_report }}" | sed '/^$/d')"
-          message="nginx update detected%0Arepo: ${{ github.repository }}"
-          while IFS='|' read -r channel prev cur changed; do
-            [[ -z "${channel}" ]] && continue
-            if [[ "${changed}" == "true" ]]; then
-              message+="%0Achannel=${channel}: ${prev} -> ${cur}"
-            fi
-          done <<< "${report}"
-          while IFS='|' read -r mod old_sha new_sha changed; do
-            [[ -z "${mod}" ]] && continue
-            if [[ "${changed}" == "true" ]]; then
-              message+="%0Amodule=${mod}: ${old_sha} -> ${new_sha}"
-            fi
-          done <<< "${modules_report}"
-
-          curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
-            -d "chat_id=${TG_CHAT_ID}" \
-            -d "text=${message}"
-
-  resolve-targets:
-    if: ${{ needs.detect.outputs.changed_any == 'true' }}
-    needs: detect
-    runs-on: ubuntu-latest
-    outputs:
-      build_matrix: ${{ steps.resolve.outputs.build_matrix }}
-      has_targets: ${{ steps.resolve.outputs.has_targets }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Resolve enabled targets
-        id: resolve
-        shell: bash
-        env:
-          CHANNELS_JSON: ${{ needs.detect.outputs.channels_json }}
-          EVENT_NAME: ${{ github.event_name }}
-          INPUT_BUILD_OS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_os || 'all' }}
-          INPUT_CI_BASE_IMAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_base_image || '' }}
-        run: |
-          set -euo pipefail
-
-          enabled_targets="$(jq -c '[.targets[] | select(.enabled == true)]' config/targets.json)"
-          if [[ "${EVENT_NAME}" == "workflow_dispatch" && "${INPUT_BUILD_OS}" != "all" ]]; then
-            enabled_targets="$(jq -c --arg id "${INPUT_BUILD_OS}" '[.targets[] | select(.id == $id and .enabled == true)]' config/targets.json)"
-          fi
-          if [[ "${EVENT_NAME}" == "workflow_dispatch" && -n "${INPUT_CI_BASE_IMAGE}" ]]; then
-            enabled_targets="$(jq -c --arg img "${INPUT_CI_BASE_IMAGE}" 'map(.container_image = $img)' <<< "${enabled_targets}")"
-          fi
-          channels="$(jq -c '.include // []' <<< "${CHANNELS_JSON}")"
-
-          build_matrix="$(jq -nc --argjson targets "${enabled_targets}" --argjson channels "${channels}" '
-            {
-              include: [
-                $channels[] as $c
-                | $targets[] as $t
-                | {
-                    channel: $c.channel,
-                    target_id: $t.id,
-                    container_image: $t.container_image,
-                    rpm_repo_os: $t.rpm_repo_os,
-                    rpm_repo_release: ($t.rpm_repo_release|tostring)
-                  }
-              ]
-            }
-          ')"
-
-          has_targets="false"
-          if [[ "$(jq '.include | length' <<< "${build_matrix}")" -gt 0 ]]; then
-            has_targets="true"
-          fi
-
-          echo "build_matrix=${build_matrix}" >> "${GITHUB_OUTPUT}"
-          echo "has_targets=${has_targets}" >> "${GITHUB_OUTPUT}"
-
-  build-rpm:
-    if: ${{ needs.resolve-targets.outputs.has_targets == 'true' }}
-    needs:
-      - detect
-      - resolve-targets
-    runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
-      RPM_GPG_PRIVATE_KEY: ${{ secrets.RPM_GPG_PRIVATE_KEY }}
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix: ${{ fromJson(needs.resolve-targets.outputs.build_matrix) }}
-    container: ${{ matrix.container_image }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Get env variables
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "DT_STAMP=$(date +%Y%m%d%H%M)" >> "$GITHUB_ENV"
-          echo "DateTime=$(date +%d.%m.%Y-%T)" >> "$GITHUB_ENV"
-          echo "REF=${{ github.ref }}" >> "$GITHUB_ENV"
-          echo "REF_NAME=${{ github.ref_name }}" >> "$GITHUB_ENV"
-          echo "GITHUB_RUN_ID=${{ github.run_id }}" >> "$GITHUB_ENV"
-          echo "SHA=${{ github.sha }}" >> "$GITHUB_ENV"
-          echo "NGINX_VERSION=${{ steps.prepare.outputs.nginx_version }}" >> "$GITHUB_ENV"
-          echo "CHANEL=${{ matrix.channel }}" >> "$GITHUB_ENV"
-          echo "TARGET_ID=${{ matrix.target_id }}"  >> "$GITHUB_ENV"
-          echo "BASE_MODULES=${{ github.event_name == 'workflow_dispatch' && inputs.base_modules || vars.BASE_MODULES || env.DEFAULT_BASE_MODULES }}" >> "$GITHUB_ENV"
-          echo "RPM_REPO_OS=${{ matrix.rpm_repo_os }}" >> "$GITHUB_ENV"
-          echo "RPM_REPO_RELEASE=${{ matrix.rpm_repo_release }}" >> "$GITHUB_ENV"
-          echo "BUILD_ARGS=${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}" >> "$GITHUB_ENV"
-          requested_tag='${{ inputs.release_tag }}'
-
-          calc_next_tag() {
-            local prev="$1"
-            local major minor patch
-            if [[ ! "${prev}" =~ ^v([0-9]{1,2})\.([0-9]{1,2})\.([0-9]{1,2})$ ]]; then
-              echo "Invalid previous release tag format: ${prev}" >&2
-              return 1
-            fi
-            major="${BASH_REMATCH[1]}"
-            minor="${BASH_REMATCH[2]}"
-            patch="${BASH_REMATCH[3]}"
-            patch=$((10#${patch} + 1))
-            if (( patch > 99 )); then
-              patch=0
-              minor=$((10#${minor} + 1))
-            fi
-            if (( minor > 99 )); then
-              minor=0
-              major=$((10#${major} + 1))
-            fi
-            if (( major > 99 )); then
-              echo "release_tag overflow: v99.99.99 is the maximum supported tag" >&2
-              return 1
-            fi
-            printf 'v%d.%d.%d\n' "${major}" "${minor}" "${patch}"
-          }
-
-          detect_previous_release_tag() {
-            local remote_url latest
-            remote_url="https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
-            latest="$(
-              git ls-remote --refs --tags "${remote_url}" \
-                | awk -F/ '{print $NF}' \
-                | grep -E '^v([0-9]{1,2})\.([0-9]{1,2})\.([0-9]{1,2})$' \
-                | sort -t. -k1.2,1n -k2,2n -k3,3n \
-                | tail -n1
-            )"
-            if [[ -n "${latest}" ]]; then
-              printf '%s\n' "${latest}"
-            fi
-          }
-
-          suffix_input=""
-          explicit_tag=""
-          if [[ -n "${requested_tag}" ]]; then
-            if [[ "${requested_tag}" =~ ^v([0-9]{1,2})\.([0-9]{1,2})\.([0-9]{1,2})([a-z])?$ ]]; then
-              explicit_tag="${requested_tag}"
-            elif [[ "${requested_tag}" =~ ^[a-z]$ ]]; then
-              suffix_input="${requested_tag}"
-            else
-              echo "Invalid release_tag: ${requested_tag}" >&2
-              echo "Expected: full tag vX.Y.Z[letter] or single suffix letter (e.g. b)" >&2
-              exit 1
-            fi
-          fi
-
-          if [[ -n "${explicit_tag}" ]]; then
-            if [[ "${explicit_tag}" =~ ^(main|master|develop|dev)$ ]]; then
-              echo "Ref-like tag names are forbidden: ${explicit_tag}" >&2
-              exit 1
-            fi
-            echo "RELEASE_TAG=${explicit_tag}" >> "$GITHUB_ENV"
-          else
-            previous_tag="$(detect_previous_release_tag || true)"
-            if [[ -n "${previous_tag}" ]]; then
-              next_tag="$(calc_next_tag "${previous_tag}")"
-              echo "RELEASE_TAG=${next_tag}${suffix_input}" >> "$GITHUB_ENV"
-              echo "PREVIOUS_RELEASE_TAG=${previous_tag}" >> "$GITHUB_ENV"
-            else
-              echo "RELEASE_TAG=v0.0.1${suffix_input}" >> "$GITHUB_ENV"
-            fi
-          fi
-        continue-on-error: true
-
-      - name: Build via pkg-oss
-        shell: bash
-        env:
-          CHANNEL: ${{ matrix.channel }}
-          TARGET_ID: ${{ matrix.target_id }}
-          BASE_MODULES: ${{ github.event_name == 'workflow_dispatch' && inputs.base_modules || vars.BASE_MODULES || env.DEFAULT_BASE_MODULES }}
-          BUILD_ARGS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}
-        run: |
-          set -euo pipefail
-          bash scripts/build-pkg-oss.sh
-
-      - name: Import GPG key
-        if: ${{ env.RPM_GPG_PRIVATE_KEY != '' }}
-        id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v7
-        with:
-          gpg_private_key: ${{ env.RPM_GPG_PRIVATE_KEY }}
-        continue-on-error: true
-
-      - name: Sign RPM packages
-        if: ${{ steps.import_gpg.outcome == 'success' }}
-        shell: bash
-        env:
-          RPM_GPG_KEYID: ${{ steps.import_gpg.outputs.fingerprint }}
-        run: |
-          set -euo pipefail
-          export GPG_TTY="${GPG_TTY:-$(tty 2>/dev/null || true)}"
-          if [ -n "${RPM_GPG_PASSPHRASE:-}" ]; then
-          cat > ~/.rpmmacros <<EOF
-          %_signature gpg
-          %_gpg_name ${RPM_GPG_KEYID}
-          %_gpg_path %{getenv:HOME}/.gnupg
-          %_gpgbin /usr/bin/gpg
-          %__gpg /usr/bin/gpg
-          %__gpg_sign_cmd %{__gpg} --batch --yes --pinentry-mode loopback --passphrase '${RPM_GPG_PASSPHRASE}' --no-armor --local-user "%{_gpg_name}" --detach-sign --output %{__signature_filename} %{__plaintext_filename}
-          EOF
-          else
-          cat > ~/.rpmmacros <<EOF
-          %_signature gpg
-          %_gpg_name ${RPM_GPG_KEYID}
-          %_gpg_path %{getenv:HOME}/.gnupg
-          %_gpgbin /usr/bin/gpg
-          %__gpg /usr/bin/gpg
-          %__gpg_sign_cmd %{__gpg} --batch --yes --no-armor --local-user "%{_gpg_name}" --detach-sign --output %{__signature_filename} %{__plaintext_filename}
-          EOF
-          fi
-
-          echo "Using GPG key: ${RPM_GPG_KEYID}"
-          gpg --list-secret-keys --keyid-format LONG
-          if [[ "${{ inputs.build_args }}" == "-ba" ]]; then
-            find rpm/RPMS rpm/SRPMS -type f -name '*.rpm' -print0 | xargs -0 -r rpmsign --addsign
-          else
-            find rpm/RPMS -type f -name '*.rpm' -print0 | xargs -0 -r rpmsign --addsign
-          fi
-        continue-on-error: true
-
-      - name: Verify RPM signatures
-        if: ${{ steps.import_gpg.outcome == 'success' }}
-        shell: bash
-        env:
-          RPM_GPG_KEYID: ${{ steps.import_gpg.outputs.fingerprint }}
-        run: |
-          set -euo pipefail
-          if [[ -f "src/RPM-GPG-KEY-nginx" ]]; then
-            rpm --import "src/RPM-GPG-KEY-nginx"
-          else
-            gpg --batch --yes --armor --export "${RPM_GPG_KEYID}" > /tmp/RPM-GPG-KEY-build
-            rpm --import /tmp/RPM-GPG-KEY-build
-          fi
-
-          if [[ "${{ inputs.build_args }}" == "-ba" ]]; then
-            rpm -Kv rpm/RPMS/x86_64/*.rpm rpm/SRPMS/*.src.rpm
-          else
-            rpm -Kv rpm/RPMS/x86_64/*.rpm 
-          fi
-        continue-on-error: true
-
-      - name: Upload to release
-        uses: softprops/action-gh-release@v3
-        env:
-          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
-        with:
-          files: |
-            rpm/RPMS/**/*.rpm
-            rpm/SRPMS/*.src.rpm
-          name: "Build custom: ${{ env.RELEASE_TAG }} nginx ${{ env.NGINX_VERSION }} (${{ env.CHANNEL }})"
-          tag_name: ${{ env.RELEASE_TAG }}
-          body: |
-            Build info:
-            - Date: ${{ env.DateTime }}
-            - Run ID: ${{ env.GITHUB_RUN_ID }}
-            - Ref: ${{ env.REF }}
-            - Ref name: ${{ env.REF_NAME }}
-            - SHA: ${{ env.SHA }}
-            - nginx channel: ${{ env.CHANNEL }}
-            - target id: ${{ env.TARGET_ID }}
-            - rpm repo os: ${{ env.RPM_REPO_OS }}
-            - rpm repo release: ${{ env.RPM_REPO_RELEASE }}
-            - release tag: ${{ env.RELEASE_TAG }}
-            - nginx version: ${{ env.NGINX_VERSION }}
-            - rpmbuild arguments: ${{ env.BUILD_ARG }}
-            - enabled base modules: ${{ inputs.base_modules }}
-        continue-on-error: true
-
-      - name: Telegram notify build result
-        if: ${{ env.NOTIFY_ON_RESULT == 'true' }}
-        shell: bash
-        env:
-          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TG_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${TG_TOKEN:-}" || -z "${TG_CHAT_ID:-}" ]]; then
-            exit 0
-          fi
-
-          status="${{ job.status }}"
-          message="pkg-oss build ${status}%0Arepo: ${{ github.repository }}%0Achannel: ${{ matrix.channel }}%0Atarget: ${{ matrix.target_id }}"
-
-          curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
-            -d "chat_id=${TG_CHAT_ID}" \
-            -d "text=${message}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim3="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim3}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim3}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim4="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim4}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim4}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim5="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim5}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim5}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim6="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim6}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim6}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim7="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim7}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim7}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim8="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim8}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim8}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim9="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim9}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim9}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim10="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim10}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim10}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim11="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim11}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim11}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim12="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim12}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim12}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim13="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim13}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim13}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim14="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim14}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim14}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim15="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim15}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim15}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim16="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim16}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim16}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim17="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim17}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim17}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim18="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim18}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim18}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim19="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim19}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim19}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim20="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim20}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim20}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim21="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim21}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim21}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim22="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim22}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim22}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim23="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim23}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim23}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim24="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim24}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim24}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim25="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim25}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim25}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim26="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim26}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim26}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim27="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim27}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim27}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim28="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim28}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim28}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim29="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim29}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim29}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim30="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim30}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim30}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim31="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim31}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim31}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim32="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim32}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim32}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim33="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim33}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim33}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim34="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim34}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim34}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim35="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim35}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim35}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim36="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim36}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim36}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim37="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim37}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim37}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim38="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim38}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim38}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim39="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim39}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim39}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim40="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim40}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim40}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim41="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim41}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim41}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim42="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim42}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim42}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim43="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim43}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim43}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim44="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim44}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim44}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim45="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim45}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim45}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim46="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim46}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim46}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim47="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim47}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim47}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim48="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim48}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim48}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim49="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim49}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim49}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim50="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim50}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim50}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim51="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim51}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim51}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim52="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim52}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim52}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim53="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim53}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim53}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim54="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim54}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim54}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim55="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim55}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim55}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim56="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim56}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim56}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim57="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim57}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim57}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim58="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim58}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim58}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim59="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim59}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim59}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim60="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim60}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim60}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim61="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim61}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim61}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim62="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim62}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim62}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim63="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim63}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim63}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim64="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim64}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim64}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim65="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim65}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim65}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim66="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim66}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim66}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim67="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim67}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim67}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim68="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim68}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim68}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim69="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim69}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim69}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim70="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim70}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim70}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim71="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim71}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim71}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim72="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim72}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim72}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim73="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim73}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim73}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim74="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim74}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim74}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim75="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim75}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim75}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim76="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim76}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim76}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim77="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim77}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim77}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim78="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim78}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim78}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim79="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim79}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim79}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim80="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim80}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim80}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim81="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim81}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim81}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim82="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim82}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim82}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim83="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim83}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim83}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim84="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim84}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim84}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim85="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim85}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim85}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim86="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim86}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim86}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim87="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim87}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim87}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim88="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim88}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim88}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim89="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim89}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim89}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim90="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim90}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim90}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim91="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim91}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim91}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim92="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim92}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim92}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim93="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim93}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim93}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim94="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim94}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim94}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim95="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim95}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim95}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim96="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim96}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim96}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim97="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim97}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim97}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim98="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim98}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim98}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim99="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim99}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim99}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim100="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim100}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim100}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim101="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim101}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim101}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim102="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim102}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim102}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim103="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim103}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim103}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim104="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim104}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim104}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim105="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim105}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim105}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim106="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim106}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim106}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim107="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim107}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim107}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim108="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim108}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim108}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim109="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim109}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim109}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim110="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim110}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim110}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim111="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim111}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim111}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim112="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim112}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim112}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim113="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim113}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim113}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim114="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim114}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim114}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim115="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim115}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim115}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim116="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim116}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim116}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim117="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim117}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim117}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim118="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim118}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim118}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim119="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim119}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim119}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim120="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim120}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim120}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim121="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim121}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim121}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim122="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim122}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim122}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim123="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim123}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim123}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim124="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim124}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim124}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim125="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim125}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim125}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim126="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim126}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim126}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim127="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim127}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim127}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim128="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim128}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim128}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim129="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim129}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim129}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim130="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim130}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim130}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim131="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim131}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim131}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim132="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim132}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim132}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim133="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim133}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim133}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim134="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim134}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim134}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim135="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim135}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim135}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim136="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim136}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim136}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim137="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim137}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim137}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim138="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim138}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim138}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim139="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim139}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim139}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim140="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim140}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim140}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim141="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim141}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim141}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim142="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim142}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim142}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim143="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim143}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim143}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim144="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim144}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim144}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim145="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim145}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim145}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim146="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim146}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim146}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim147="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim147}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim147}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim148="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim148}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim148}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim149="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim149}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim149}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim150="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim150}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim150}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim151="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim151}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim151}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim152="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim152}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim152}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim153="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim153}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim153}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim154="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim154}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim154}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim155="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim155}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim155}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim156="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim156}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim156}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim157="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim157}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim157}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim158="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim158}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim158}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim159="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim159}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim159}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim160="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim160}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim160}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim161="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim161}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim161}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim162="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim162}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim162}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim163="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim163}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim163}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim164="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim164}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${delim164}" >> "${GITHUB_OUTPUT}"
+          echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
+          delim165="MODULES_REPORT_$(date +%s)_$RANDOM"
+          echo "modules_report<<${delim165}" >> "${GITHUB_OUTPUT}"
+          printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
+          echo >> "${GITHUB_OUTPUT}"
+          echo "${
