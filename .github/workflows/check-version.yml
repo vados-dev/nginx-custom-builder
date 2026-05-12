@@ -299,6 +299,7 @@ jobs:
           echo "RPM_REPO_RELEASE=${{ matrix.rpm_repo_release }}" >> "$GITHUB_ENV"
           echo "BUILD_ARGS=${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}" >> "$GITHUB_ENV"
           requested_tag='${{ inputs.release_tag }}'
+
           calc_next_tag() {
             local prev="$1"
             local major minor patch
