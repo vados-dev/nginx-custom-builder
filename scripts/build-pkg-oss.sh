@@ -40,6 +40,7 @@ pkg_oss_repo="$(jq -r '.pkg_oss_repo' config/targets.json)"
 pkg_oss_branch="$(jq -r --arg c "${channel}" '.channels[$c].pkg_oss_branch // empty' config/modules.json)"
 
 git clone --depth 1 "${pkg_oss_repo}" "${work_root}/pkg-oss"
+
 cp -a "${repo_root}/src/." "${work_root}/pkg-oss/" 2>/dev/null || true
 
 pushd "${work_root}/pkg-oss/${pkg_dir}" >/dev/null
