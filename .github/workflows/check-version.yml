@@ -49,6 +49,12 @@ on:
         options:
           - "-bb"
           - "-ba"
+build_os:
+        description: "Build target OS"
+        required: true
+        default: "centos-10"
+        type: choice
+        options: [all, centos-10, almalinux-9]
       release_tag:
         description: "Optional release tag (must start with v, e.g. v0.0.1)"
         required: false
