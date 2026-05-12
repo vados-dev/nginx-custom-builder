@@ -6,7 +6,7 @@ index 1111111..2222222 100755
  fi
  
  pkg_oss_repo="$(jq -r '.pkg_oss_repo' config/targets.json)"
-+pkg_oss_branch="$(jq -r --arg c "${channel}" '.channels[$c].pkg_oss_branch // empty' config/modules.json)"
++
 +
  git clone --depth 1 "${pkg_oss_repo}" "${work_root}/pkg-oss"
 +if [[ -n "${pkg_oss_branch}" ]]; then
