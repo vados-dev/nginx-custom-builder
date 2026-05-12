@@ -50,8 +50,8 @@ on:
           - "-bb"
           - "-ba"
       upload_release:
-        description: "Upload"
-        required: true
+        description: "Upload to release"
+        required: tru
         default: "centos-10"
         type: choice
         options: [all, centos-10, almalinux-9]
