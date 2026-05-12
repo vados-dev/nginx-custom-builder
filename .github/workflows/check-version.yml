@@ -507,3 +507,58 @@ jobs:
           curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
             -d "chat_id=${TG_CHAT_ID}" \
             -d "text=${message}"
+
+
+  publish-gh-pages:
+    if: ${{ needs.resolve-targets.outputs.has_targets == 'true' && github.ref_name == 'oss-build' }}
+    needs:
+      - resolve-targets
+      - build-rpm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download RPM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rpm__*__*
+          path: _artifacts
+
+      - name: Install createrepo-c
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y createrepo-c
+
+      - name: Build RPM repo structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/repo
+          shopt -s nullglob
+
+          for d in _artifacts/rpm__*__*; do
+            [[ -d "$d" ]] || continue
+            name="$(basename "$d")"
+            rest="${name#rpm__}"
+            target_id="${rest%%__*}"
+            channel="${rest##*__}"
+
+            out="public/repo/${target_id}/${channel}"
+            mkdir -p "${out}"
+
+            find "$d" -type f \( -name '*.rpm' -o -name '*.src.rpm' \) -exec cp -f {} "${out}/" \;
+
+            if compgen -G "${out}/*.rpm" > /dev/null || compgen -G "${out}/*.src.rpm" > /dev/null; then
+              createrepo_c --update "${out}"
+            fi
+          done
+
+          touch public/.nojekyll
+
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ github.token }}
+          publish_branch: gh-pages
+          publish_dir: public
+          
