@@ -54,7 +54,7 @@ on:
         required: true
         default: ""
         type: choice
-        options: [all, centos-10, almalinux-9]
+        options: [, centos-10, almalinux-9]
       release_tag:
         description: "Optional release tag (must start with v, e.g. v0.0.1)"
         required: false
