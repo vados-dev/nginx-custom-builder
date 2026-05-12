@@ -52,7 +52,7 @@ on:
       upload_release:
         description: "Upload to release"
         required: true
-        default: "centos-10"
+        default: ""
         type: choice
         options: [all, centos-10, almalinux-9]
       release_tag:
