@@ -561,4 +561,3 @@ jobs:
           github_token: ${{ github.token }}
           publish_branch: gh-pages
           publish_dir: public
-          
