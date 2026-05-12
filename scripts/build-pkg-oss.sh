@@ -41,8 +41,8 @@ pkg_oss_branch="$(jq -r --arg c "${channel}" '.channels[$c].pkg_oss_branch // em
 
 git clone --depth 1 "${pkg_oss_repo}" "${work_root}/pkg-oss"
 if [[ -n "${pkg_oss_branch}" ]]; then
-+  git -C "${work_root}/pkg-oss" fetch --depth 1 origin "${pkg_oss_branch}"
-+  git -C "${work_root}/pkg-oss" checkout -B "${pkg_oss_branch}" "origin/${pkg_oss_branch}"
+  git -C "${work_root}/pkg-oss" fetch --depth 1 origin "${pkg_oss_branch}"
+  git -C "${work_root}/pkg-oss" checkout -B "${pkg_oss_branch}" "origin/${pkg_oss_branch}"
 fi
 cp -a "${repo_root}/src/." "${work_root}/pkg-oss/" 2>/dev/null || true
 
