@@ -508,7 +508,6 @@ jobs:
             -d "chat_id=${TG_CHAT_ID}" \
             -d "text=${message}"
 
-
   publish-gh-pages:
     if: ${{ needs.resolve-targets.outputs.has_targets == 'true' && github.ref_name == 'oss-build' }}
     needs:
