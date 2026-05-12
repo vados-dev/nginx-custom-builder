@@ -542,7 +542,7 @@ jobs:
           github_token: ${{ github.token }}
           publish_branch: gh-pages
           publish_dir: public
-        
+
       - name: Telegram notify build result
         if: ${{ env.NOTIFY_ON_RESULT == 'true' }}
         shell: bash
