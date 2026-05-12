@@ -152,6 +152,338 @@ jobs:
           printf '%s' "${modules_report}" >> "${GITHUB_OUTPUT}"
           echo >> "${GITHUB_OUTPUT}"
           echo "${delim2}" >> "${GITHUB_OUTPUT}"
+
+      - name: Commit version state
+        if: ${{ steps.detect.outputs.state_changed == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/version-state/
+          git diff --cached --quiet || git commit -m "ci: update nginx version state"
+          git push
+
+      - name: Telegram notify updates
+        if: ${{ steps.detect.outputs.changed_any == 'true' && env.NOTIFY_ON_UPDATE == 'true' }}
+        shell: bash
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${TG_TOKEN:-}" || -z "${TG_CHAT_ID:-}" ]]; then
+            exit 0
+          fi
+
+          report="$(printf '%s' "${{ steps.detect.outputs.detect_report }}" | sed '/^$/d')"
+          modules_report="$(printf '%s' "${{ steps.detect.outputs.modules_report }}" | sed '/^$/d')"
+          message="nginx update detected%0Arepo: ${{ github.repository }}"
+          while IFS='|' read -r channel prev cur changed; do
+            [[ -z "${channel}" ]] && continue
+            if [[ "${changed}" == "true" ]]; then
+              message+="%0Achannel=${channel}: ${prev} -> ${cur}"
+            fi
+          done <<< "${report}"
+          while IFS='|' read -r mod old_sha new_sha changed; do
+            [[ -z "${mod}" ]] && continue
+            if [[ "${changed}" == "true" ]]; then
+              message+="%0Amodule=${mod}: ${old_sha} -> ${new_sha}"
+            fi
+          done <<< "${modules_report}"
+
+          curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d "chat_id=${TG_CHAT_ID}" \
+            -d "text=${message}"
+
+  resolve-targets:
+    if: ${{ needs.detect.outputs.changed_any == 'true' }}
+    needs: detect
+    runs-on: ubuntu-latest
+    outputs:
+      build_matrix: ${{ steps.resolve.outputs.build_matrix }}
+      has_targets: ${{ steps.resolve.outputs.has_targets }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Resolve enabled targets
+        id: resolve
+        shell: bash
+        env:
+          CHANNELS_JSON: ${{ needs.detect.outputs.channels_json }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_BUILD_OS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_os || 'all' }}
+          INPUT_CI_BASE_IMAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_base_image || '' }}
+        run: |
+          set -euo pipefail
+
+          enabled_targets="$(jq -c '[.targets[] | select(.enabled == true)]' config/targets.json)"
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" && "${INPUT_BUILD_OS}" != "all" ]]; then
+            enabled_targets="$(jq -c --arg id "${INPUT_BUILD_OS}" '[.targets[] | select(.id == $id and .enabled == true)]' config/targets.json)"
+          fi
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" && -n "${INPUT_CI_BASE_IMAGE}" ]]; then
+            enabled_targets="$(jq -c --arg img "${INPUT_CI_BASE_IMAGE}" 'map(.container_image = $img)' <<< "${enabled_targets}")"
+          fi
+          channels="$(jq -c '.include // []' <<< "${CHANNELS_JSON}")"
+
+          build_matrix="$(jq -nc --argjson targets "${enabled_targets}" --argjson channels "${channels}" '
+            {
+              include: [
+                $channels[] as $c
+                | $targets[] as $t
+                | {
+                    channel: $c.channel,
+                    target_id: $t.id,
+                    container_image: $t.container_image,
+                    rpm_repo_os: $t.rpm_repo_os,
+                    rpm_repo_release: ($t.rpm_repo_release|tostring)
+                  }
+              ]
+            }
+          ')"
+
+          has_targets="false"
+          if [[ "$(jq '.include | length' <<< "${build_matrix}")" -gt 0 ]]; then
+            has_targets="true"
+          fi
+
+          echo "build_matrix=${build_matrix}" >> "${GITHUB_OUTPUT}"
+          echo "has_targets=${has_targets}" >> "${GITHUB_OUTPUT}"
+
+  build-rpm:
+    if: ${{ needs.resolve-targets.outputs.has_targets == 'true' }}
+    needs:
+      - detect
+      - resolve-targets
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
+      RPM_GPG_PRIVATE_KEY: ${{ secrets.RPM_GPG_PRIVATE_KEY }}
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJson(needs.resolve-targets.outputs.build_matrix) }}
+    container: ${{ matrix.container_image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Get env variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "DT_STAMP=$(date +%Y%m%d%H%M)" >> "$GITHUB_ENV"
+          echo "DateTime=$(date +%d.%m.%Y-%T)" >> "$GITHUB_ENV"
+          echo "REF=${{ github.ref }}" >> "$GITHUB_ENV"
+          echo "REF_NAME=${{ github.ref_name }}" >> "$GITHUB_ENV"
+          echo "GITHUB_RUN_ID=${{ github.run_id }}" >> "$GITHUB_ENV"
+          echo "SHA=${{ github.sha }}" >> "$GITHUB_ENV"
+          echo "NGINX_VERSION=${{ steps.prepare.outputs.nginx_version }}" >> "$GITHUB_ENV"
+          echo "CHANEL=${{ matrix.channel }}" >> "$GITHUB_ENV"
+          echo "TARGET_ID=${{ matrix.target_id }}"  >> "$GITHUB_ENV"
+          echo "BASE_MODULES=${{ github.event_name == 'workflow_dispatch' && inputs.base_modules || vars.BASE_MODULES || env.DEFAULT_BASE_MODULES }}" >> "$GITHUB_ENV"
+          echo "RPM_REPO_OS=${{ matrix.rpm_repo_os }}" >> "$GITHUB_ENV"
+          echo "RPM_REPO_RELEASE=${{ matrix.rpm_repo_release }}" >> "$GITHUB_ENV"
+          echo "BUILD_ARGS=${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}" >> "$GITHUB_ENV"
+          requested_tag='${{ inputs.release_tag }}'
+
+          calc_next_tag() {
+            local prev="$1"
+            local major minor patch
+            if [[ ! "${prev}" =~ ^v([0-9]{1,2})\.([0-9]{1,2})\.([0-9]{1,2})$ ]]; then
+              echo "Invalid previous release tag format: ${prev}" >&2
+              return 1
+            fi
+            major="${BASH_REMATCH[1]}"
+            minor="${BASH_REMATCH[2]}"
+            patch="${BASH_REMATCH[3]}"
+            patch=$((10#${patch} + 1))
+            if (( patch > 99 )); then
+              patch=0
+              minor=$((10#${minor} + 1))
+            fi
+            if (( minor > 99 )); then
+              minor=0
+              major=$((10#${major} + 1))
+            fi
+            if (( major > 99 )); then
+              echo "release_tag overflow: v99.99.99 is the maximum supported tag" >&2
+              return 1
+            fi
+            printf 'v%d.%d.%d\n' "${major}" "${minor}" "${patch}"
+          }
+
+          detect_previous_release_tag() {
+            local remote_url latest
+            remote_url="https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+            latest="$(
+              git ls-remote --refs --tags "${remote_url}" \
+                | awk -F/ '{print $NF}' \
+                | grep -E '^v([0-9]{1,2})\.([0-9]{1,2})\.([0-9]{1,2})$' \
+                | sort -t. -k1.2,1n -k2,2n -k3,3n \
+                | tail -n1
+            )"
+            if [[ -n "${latest}" ]]; then
+              printf '%s\n' "${latest}"
+            fi
+          }
+
+          suffix_input=""
+          explicit_tag=""
+          if [[ -n "${requested_tag}" ]]; then
+            if [[ "${requested_tag}" =~ ^v([0-9]{1,2})\.([0-9]{1,2})\.([0-9]{1,2})([a-z])?$ ]]; then
+              explicit_tag="${requested_tag}"
+            elif [[ "${requested_tag}" =~ ^[a-z]$ ]]; then
+              suffix_input="${requested_tag}"
+            else
+              echo "Invalid release_tag: ${requested_tag}" >&2
+              echo "Expected: full tag vX.Y.Z[letter] or single suffix letter (e.g. b)" >&2
+              exit 1
+            fi
+          fi
+
+          if [[ -n "${explicit_tag}" ]]; then
+            if [[ "${explicit_tag}" =~ ^(main|master|develop|dev)$ ]]; then
+              echo "Ref-like tag names are forbidden: ${explicit_tag}" >&2
+              exit 1
+            fi
+            echo "RELEASE_TAG=${explicit_tag}" >> "$GITHUB_ENV"
+          else
+            previous_tag="$(detect_previous_release_tag || true)"
+            if [[ -n "${previous_tag}" ]]; then
+              next_tag="$(calc_next_tag "${previous_tag}")"
+              echo "RELEASE_TAG=${next_tag}${suffix_input}" >> "$GITHUB_ENV"
+              echo "PREVIOUS_RELEASE_TAG=${previous_tag}" >> "$GITHUB_ENV"
+            else
+              echo "RELEASE_TAG=v0.0.1${suffix_input}" >> "$GITHUB_ENV"
+            fi
+          fi
+        continue-on-error: true
+
+      - name: Build via pkg-oss
+        shell: bash
+        env:
+          CHANNEL: ${{ matrix.channel }}
+          TARGET_ID: ${{ matrix.target_id }}
+          BASE_MODULES: ${{ github.event_name == 'workflow_dispatch' && inputs.base_modules || vars.BASE_MODULES || env.DEFAULT_BASE_MODULES }}
+          BUILD_ARGS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}
+        run: |
+          set -euo pipefail
+          bash scripts/build-pkg-oss.sh
+
+      - name: Import GPG key
+        if: ${{ env.RPM_GPG_PRIVATE_KEY != '' }}
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ env.RPM_GPG_PRIVATE_KEY }}
+        continue-on-error: true
+
+      - name: Sign RPM packages
+        if: ${{ steps.import_gpg.outcome == 'success' }}
+        shell: bash
+        env:
+          RPM_GPG_KEYID: ${{ steps.import_gpg.outputs.fingerprint }}
+        run: |
+          set -euo pipefail
+          export GPG_TTY="${GPG_TTY:-$(tty 2>/dev/null || true)}"
+          if [ -n "${RPM_GPG_PASSPHRASE:-}" ]; then
+          cat > ~/.rpmmacros <<EOF
+          %_signature gpg
+          %_gpg_name ${RPM_GPG_KEYID}
+          %_gpg_path %{getenv:HOME}/.gnupg
+          %_gpgbin /usr/bin/gpg
+          %__gpg /usr/bin/gpg
+          %__gpg_sign_cmd %{__gpg} --batch --yes --pinentry-mode loopback --passphrase '${RPM_GPG_PASSPHRASE}' --no-armor --local-user "%{_gpg_name}" --detach-sign --output %{__signature_filename} %{__plaintext_filename}
+          EOF
+          else
+          cat > ~/.rpmmacros <<EOF
+          %_signature gpg
+          %_gpg_name ${RPM_GPG_KEYID}
+          %_gpg_path %{getenv:HOME}/.gnupg
+          %_gpgbin /usr/bin/gpg
+          %__gpg /usr/bin/gpg
+          %__gpg_sign_cmd %{__gpg} --batch --yes --no-armor --local-user "%{_gpg_name}" --detach-sign --output %{__signature_filename} %{__plaintext_filename}
+          EOF
+          fi
+
+          echo "Using GPG key: ${RPM_GPG_KEYID}"
+          gpg --list-secret-keys --keyid-format LONG
+          if [[ "${{ inputs.build_args }}" == "-ba" ]]; then
+            find rpm/RPMS rpm/SRPMS -type f -name '*.rpm' -print0 | xargs -0 -r rpmsign --addsign
+          else
+            find rpm/RPMS -type f -name '*.rpm' -print0 | xargs -0 -r rpmsign --addsign
+          fi
+        continue-on-error: true
+
+      - name: Verify RPM signatures
+        if: ${{ steps.import_gpg.outcome == 'success' }}
+        shell: bash
+        env:
+          RPM_GPG_KEYID: ${{ steps.import_gpg.outputs.fingerprint }}
+        run: |
+          set -euo pipefail
+          if [[ -f "src/RPM-GPG-KEY-nginx" ]]; then
+            rpm --import "src/RPM-GPG-KEY-nginx"
+          else
+            gpg --batch --yes --armor --export "${RPM_GPG_KEYID}" > /tmp/RPM-GPG-KEY-build
+            rpm --import /tmp/RPM-GPG-KEY-build
+          fi
+
+          if [[ "${{ inputs.build_args }}" == "-ba" ]]; then
+            rpm -Kv rpm/RPMS/x86_64/*.rpm rpm/SRPMS/*.src.rpm
+          else
+            rpm -Kv rpm/RPMS/x86_64/*.rpm 
+          fi
+        continue-on-error: true
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v3
+        env:
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+        with:
+          files: |
+            rpm/RPMS/**/*.rpm
+            rpm/SRPMS/*.src.rpm
+          name: "Build custom: ${{ env.RELEASE_TAG }} nginx ${{ env.NGINX_VERSION }} (${{ env.CHANNEL }})"
+          tag_name: ${{ env.RELEASE_TAG }}
+          body: |
+            Build info:
+            - Date: ${{ env.DateTime }}
+            - Run ID: ${{ env.GITHUB_RUN_ID }}
+            - Ref: ${{ env.REF }}
+            - Ref name: ${{ env.REF_NAME }}
+            - SHA: ${{ env.SHA }}
+            - nginx channel: ${{ env.CHANNEL }}
+            - target id: ${{ env.TARGET_ID }}
+            - rpm repo os: ${{ env.RPM_REPO_OS }}
+            - rpm repo release: ${{ env.RPM_REPO_RELEASE }}
+            - release tag: ${{ env.RELEASE_TAG }}
+            - nginx version: ${{ env.NGINX_VERSION }}
+            - rpmbuild arguments: ${{ env.BUILD_ARG }}
+            - enabled base modules: ${{ inputs.base_modules }}
+        continue-on-error: true
+
+      - name: Telegram notify build result
+        if: ${{ env.NOTIFY_ON_RESULT == 'true' }}
+        shell: bash
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${TG_TOKEN:-}" || -z "${TG_CHAT_ID:-}" ]]; then
+            exit 0
+          fi
+
+          status="${{ job.status }}"
+          message="pkg-oss build ${status}%0Arepo: ${{ github.repository }}%0Achannel: ${{ matrix.channel }}%0Atarget: ${{ matrix.target_id }}"
+
+          curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d "chat_id=${TG_CHAT_ID}" \
+            -d "text=${message}"
+
           echo "modules_changed_any=${modules_changed_any}" >> "${GITHUB_OUTPUT}"
           delim3="MODULES_REPORT_$(date +%s)_$RANDOM"
           echo "modules_report<<${delim3}" >> "${GITHUB_OUTPUT}"
