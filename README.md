@@ -33,14 +33,25 @@
 Также использовоны красивые шаблоны [отсюда](https://api.reuse.software/info/github.com/joppuyo/nice-nginx-error-page) и настроены простые кастомные страницы с ошибками, для всего сервера.
 В этом мне помогла [статья с хабра](https://habr.com/ru/articles/652479/).
 
+### Нужные secrets в `Settings -> Secrets and variables -> Actions`
+
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
+- `RPM_GPG_PRIVATE_KEY` (опционально, для подписи RPM)
+
 ## GitHub Actions: авто-проверка и Telegram
 
-## Telegram secrets
+### Telegram secrets
 
 Нужны:
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 
+## Приоритет платформ
+
+- Основной контур: **RPM/CentOS** (боевой сценарий).
+- Debian: поддерживается, но сейчас вторичен.
+- Alpine: поддерживается в первую очередь для Docker-сценариев.
 
 # nginx-custom-builder
 
@@ -73,6 +84,26 @@
 Сейчас по умолчанию:
 - `centos-10` включен,
 - `almalinux-9` выключен.
+
+### DNF repo from GitHub Pages (основной сценарий)
+
+`build.yml` теперь публикует готовый DNF-репозиторий (с `repodata`) в ветку `gh-pages`:
+
+- `repo/mainline/x86_64`
+- `repo/stable/x86_64`
+- `repo/centos/10/mainline/x86_64`
+- `repo/centos/10/stable/x86_64`
+
+`repo/<os>/<release>/<channel>/...` формируется из:
+
+- `build_os` (в check-version, для RPM это `centos|almalinux|rhel`)
+- `rpm_repo_release` (`10|9`)
+
+### Перед использованием включить GitHub Pages
+
+- `Settings -> Pages -> Build and deployment -> Deploy from a branch`
+- Branch: `gh-pages` (root)
+
 
 ### Подключение репозитория на CentOS/RHEL-подобных
 
