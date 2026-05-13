@@ -44,7 +44,7 @@ if [[ "${pkg_oss_branch}" == "mainline" ]]; then
 fi
 
 if [[ "${pkg_oss_branch}" == "stable" ]]; then
-  pkg_oss_branch="stable-${nginx_version}"
+  pkg_oss_branch="stable-${nginx_version}-1"
 fi
 
 git clone --depth 1 "${pkg_oss_repo}" "${work_root}/pkg-oss"
