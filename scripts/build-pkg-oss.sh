@@ -38,13 +38,15 @@ fi
 
 pkg_oss_repo="$(jq -r '.pkg_oss_repo' config/targets.json)"
 pkg_oss_branch="$(jq -r --arg c "${channel}" '.channels[$c].pkg_oss_branch // empty' config/modules.json)"
+echo "pkg_oss_branch: ${pkg_oss_branch}"
+exit 1
 
 if [[ "${pkg_oss_branch}" == "mainline" ]]; then
   pkg_oss_branch=""
 fi
 
 if [[ "${pkg_oss_branch}" == "stable" ]]; then
-  pkg_oss_branch="${nginx_version}-1"
+  pkg_oss_branch="${nginx_version}"
 fi
 
 git clone --depth 1 "${pkg_oss_repo}" "${work_root}/pkg-oss"
