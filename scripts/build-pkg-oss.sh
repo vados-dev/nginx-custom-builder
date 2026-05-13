@@ -18,9 +18,19 @@ fi
 pkg_dir="$(jq -r '.pkg_oss_make_dir' <<< "${target_json}")"
 pkg_target="$(jq -r '.pkg_oss_make_target' <<< "${target_json}")"
 
-raw_version="$(curl -fsSL "${nginx_version_url}")"
-nginx_version="${raw_version%%-*}"
-export NGINX_VERSION="${nginx_version}"
+if [[ -n "${NGINX_VERSION:-}" ]]; then
+  nginx_version="${NGINX_VERSION}"
+else
+  raw_version="$(curl -fsSL "${nginx_version_url}")"
+  nginx_version="${raw_version%%-*}"
+  export NGINX_VERSION="${nginx_version}"
+fi
+
+nginx_mm="$(sed -E 's/^([0-9]+\.[0-9]+).*/\1/' <<< "${nginx_version}")"
+if [[ ! "${nginx_mm}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+  echo "Cannot parse major.minor from NGINX_VERSION=${nginx_version}" >&2
+  exit 1
+fi
 
 work_root="/tmp/pkg-oss-build"
 rm -rf "${work_root}"
@@ -38,24 +48,32 @@ fi
 
 pkg_oss_repo="$(jq -r '.pkg_oss_repo' config/targets.json)"
 pkg_oss_branch="$(jq -r --arg c "${channel}" '.channels[$c].pkg_oss_branch // empty' config/modules.json)"
-echo "pkg_oss_branch: ${pkg_oss_branch}"
-exit 1
 
-if [[ "${pkg_oss_branch}" == "mainline" ]]; then
-  pkg_oss_branch=""
+case "${pkg_oss_branch}" in
+  mainline)
+    pkg_oss_branch="mainline"
+    ;;
+  stable)
+    pkg_oss_branch="stable-${nginx_mm}"
+    ;;
+  "")
+    echo "pkg_oss_branch is empty for channel=${channel}" >&2
+    exit 1
+    ;;
+  *)
+    ;;
+esac
+
+echo "Resolved pkg-oss branch: ${pkg_oss_branch}"
+if ! git ls-remote --heads "${pkg_oss_repo}" "refs/heads/${pkg_oss_branch}" | grep -q "${pkg_oss_branch}"; then
+  echo "pkg-oss branch not found: ${pkg_oss_branch}" >&2
+  exit 1
 fi
 
-if [[ "${pkg_oss_branch}" == "stable" ]]; then
-  pkg_oss_branch="${nginx_version}"
-fi
-
-git clone --depth 1 "${pkg_oss_repo}" "${work_root}/pkg-oss"
-if [[ -n "${pkg_oss_branch}" ]]; then
-  git -C "${work_root}/pkg-oss" fetch --depth 1 origin "${pkg_oss_branch}"
-  git -C "${work_root}/pkg-oss" checkout -B "${pkg_oss_branch}" "origin/${pkg_oss_branch}"
-fi
+git clone --depth 1 --branch "${pkg_oss_branch}" "${pkg_oss_repo}" "${work_root}/pkg-oss"
 
 cp -a "${repo_root}/src/." "${work_root}/pkg-oss/SOURCES/" 2>/dev/null || true
+
 
 pushd "${work_root}/pkg-oss/${pkg_dir}" >/dev/null
 if [[ -n "${base_modules//[[:space:]]/}" ]]; then
