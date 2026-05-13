@@ -40,7 +40,7 @@ pkg_oss_repo="$(jq -r '.pkg_oss_repo' config/targets.json)"
 pkg_oss_branch="$(jq -r --arg c "${channel}" '.channels[$c].pkg_oss_branch // empty' config/modules.json)"
 
 if [[ "${pkg_oss_branch}" == "mainline" ]]; then
-  pkg_oss_branch="main"
+  pkg_oss_branch=""
 fi
 
 if [[ "${pkg_oss_branch}" == "stable" ]]; then
