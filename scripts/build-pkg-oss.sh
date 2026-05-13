@@ -18,7 +18,7 @@ fi
 pkg_dir="$(jq -r '.pkg_oss_make_dir' <<< "${target_json}")"
 pkg_target="$(jq -r '.pkg_oss_make_target' <<< "${target_json}")"
 
-лайнif [[ -n "${NGINX_VERSION:-}" ]]; then
+if [[ -n "${NGINX_VERSION:-}" ]]; then
   nginx_version="${NGINX_VERSION}"
 else
   raw_version="$(curl -fsSL "${nginx_version_url}")"
