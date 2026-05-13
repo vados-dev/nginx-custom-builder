@@ -22,14 +22,6 @@ raw_version="$(curl -fsSL "${nginx_version_url}")"
 nginx_version="${raw_version%%-*}"
 export NGINX_VERSION="${nginx_version}"
 
-if [[ "${channel}" == "mainline" ]]; then
-  channel="main"
-fi
-
-if [[ "${channel}" == "stable" ]]; then
-  channel="stable-${nginx_version}"
-fi
-
 work_root="/tmp/pkg-oss-build"
 rm -rf "${work_root}"
 mkdir -p "${work_root}" "${repo_root}/artifacts"
@@ -46,6 +38,14 @@ fi
 
 pkg_oss_repo="$(jq -r '.pkg_oss_repo' config/targets.json)"
 pkg_oss_branch="$(jq -r --arg c "${channel}" '.channels[$c].pkg_oss_branch // empty' config/modules.json)"
+
+if [[ "${pkg_oss_branch}" == "mainline" ]]; then
+  pkg_oss_branch="main"
+fi
+
+if [[ "${pkg_oss_branch}" == "stable" ]]; then
+  pkg_oss_branch="stable-${nginx_version}"
+fi
 
 git clone --depth 1 "${pkg_oss_repo}" "${work_root}/pkg-oss"
 if [[ -n "${pkg_oss_branch}" ]]; then
