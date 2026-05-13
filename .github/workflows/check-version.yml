@@ -522,9 +522,9 @@ jobs:
           # Legacy flat layout (kept for backward compatibility)
           legacy_root="/tmp/dnf-repo/repo/${channel}"
           mkdir -p "${legacy_root}/${arch_token}" "${legacy_root}/SRPMS"
-          cp -f RPMS/"${arch_token}"/*.rpm "${legacy_root}/${arch_token}/"
-          if compgen -G "SRPMS/*.src.rpm" > /dev/null; then
-            cp -f SRPMS/*.src.rpm "${legacy_root}/SRPMS/"
+          cp -f rpm/RPMS/"${arch_token}"/*.rpm "${legacy_root}/${arch_token}/"
+          if compgen -G "rpm/SRPMS/*.src.rpm" > /dev/null; then
+            cp -f rpm/SRPMS/*.src.rpm "${legacy_root}/SRPMS/"
           fi
           createrepo_c --update "${legacy_root}/${arch_token}"
           if compgen -G "${legacy_root}/SRPMS/*.src.rpm" > /dev/null; then
@@ -536,9 +536,9 @@ jobs:
           # repo/<os>/<release>/<channel>/<arch>/ and .../SRPMS/
           structured_root="/tmp/dnf-repo/repo/${os_token}/${release_token}/${channel}"
           mkdir -p "${structured_root}/${arch_token}" "${structured_root}/SRPMS"
-          cp -f RPMS/"${arch_token}"/*.rpm "${structured_root}/${arch_token}/"
-          if compgen -G "SRPMS/*.src.rpm" > /dev/null; then
-            cp -f SRPMS/*.src.rpm "${structured_root}/SRPMS/"
+          cp -f rpm/RPMS/"${arch_token}"/*.rpm "${structured_root}/${arch_token}/"
+          if compgen -G "rpm/SRPMS/*.src.rpm" > /dev/null; then
+            cp -f rpm/SRPMS/*.src.rpm "${structured_root}/SRPMS/"
           fi
           createrepo_c --update "${structured_root}/${arch_token}"
           if compgen -G "${structured_root}/SRPMS/*.src.rpm" > /dev/null; then
