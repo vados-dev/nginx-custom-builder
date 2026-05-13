@@ -49,6 +49,11 @@ on:
         options:
           - "-bb"
           - "-ba"
+      publish_dnf_repo:
+        description: "Publish DNF repository to gh-pages"
+        required: true
+        default: true
+        type: boolean
       upload_release:
         description: "Upload to release"
         required: true
@@ -374,6 +379,7 @@ jobs:
         continue-on-error: true
 
       - name: Build via pkg-oss
+        id: build
         shell: bash
         env:
           CHANNEL: ${{ matrix.channel }}
@@ -489,6 +495,146 @@ jobs:
             - enabled base modules: ${{ env.BASE_MODULES }}
         continue-on-error: true
 
+      - name: Build DNF repository metadata
+        if: ${{ inputs.publish_dnf_repo }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          source /etc/os-release
+          os_token="${ID}"
+          case "${os_token}" in
+            almalinux|rocky|rhel|ol|oraclelinux)
+              os_token="centos"
+              ;;
+          esac
+          release_token="${VERSION_ID%%.*}"
+          repo_os_override="${{ env.RPM_REPO_OS }}"
+          repo_release_override="${{ env.RPM_REPO_RELEASE }}"
+          if [[ -n "${repo_os_override}" ]]; then
+            os_token="${repo_os_override}"
+          fi
+          if [[ -n "${repo_release_override}" ]]; then
+            release_token="${repo_release_override}"
+          fi
+          arch_token="$(uname -m)"
+          channel="${{ env.CHANNEL }}"
+
+          # Legacy flat layout (kept for backward compatibility)
+          legacy_root="/tmp/dnf-repo/repo/${channel}"
+          mkdir -p "${legacy_root}/${arch_token}" "${legacy_root}/SRPMS"
+          cp -f RPMS/"${arch_token}"/*.rpm "${legacy_root}/${arch_token}/"
+          if compgen -G "SRPMS/*.src.rpm" > /dev/null; then
+            cp -f SRPMS/*.src.rpm "${legacy_root}/SRPMS/"
+          fi
+          createrepo_c --update "${legacy_root}/${arch_token}"
+          if compgen -G "${legacy_root}/SRPMS/*.src.rpm" > /dev/null; then
+            createrepo_c --update "${legacy_root}/SRPMS"
+          fi
+          printf '%s\n' "${NGINX_VERSION}" > "${legacy_root}/VERSION"
+
+          # Structured layout with releasever/basearch support:
+          # repo/<os>/<release>/<channel>/<arch>/ and .../SRPMS/
+          structured_root="/tmp/dnf-repo/repo/${os_token}/${release_token}/${channel}"
+          mkdir -p "${structured_root}/${arch_token}" "${structured_root}/SRPMS"
+          cp -f RPMS/"${arch_token}"/*.rpm "${structured_root}/${arch_token}/"
+          if compgen -G "SRPMS/*.src.rpm" > /dev/null; then
+            cp -f SRPMS/*.src.rpm "${structured_root}/SRPMS/"
+          fi
+          createrepo_c --update "${structured_root}/${arch_token}"
+          if compgen -G "${structured_root}/SRPMS/*.src.rpm" > /dev/null; then
+            createrepo_c --update "${structured_root}/SRPMS"
+          fi
+          printf '%s\n' "${NGINX_VERSION}" > "${structured_root}/VERSION"
+          printf '%s\n' "${os_token}" > /tmp/dnf-repo/OS_TOKEN
+          printf '%s\n' "${release_token}" > /tmp/dnf-repo/RELEASE_TOKEN
+          printf '%s\n' "${arch_token}" > /tmp/dnf-repo/ARCH_TOKEN
+
+      - name: Publish DNF repository to gh-pages
+        if: ${{ inputs.publish_dnf_repo }}
+        shell: bash
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ env.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${GH_TOKEN:-}" ]]; then
+            echo "GITHUB token is empty, skip DNF publish."
+            exit 0
+          fi
+
+          publish_root="/tmp/gh-pages-publish"
+          remote_url="https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
+          channel="${{ env.CHANNEL }}"
+          source_root="/tmp/dnf-repo/repo"
+          source_root="/tmp/dnf-repo/repo"
+          source_root="/tmp/dnf-repo/repo"
+          os_token="$(cat /tmp/dnf-repo/OS_TOKEN)"
+          release_token="$(cat /tmp/dnf-repo/RELEASE_TOKEN)"
+          arch_token="$(cat /tmp/dnf-repo/ARCH_TOKEN)"
+          rm -rf "${publish_root}"
+          mkdir -p "${publish_root}"
+          cd "${publish_root}"
+
+          git init
+          git checkout -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "${remote_url}"
+
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git fetch --depth 1 origin gh-pages
+            git reset --hard FETCH_HEAD
+          fi
+
+          mkdir -p repo
+          rm -rf "repo/${channel}" "repo/${os_token}/${release_token}/${channel}"
+          cp -a "${source_root}/${channel}" "repo/${channel}"
+          mkdir -p "repo/${os_token}/${release_token}"
+          cp -a "${source_root}/${os_token}/${release_token}/${channel}" "repo/${os_token}/${release_token}/${channel}"
+          if [[ -f "${GITHUB_WORKSPACE}/SOURCES/RPM-GPG-KEY-nginx" ]]; then
+            cp -f "${GITHUB_WORKSPACE}/SOURCES/RPM-GPG-KEY-nginx" "repo/RPM-GPG-KEY-nginx"
+          fi
+
+          {
+            echo "DNF repository for ${GH_REPO}"
+            echo "Legacy path format:"
+            echo "- repo/mainline/x86_64"
+            echo "- repo/stable/x86_64"
+            echo "Structured path format:"
+            echo "- repo/${os_token}/${release_token}/${channel}/${arch_token}"
+            echo "- repo/${os_token}/${release_token}/${channel}/SRPMS"
+          } > repo/README.txt
+
+          if [[ "${{ inputs.publish_alpine_structure }}" == "true" ]]; then
+            alpine_v="v${{ inputs.alpine_version }}"
+            for arch in x86_64 aarch64; do
+              mkdir -p "repo/alpine/${alpine_v}/stable/${arch}"
+              mkdir -p "repo/alpine/${alpine_v}/mainline/${arch}"
+              touch "repo/alpine/${alpine_v}/stable/${arch}/.keep"
+              touch "repo/alpine/${alpine_v}/mainline/${arch}/.keep"
+            done
+            {
+              echo "Alpine APK repository layout"
+              echo "Channels:"
+              echo "Channels:"
+              echo "- stable"
+              echo "- mainline"
+              echo "Architectures:"
+              echo "- x86_64"
+              echo "- aarch64"
+              echo "Expected path pattern:"
+              echo "- repo/alpine/${alpine_v}/<channel>/<arch>/"
+            } > "repo/alpine/${alpine_v}/README.txt"
+          fi
+
+          git add repo
+          if git diff --cached --quiet; then
+            echo "No DNF repo changes to publish."
+            exit 0
+          fi
+          git commit -m "repo: publish ${channel} nginx ${NGINX_VERSION} (run ${GITHUB_RUN_ID})"
+          git push origin gh-pages
+
       - name: Telegram notify build result
         if: ${{ env.NOTIFY_ON_RESULT == 'true' }}
         shell: bash
@@ -508,55 +654,8 @@ jobs:
             -d "chat_id=${TG_CHAT_ID}" \
             -d "text=${message}"
 
-  publish-gh-pages:
-    if: ${{ needs.resolve-targets.outputs.has_targets == 'true' && github.ref_name == 'oss-build' }}
-    needs:
-      - resolve-targets
-      - build-rpm
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download RPM artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: rpm__*__*
-          path: _artifacts
-
-      - name: Install createrepo-c
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y createrepo-c
-
-      - name: Build RPM repo structure
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p public/repo
-          shopt -s nullglob
-
-          for d in _artifacts/rpm__*__*; do
-            [[ -d "$d" ]] || continue
-            name="$(basename "$d")"
-            rest="${name#rpm__}"
-            target_id="${rest%%__*}"
-            channel="${rest##*__}"
-
-            out="public/repo/${target_id}/${channel}"
-            mkdir -p "${out}"
-
-            find "$d" -type f \( -name '*.rpm' -o -name '*.src.rpm' \) -exec cp -f {} "${out}/" \;
-
-            if compgen -G "${out}/*.rpm" > /dev/null || compgen -G "${out}/*.src.rpm" > /dev/null; then
-              createrepo_c --update "${out}"
-            fi
-          done
-
-          touch public/.nojekyll
-
-      - name: Publish to gh-pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ github.token }}
-          publish_branch: gh-pages
-          publish_dir: public
+  publish-pages-index:
+    if: ${{ inputs.publish_dnf_repo }}
+    needs: build-rpm
+    uses: ./.github/workflows/publish-pages-index.yml
+    secrets: inherit

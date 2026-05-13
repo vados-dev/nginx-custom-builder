@@ -1,0 +1,536 @@
+name: Generate Matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_os:
+        description: "Debug mode only: which OS matrix to run"
+        required: true
+        default: "redhat"
+        type: choice
+        options:
+          - redhat
+          - ubuntu
+          - alpine
+          - all
+      nginx_channel:
+        description: "Debug mode only: nginx source channel"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - mainline
+          - stable
+          - all
+      module_mode:
+        description: "How to select modules for matrix targets"
+        required: true
+        default: "custom"
+        type: choice
+        options:
+          - auto
+          - custom
+      custom_modules:
+        description: "Space-separated module list when module_mode=custom"
+        required: false
+        default: "geoip2 acme njs markdown-filter error-page-inherit include-server"
+        type: string
+      show_available_modules:
+        description: "Print available modules from debian/list-all-modules"
+        required: false
+        default: false
+        type: boolean
+      debug_mode:
+        description: "Enable focused debug run (selected OS/channel, base target only)"
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      target_os:
+        required: false
+        default: "centos"
+        type: string
+      nginx_channel:
+        required: false
+        default: "all"
+        type: string
+      module_mode:
+        required: false
+        default: "custom"
+        type: string
+      custom_modules:
+        required: false
+        default: "markdown-filter error-page-inherit include-server"
+        type: string
+      show_available_modules:
+        required: false
+        default: true
+        type: boolean
+      debug_mode:
+        required: false
+        default: false
+        type: boolean
+
+defaults:
+  run:
+    shell: "bash -Eeuo pipefail -x {0}"
+
+jobs:
+  generate-matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix-alpine: ${{ steps.set-matrix.outputs.matrix-alpine }}
+      matrix-ubuntu: ${{ steps.set-matrix.outputs.matrix-ubuntu }}
+      matrix-redhat: ${{ steps.set-matrix.outputs.matrix-redhat }}
+      run-alpine: ${{ steps.resolve-targets.outputs.run_alpine }}
+      run-ubuntu: ${{ steps.resolve-targets.outputs.run_ubuntu }}
+      run-redhat: ${{ steps.resolve-targets.outputs.run_redhat }}
+      selected-modules: ${{ steps.resolve-targets.outputs.selected_modules }}
+      targets-alpine: ${{ steps.resolve-targets.outputs.targets_alpine }}
+      targets-ubuntu: ${{ steps.resolve-targets.outputs.targets_ubuntu }}
+      targets-redhat: ${{ steps.resolve-targets.outputs.targets_redhat }}
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Resolve module targets
+        id: resolve-targets
+        env:
+          IN_TARGET_OS: ${{ inputs.target_os }}
+          IN_NGINX_CHANNEL: ${{ inputs.nginx_channel }}
+          IN_MODULE_MODE: ${{ inputs.module_mode }}
+          IN_CUSTOM_MODULES: ${{ inputs.custom_modules }}
+          IN_SHOW_AVAILABLE_MODULES: ${{ inputs.show_available_modules }}
+          IN_DEBUG_MODE: ${{ inputs.debug_mode }}
+        run: |
+          normalize_modules() {
+            local raw="$1"
+            if [[ -z "${raw//[[:space:]]/}" ]]; then
+              echo ""
+              return
+            fi
+            echo "$raw" | xargs -n1 | awk 'NF && !seen[$0]++' | xargs
+          }
+
+          intersection_modules() {
+            local selected="$1"
+            local available="$2"
+            local result=""
+            for mod in ${selected}; do
+              if grep -qw "${mod}" <<< "${available}"; then
+                result="${result} ${mod}"
+              fi
+            done
+            normalize_modules "${result}"
+          }
+
+          modules_from_makefiles() {
+            local dir="$1"
+            find "${dir}" -maxdepth 1 -type f -name 'Makefile.module-*' -printf '%f\n' \
+              | sed 's/^Makefile\.module-//' \
+              | xargs || true
+          }
+
+          modules_from_make_targets() {
+            local dir="$1"
+            local all_mods=""
+            local base_mods=""
+            all_mods="$(make --no-print-directory -C "${dir}" list-all-modules 2>/dev/null | awk '{print $1}' | xargs || true)"
+            base_mods="$(make --no-print-directory -C "${dir}" list-base-modules 2>/dev/null | awk '{print $1}' | xargs || true)"
+            normalize_modules "${all_mods} ${base_mods}"
+          }
+
+          event_mode="${IN_MODULE_MODE:-}"
+          event_custom="${IN_CUSTOM_MODULES:-}"
+          event_show="${IN_SHOW_AVAILABLE_MODULES:-}"
+          event_os="${IN_TARGET_OS:-}"
+          event_channel="${IN_NGINX_CHANNEL:-}"
+          event_debug="${IN_DEBUG_MODE:-}"
+
+          default_custom_modules="image-filter perl xslt markdown-filter acme njs error-page-inherit include-server"
+          module_mode="${event_mode:-}"
+          custom_modules="${event_custom:-}"
+          requested_target_os="${event_os:-all}"
+          requested_channel="${event_channel:-all}"
+          debug_mode="${event_debug:-false}"
+          if [[ -z "${module_mode}" ]]; then
+            if [[ "${GITHUB_EVENT_NAME:-}" == "push" ]]; then
+              module_mode="custom"
+            else
+              module_mode="auto"
+            fi
+          fi
+          if [[ -z "${custom_modules//[[:space:]]/}" ]]; then
+            custom_modules="${default_custom_modules}"
+          fi
+          show_available="${event_show:-false}"
+
+          debian_default_modules="$(make --no-print-directory -C debian list-all-modules | awk '{print $1}' | xargs || true)"
+          debian_default_modules="$(normalize_modules "${debian_default_modules}")"
+          debian_all_modules="$(modules_from_make_targets debian)"
+          if [[ -z "${debian_all_modules}" ]]; then
+            debian_all_modules="$(modules_from_makefiles debian)"
+          fi
+          debian_all_modules="$(normalize_modules "${debian_all_modules}")"
+
+          alpine_default_modules="$(make --no-print-directory -C alpine list-all-modules | awk '{print $1}' | xargs || true)"
+          alpine_default_modules="$(normalize_modules "${alpine_default_modules}")"
+          alpine_all_modules="$(modules_from_make_targets alpine)"
+          if [[ -z "${alpine_all_modules}" ]]; then
+            alpine_all_modules="$(modules_from_makefiles alpine)"
+          fi
+          alpine_all_modules="$(normalize_modules "${alpine_all_modules}")"
+
+          redhat_default_modules="$(make --no-print-directory -C SPECS list-all-modules | awk '{print $1}' | xargs || true)"
+          redhat_default_modules="$(normalize_modules "${redhat_default_modules}")"
+          redhat_all_modules="$(modules_from_make_targets SPECS)"
+          if [[ -z "${redhat_all_modules}" ]]; then
+            redhat_all_modules="$(modules_from_makefiles SPECS)"
+          fi
+          redhat_all_modules="$(normalize_modules "${redhat_all_modules}")"
+
+          # Keep Ubuntu module discovery aligned with Debian Makefile modules.
+          # docs/nginx-module-*.xml is incomplete for custom modules.
+          ubuntu_default_modules="${debian_default_modules}"
+          ubuntu_all_modules="${debian_all_modules}"
+
+          default_modules="$(normalize_modules "${debian_default_modules} ${alpine_default_modules} ${redhat_default_modules}")"
+          all_modules="$(normalize_modules "${debian_all_modules} ${alpine_all_modules} ${redhat_all_modules}")"
+
+          if [[ -z "${all_modules}" ]]; then
+            echo "No modules discovered across debian/alpine/redhat" >&2
+            exit 1
+          fi
+
+          if [[ "${show_available}" == "true" ]]; then
+            echo "Default modules (global): ${default_modules}"
+            echo "Available modules (global): ${all_modules}"
+            echo "Default modules (ubuntu): ${ubuntu_default_modules}"
+            echo "Available modules (ubuntu): ${ubuntu_all_modules}"
+            echo "Default modules (alpine): ${alpine_default_modules}"
+            echo "Available modules (alpine): ${alpine_all_modules}"
+            echo "Default modules (redhat): ${redhat_default_modules}"
+            echo "Available modules (redhat): ${redhat_all_modules}"
+          fi
+
+          selected_modules=""
+          case "${module_mode}" in
+            auto)
+              selected_modules="${default_modules}"
+              ;;
+            custom)
+              selected_modules="$(normalize_modules "${custom_modules}")"
+              if [[ -z "${selected_modules}" ]]; then
+                echo "module_mode=custom requires non-empty custom_modules" >&2
+                exit 1
+              fi
+              invalid_modules=""
+              for mod in ${selected_modules}; do
+                if ! grep -qw "${mod}" <<< "${all_modules}"; then
+                  invalid_modules="${invalid_modules} ${mod}"
+                fi
+              done
+              if [[ -n "${invalid_modules//[[:space:]]/}" ]]; then
+                echo "Unknown modules requested:${invalid_modules}" >&2
+                echo "Available modules: ${all_modules}" >&2
+                exit 1
+              fi
+              ;;
+            *)
+              echo "Unsupported module_mode: ${module_mode}" >&2
+              exit 1
+              ;;
+          esac
+
+          selected_alpine="$(intersection_modules "${selected_modules}" "${alpine_all_modules}")"
+          selected_ubuntu="$(intersection_modules "${selected_modules}" "${ubuntu_all_modules}")"
+          selected_redhat="$(intersection_modules "${selected_modules}" "${redhat_all_modules}")"
+
+          targets_alpine="base"
+          for mod in ${selected_alpine}; do
+            targets_alpine="${targets_alpine} module-${mod}"
+          done
+
+          targets_ubuntu="base"
+          for mod in ${selected_ubuntu}; do
+            targets_ubuntu="${targets_ubuntu} module-${mod}"
+          done
+
+          targets_redhat="base"
+          for mod in ${selected_redhat}; do
+            targets_redhat="${targets_redhat} module-${mod}"
+          done
+
+          targets_alpine="$(normalize_modules "${targets_alpine}")"
+          targets_ubuntu="$(normalize_modules "${targets_ubuntu}")"
+          targets_redhat="$(normalize_modules "${targets_redhat}")"
+
+          channel_set="mainline stable"
+          target_os="all"
+          if [[ "${debug_mode}" == "true" ]]; then
+            target_os="${requested_target_os}"
+            case "${requested_channel}" in
+              all) channel_set="mainline stable" ;;
+              mainline|stable) channel_set="${requested_channel}" ;;
+              *)
+                echo "Unsupported nginx_channel: ${requested_channel}" >&2
+                exit 1
+                ;;
+            esac
+          fi
+
+          run_alpine="false"
+          run_ubuntu="false"
+          run_redhat="false"
+          case "${target_os}" in
+            all)
+              run_alpine="true"
+              run_ubuntu="true"
+              run_redhat="true"
+              ;;
+            alpine) run_alpine="true" ;;
+            ubuntu) run_ubuntu="true" ;;
+            redhat) run_redhat="true" ;;
+            *)
+              echo "Unsupported target_os: ${target_os}" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "selected_modules=${selected_modules}" >> "${GITHUB_OUTPUT}"
+          echo "channel_set=${channel_set}" >> "${GITHUB_OUTPUT}"
+          echo "run_alpine=${run_alpine}" >> "${GITHUB_OUTPUT}"
+          echo "run_ubuntu=${run_ubuntu}" >> "${GITHUB_OUTPUT}"
+          echo "run_redhat=${run_redhat}" >> "${GITHUB_OUTPUT}"
+          echo "targets_alpine=${targets_alpine}" >> "${GITHUB_OUTPUT}"
+          echo "targets_ubuntu=${targets_ubuntu}" >> "${GITHUB_OUTPUT}"
+          echo "targets_redhat=${targets_redhat}" >> "${GITHUB_OUTPUT}"
+          echo "Selected channels: ${channel_set}"
+          echo "Target OS: ${target_os}"
+          echo "Debug mode: ${debug_mode}"
+          echo "Resolved matrix targets (alpine): ${targets_alpine}"
+          echo "Resolved matrix targets (ubuntu): ${targets_ubuntu}"
+          echo "Resolved matrix targets (redhat): ${targets_redhat}"
+
+      - name: Set matrix
+        id: set-matrix
+        env:
+          TARGETS_ALPINE: ${{ steps.resolve-targets.outputs.targets_alpine }}
+          TARGETS_UBUNTU: ${{ steps.resolve-targets.outputs.targets_ubuntu }}
+          TARGETS_REDHAT: ${{ steps.resolve-targets.outputs.targets_redhat }}
+          CHANNEL_SET: ${{ steps.resolve-targets.outputs.channel_set }}
+        run: |
+          emit_matrix() {
+            local key="$1"
+            local targets="$2"
+            local channels="$3"
+            json="$(jq -nc --arg t "${targets}" --arg c "${channels}" '
+              {
+                include: [
+                  ($t | split(" ")[] | select(length > 0)) as $target
+                  | ($c | split(" ")[] | select(length > 0)) as $channel
+                  | {target: $target, channel: $channel}
+                ]
+              }'
+            )"
+            echo "${key}=${json}" >> "${GITHUB_OUTPUT}"
+          }
+
+          emit_matrix "matrix-alpine" "${TARGETS_ALPINE}" "${CHANNEL_SET}"
+          emit_matrix "matrix-ubuntu" "${TARGETS_UBUNTU}" "${CHANNEL_SET}"
+          emit_matrix "matrix-redhat" "${TARGETS_REDHAT}" "${CHANNEL_SET}"
+
+  alpine:
+    name: apk
+    needs: generate-matrix
+    if: ${{ needs.generate-matrix.outputs.run-alpine == 'true' }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{fromJson(needs.generate-matrix.outputs.matrix-alpine)}}
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Resolve nginx version for channel
+        run: |
+          channel="${{ matrix.channel }}"
+          version_string="$(curl -fsSL "https://version.nginx.com/nginx/${channel}")"
+          nginx_version="${version_string%%-*}"
+          sed -i -E "s/^NGINX_VERSION[[:space:]]*:=.*/NGINX_VERSION := ${nginx_version}/" contrib/src/nginx/version
+
+      - name: Setup Alpine Linux
+        uses: jirutka/setup-alpine@ae3b3ddba35054804fc4a3507b519fa7e8152050 # v1
+        with:
+          branch: v3.20
+          packages: >
+            abuild
+            build-base
+            coreutils
+            curl
+            findutils
+            git
+            make
+            rustup
+            xz
+
+      - name: Install Rust toolchain
+        shell: alpine.sh {0}
+        run: rustup-init --default-toolchain 1.86.0 --profile minimal -y
+
+      - name: Create build depends
+        shell: alpine.sh {0}
+        working-directory: alpine
+        run: |
+          make abuild-${{ matrix.target }}
+
+      - name: Install build depends
+        shell: alpine.sh --root {0}
+        working-directory: alpine
+        run: |
+          apk add $(. ./abuild-${{ matrix.target }}/APKBUILD; echo $makedepends;)
+
+      - name: Build ${{ matrix.target }}
+        shell: alpine.sh {0}
+        working-directory: alpine
+        run: |
+          make ${{ matrix.target }}
+
+      - name: List what has been built
+        shell: alpine.sh {0}
+        if: ${{ !cancelled() }}
+        run: |
+          find ~/packages/alpine -type f | xargs ls -ld
+
+  ubuntu:
+    name: deb
+    needs: generate-matrix
+    if: ${{ needs.generate-matrix.outputs.run-ubuntu == 'true' }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{fromJson(needs.generate-matrix.outputs.matrix-ubuntu)}}
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Resolve nginx version for channel
+        run: |
+          channel="${{ matrix.channel }}"
+          version_string="$(curl -fsSL "https://version.nginx.com/nginx/${channel}")"
+          nginx_version="${version_string%%-*}"
+          sed -i -E "s/^NGINX_VERSION[[:space:]]*:=.*/NGINX_VERSION := ${nginx_version}/" contrib/src/nginx/version
+
+      - name: Setup Ubuntu
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-suggests --no-install-recommends \
+            curl \
+            devscripts \
+            equivs \
+            git \
+            libxml2-utils \
+            lsb-release \
+            xsltproc
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1
+        with:
+          toolchain: 1.86.0
+
+      - name: Create and install build depends for ${{ matrix.target }} and build it
+        working-directory: debian
+        run: |
+          NGINX_VERSION=$(make --eval 'nv:; @echo $(BASE_VERSION)' nv)
+          make rules-${{ matrix.target }} DISABLE_DEBUG_PACKAGES=1
+          sudo mk-build-deps --install --tool="apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes" \
+            debuild-${{ matrix.target }}/nginx-${NGINX_VERSION}/debian/control
+          make ${{ matrix.target }} DISABLE_DEBUG_PACKAGES=1
+
+      - name: List what has been built
+        if: ${{ !cancelled() }}
+        run: |
+          find .. -mindepth 1 -maxdepth 1 -name "*.deb" | xargs ls -ld
+
+  redhat:
+    name: rpm
+    needs: generate-matrix
+    if: ${{ needs.generate-matrix.outputs.run-redhat == 'true' }}
+    runs-on: ubuntu-24.04
+    container: ghcr.io/vados-dev/nginx-custom-builder/ci:lts
+    strategy:
+      fail-fast: false
+      matrix: ${{fromJson(needs.generate-matrix.outputs.matrix-redhat)}}
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Resolve nginx version for channel
+        run: |
+          channel="${{ matrix.channel }}"
+          version_string="$(curl -fsSL "https://version.nginx.com/nginx/${channel}")"
+          nginx_version="${version_string%%-*}"
+          sed -i -E "s/^NGINX_VERSION[[:space:]]*:=.*/NGINX_VERSION := ${nginx_version}/" contrib/src/nginx/version
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1
+        with:
+          toolchain: 1.86.0
+
+      - name: Create and install build depends for ${{ matrix.target }} and build it
+        working-directory: SPECS
+        run: |
+          # Prefetch contrib tarballs required by this module target.
+          # RedHat flow generates spec before module build and otherwise can fail
+          # with "local source missing: <tarball>".
+          case ${{ matrix.target }} in
+            module-*)
+              module_name="${{ matrix.target }}"
+              module_name="${module_name#module-}"
+              module_var="${module_name//-/_}"
+              deps="$(make --no-print-directory -f Makefile --eval "print-deps:; @echo \$(MODULE_CONTRIB_DEPS_${module_var})" print-deps | xargs || true)"
+              if [[ -n "${deps}" ]]; then
+                make --no-print-directory -C ../contrib $(for dep in ${deps}; do printf '.sum-%s ' "${dep}"; done)
+              fi
+              ;;
+          esac
+
+          case ${{ matrix.target }} in
+            base)
+              spec="nginx.spec"
+              ;;
+            *)
+              spec="nginx-${{ matrix.target }}.spec"
+              ;;
+          esac
+          make "${spec}"
+          dnf -y builddep "./${spec}"
+          make "${{ matrix.target }}"
+
+      - name: List what has been built
+        if: ${{ !cancelled() }}
+        run: |
+          for p in "$HOME/rpmbuild/RPMS" "/root/rpmbuild/RPMS"; do
+            if [[ -d "$p" ]]; then
+              find "$p" -type f -print0 | xargs -0r ls -ld
+            fi
+          done
+
+#  buildx-smoke:
+#    runs-on: ubuntu-24.04
+#    steps:
+#      - name: Set up QEMU
+#        uses: docker/setup-qemu-action@v3
+
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v3
+
+#      - name: Show Buildx builders
+#        run: |
+#          docker buildx version
+#          docker buildx ls
