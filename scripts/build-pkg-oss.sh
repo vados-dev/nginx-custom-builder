@@ -18,7 +18,7 @@ fi
 pkg_dir="$(jq -r '.pkg_oss_make_dir' <<< "${target_json}")"
 pkg_target="$(jq -r '.pkg_oss_make_target' <<< "${target_json}")"
 
-if [[ -n "${NGINX_VERSION:-}" ]]; then
+лайнif [[ -n "${NGINX_VERSION:-}" ]]; then
   nginx_version="${NGINX_VERSION}"
 else
   raw_version="$(curl -fsSL "${nginx_version_url}")"
@@ -51,7 +51,52 @@ pkg_oss_branch="$(jq -r --arg c "${channel}" '.channels[$c].pkg_oss_branch // em
 
 case "${pkg_oss_branch}" in
   mainline)
-    pkg_oss_branch="mainline"
+    pkg_oss_branch=""
+    ;;
+  stable)
+    pkg_oss_branch="stable-${nginx_mm}"
+    ;;
+  "")
+    echo "pkg_oss_branch is empty for channel=${channel}" >&2
+    exit 1
+    ;;
+  *)
+    ;;
+esac
+
+echo "Resolved pkg-oss branch: ${pkg_oss_branch}"
+if ! git ls-remote --heads "${pkg_oss_repo}" "refs/heads/${pkg_oss_branch}" | grep -q "${pkg_oss_branch}"; then
+  echo "pkg-oss branch not found: ${pkg_oss_branch}" >&2
+default_pkg_oss_branch="$((git ls-remote --symref "${pkg_oss_repo}" HEAD | awk '/^ref:/ {sub("refs/heads/","",$2); print $2; exit}') 2>/dev/null || true)"
+if [[ -z "${default_pkg_oss_branch}" ]]; then
+  echo "Failed to resolve default branch for ${pkg_oss_repo}" >&2
+  exit 1
+fi
+
+git clone --depth 1 --branch "${pkg_oss_branch}" "${pkg_oss_repo}" "${work_root}/pkg-oss"
+
+cp -a "${repo_root}/src/." "${work_root}/pkg-oss/SOURCES/" 2>/dev/null || true
+
+
+pushd "${work_root}/pkg-oss/${pkg_dir}" >/dev/null
+if [[ -n "${base_modules//[[:space:]]/}" ]]; then
+  read -r -a modules_array <<< "${base_modules}"
+  make_targets=()
+  for mod in "${modules_array[@]}"; do
+    [[ -z "${mod}" ]] && continue
+    make_targets+=("module-${mod}")
+  done
+  if [[ "${#make_targets[@]}" -gt 0 ]]; then
+    RPMBUILD_ARGS="${build_args}" make base "${make_targets[@]}"
+  else
+    RPMBUILD_ARGS="${build_args}" make base "${pkg_target}"
+  fi
+else
+  echo "BASE_MODULES is empty, fallback to: make base"
+  RPMBUILD_ARGS="${build_args}" make base
+case "${pkg_oss_branch}" in
+  mainline)
+    pkg_oss_branch="${default_pkg_oss_branch}"
     ;;
   stable)
     pkg_oss_branch="stable-${nginx_mm}"
@@ -69,6 +114,28 @@ if ! git ls-remote --heads "${pkg_oss_repo}" "refs/heads/${pkg_oss_branch}" | gr
   echo "pkg-oss branch not found: ${pkg_oss_branch}" >&2
   exit 1
 fi
+popd >/dev/null
+
+common_args="$(jq -r '.common_args // ""' config/modules.json)"
+while IFS= read -r row; do
+  module_name="$(jq -r '.name' <<< "${row}")"
+  nickname="$(jq -r '.nickname' <<< "${row}")"
+  repo="$(jq -r '.repo' <<< "${row}")"
+  base_version="$(jq -r '.base_version // "0.0.1"' <<< "${row}")"
+  version_mode="$(jq -r '.version_mode // "head_commit"' <<< "${row}")"
+
+  ref_line="$(git ls-remote --symref "${repo}" HEAD | awk '/^ref:/ {print $2}' | head -n1)"
+  head_sha="$(git ls-remote "${repo}" "${ref_line}" | awk '{print $1}' | head -n1)"
+  resolved_sha="${head_sha}"
+
+  if [[ "${version_mode}" == "latest_tag" ]]; then
+    tag_name="$(git ls-remote --tags --refs "${repo}" | awk -F/ '{print $NF}' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$|^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)"
+    if [[ -n "${tag_name}" ]]; then
+      tag_sha="$(git ls-remote --tags --refs "${repo}" "refs/tags/${tag_name}" | awk '{print $1}' | head -n1)"
+      if [[ -n "${tag_sha}" ]]; then
+        resolved_sha="${tag_sha}"
+      fi
+    fi
 
 git clone --depth 1 --branch "${pkg_oss_branch}" "${pkg_oss_repo}" "${work_root}/pkg-oss"
 
@@ -94,6 +161,12 @@ else
 fi
 popd >/dev/null
 
+  short_sha="${resolved_sha:0:8}"
+  module_version="${base_version}+${short_sha}"
+  module_tarball="${repo}/archive/${resolved_sha}.tar.gz"
+  stable_arg=()
+  if [[ "${channel}" == "stable" ]]; then
+    stable_arg=(-v "${NGINX_VERSION}")
 common_args="$(jq -r '.common_args // ""' config/modules.json)"
 while IFS= read -r row; do
   module_name="$(jq -r '.name' <<< "${row}")"
