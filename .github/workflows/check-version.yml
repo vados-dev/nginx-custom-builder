@@ -4,6 +4,7 @@ permissions:
   contents: write
 
 env:
+  DEFAULT_BASE_IMAGE: "ghcr.io/vados-dev/nginx-custom-builder/ci:lts"
   DEFAULT_BASE_MODULES: "acme geoip2 image-filter njs perl xslt"
   NOTIFY_ON_UPDATE: false
   NOTIFY_ON_RESULT: false
@@ -26,11 +27,6 @@ on:
         default: "centos-10"
         type: choice
         options: [all, centos-10, almalinux-9]
-      ci_base_image:
-        description: "Container image override for build jobs"
-        required: false
-        default: ""
-        type: string
       force_build:
         description: "Build even if no updates detected"
         required: true
@@ -41,6 +37,11 @@ on:
         required: false
         default: "image-filter"
         type: string
+      disable_debug_packages:
+        description: "Disable debug/debuginfo packages"
+        required: true
+        default: true
+        type: boolean
       build_args:
         description: "rpmbuild mode"
         required: true
@@ -219,7 +220,7 @@ jobs:
           CHANNELS_JSON: ${{ needs.detect.outputs.channels_json }}
           EVENT_NAME: ${{ github.event_name }}
           INPUT_BUILD_OS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_os || 'all' }}
-          INPUT_CI_BASE_IMAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_base_image || '' }}
+          CI_BASE_IMAGE: ${{ github.event_name == 'workflow_dispatch' && env.DEFAULT_BASE_IMAGE || '' }}
         run: |
           set -euo pipefail
 
@@ -227,8 +228,8 @@ jobs:
           if [[ "${EVENT_NAME}" == "workflow_dispatch" && "${INPUT_BUILD_OS}" != "all" ]]; then
             enabled_targets="$(jq -c --arg id "${INPUT_BUILD_OS}" '[.targets[] | select(.id == $id and .enabled == true)]' config/targets.json)"
           fi
-          if [[ "${EVENT_NAME}" == "workflow_dispatch" && -n "${INPUT_CI_BASE_IMAGE}" ]]; then
-            enabled_targets="$(jq -c --arg img "${INPUT_CI_BASE_IMAGE}" 'map(.container_image = $img)' <<< "${enabled_targets}")"
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" && -n "${CI_BASE_IMAGE}" ]]; then
+            enabled_targets="$(jq -c --arg img "${CI_BASE_IMAGE}" 'map(.container_image = $img)' <<< "${enabled_targets}")"
           fi
           channels="$(jq -c '.include // []' <<< "${CHANNELS_JSON}")"
 
