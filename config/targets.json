@@ -14,7 +14,7 @@
     {
       "id": "almalinux-9",
       "enabled": false,
-      "container_image": "ghcr.io/vados-dev/nginx-custom-builder/almal:lts",
+      "container_image": "ghcr.io/vados-dev/nginx-custom-builder/almalinux-9:lts",
       "package_format": "rpm",
       "pkg_oss_make_dir": "rpm/SPECS",
       "pkg_oss_make_target": "all",
