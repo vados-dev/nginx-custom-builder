@@ -4,7 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 channel="${CHANNEL:?CHANNEL is required}"
 target_id="${TARGET_ID:?TARGET_ID is required}"
-build_base="${BASE_MODULES:-}"
+build_base="${BASE:-}"
 base_modules="${BASE_MODULES:-}"
 build_args="${BUILD_ARGS:--bb}"
 
