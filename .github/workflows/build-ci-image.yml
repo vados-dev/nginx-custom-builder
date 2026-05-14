@@ -134,8 +134,8 @@ jobs:
           echo "image_ref=${image}:${tag_sanitized}" >> "${GITHUB_OUTPUT}"
           echo "image_ref_sha=${image}:sha-${GITHUB_SHA::12}" >> "${GITHUB_OUTPUT}"
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+#      - name: Set up QEMU
+#        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
