@@ -85,6 +85,7 @@ pushd "${work_root}/pkg-oss/${pkg_dir}" >/dev/null
 if [[ -n "${base_modules//[[:space:]]/}" ]]; then
   read -r -a modules_array <<< "${base_modules}"
   make_targets=()
+  
   for mod in "${modules_array[@]}"; do
     [[ -z "${mod}" ]] && continue
     make_targets+=("module-${mod}")
