@@ -154,7 +154,7 @@ jobs:
             imagefile=docker-image://${{ inputs.base_image }}
           context: .
           file: docker/ci-images/${{ inputs.dockerfile }}
-          platforms: ${{ inputs.build_platforms || 'linux/amd64' }}
+          platforms: ${{ inputs.build_platforms }}
           push: true
           tags: |
             ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
