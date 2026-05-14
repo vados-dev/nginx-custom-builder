@@ -1,5 +1,5 @@
 #ARG CI_BASE_IMAGE=quay.io/centos/centos:stream10
-FROM CI_BASE_IMAGE
+FROM imagefile
 
 LABEL maintainer="AmsterdamNL"
 LABEL com.docker.compose.service="nginx-ci-runner"
