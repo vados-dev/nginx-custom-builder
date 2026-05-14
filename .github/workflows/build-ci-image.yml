@@ -159,7 +159,7 @@ jobs:
           tags: |
             ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
             ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}
-          meta-images: user/app
+          meta-images: $
           meta-tags: |
                 type=ref,event=branch
                 type=ref,event=pr
