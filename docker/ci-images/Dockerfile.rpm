@@ -1,0 +1,34 @@
+#ARG CI_BASE_IMAGE=quay.io/centos/centos:stream10
+FROM CI_BASE_IMAGE
+
+LABEL maintainer="AmsterdamNL"
+LABEL com.docker.compose.service="nginx-ci-runner"
+LABEL com.docker.compose.project="nginx-ci"
+
+RUN set -eux; dnf -y update || true
+RUN set -eux; dnf -y install dnf-plugins-core || true
+RUN set -eux; dnf config-manager --set-enabled crb || true
+# nedded for otel module
+# RUN set -eux; dnf config-manager --set-enabled appstream || true
+# cmake re2-devel c-ares-devel grpc-devel protobuf
+RUN set -eux; dnf config-manager --set-enabled appstream || true
+RUN set -eux; dnf -y install epel-release || true
+RUN set -eux; dnf -y update || true
+RUN set -eux; dnf -y install rpm-build rpmdevtools rpm-sign redhat-rpm-config gcc make curl mc \
+ wget git gnupg2 cpio systemd createrepo_c pkgconf-pkg-config jq which krb5-devel rust cargo clang \
+ zlib-devel pcre2-devel openssl-devel gd-devel libxslt-devel perl-devel perl-ExtUtils-Embed perl-macros \
+ cmark-devel mercurial libedit-devel libmaxminddb-devel cmake re2-devel c-ares-devel grpc-devel protobuf && dnf clean all ;
+
+COPY src/mc.tar.gz /tmp/mc.tar.gz
+RUN set -eux; \
+    mkdir -p /root/.config "${HOME}/.config"; \
+    tar -xzf /tmp/mc.tar.gz -C /root/.config; \
+    tar -xzf /tmp/mc.tar.gz -C "${HOME}/.config"; \
+    chown -R root:root /root/.config; \
+    rm -f /tmp/mc.tar.gz
+
+WORKDIR /work
+
+ENV HOME=/work/.ci-home
+ENV USER=git
+ENV LOGNAME=git
