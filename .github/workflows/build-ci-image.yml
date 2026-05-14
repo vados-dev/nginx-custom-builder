@@ -2,7 +2,7 @@ name: Build CI Image
 
 permissions:
   contents: read
-  
+  packages: read
   packages: write
 
 on:
