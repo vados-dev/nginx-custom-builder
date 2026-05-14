@@ -87,7 +87,7 @@ if [[ -n "${base_modules//[[:space:]]/}" ]]; then
   make_targets=()
   if [[ "${build_base}" == true ]]; then
     make_targets+=("base")
-    
+  fi
   for mod in "${modules_array[@]}"; do
     [[ -z "${mod}" ]] && continue
     make_targets+=("module-${mod}")
