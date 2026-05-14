@@ -90,7 +90,7 @@ if [[ -n "${base_modules//[[:space:]]/}" ]]; then
     make_targets+=("module-${mod}")
   done
   if [[ "${#make_targets[@]}" -gt 0 ]]; then
-    RPMBUILD_ARGS="${build_args}" make  "${make_targets[@]}"
+    RPMBUILD_ARGS="${build_args}" make "${make_targets[@]}"
   else
     RPMBUILD_ARGS="${build_args}" make "${pkg_target}"
   fi
