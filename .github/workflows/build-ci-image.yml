@@ -16,14 +16,19 @@ on:
           - build
           - delete
       dockerfile:
-        description: "Dockerfile"
+        description: "Dockerfile in location docker/ci-images/"
         required: true
-        default: "docker/ci-images/Dockerfile.rpm"
+        default: "Dockerfile.rpm"
         type: string
       base_image:
-        description: "Base image "
+        description: "Base image"
         required: true
         default: "quay.io/centos/centos:stream10"
+        type: string
+      build_platforms:
+        description: "Platforms for build images (e.g. linux/amd64,linux/arm64,linux/arm/v6,linux/arm/v7)"
+        required: true
+        default: "linux/amd64"
         type: string
       image_name:
         description: "Build image name"
@@ -145,7 +150,8 @@ jobs:
           build-contexts: |
             imagefile=docker-image://${{ inputs.base_image }}
           context: .
-          file: ${{ inputs.dockerfile }}
+          file: docker/ci-images/${{ inputs.dockerfile }}
+          platforms: ${{ inputs.build_platforms || 'linux/amd64' }}
           push: true
           tags: |
             ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
