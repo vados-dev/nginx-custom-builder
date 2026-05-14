@@ -29,21 +29,67 @@
 Либо лучше работать с базовыми образами, т.к. pkg-oss, по идее, должен сам подтянуть зависимости.
 Я проверил на markdown-filter под нашим centos 10, скрипт проверил мои репы, установил зависимости и всё быстренько собрал.
 
-### Текущий план работ
+# Текущий план работ
 Для начала:
-Работаем пока только с rpm билдом.
-/.github/workflows/check-version.yml при force_build=true (возможно и при false тоже) не собирает stable, вместо нее всегда mainline.
-Это надо исправить.
-Во вторых, в этом файле нет переменной NGINX_VERSION и я не понимаю пока, как и где её получить для публикации релизов.
-Добавить проверку inputs upload_release с сответсвующими дальнейшими действиями.
-Далее. В бранче main есть публикация repo на gh-pages. Надо сделать и бранче oss-build так же.
-Вот build-pkg-oss.sh запускает build_module_local.sh в самом конце сборки. 
-build_module_local.sh это переписанный build_module.sh из корня проекта [pkg-oss](https://github.com/nginx/pkg-oss)
-он как бы ознакомительный скрипт для сборки кастомных модулей.
+### Работаем пока только с rpm билдом
+- build_module_local.sh это переписанный build_module.sh из корня проекта [pkg-oss](https://github.com/nginx/pkg-oss)
+  он как бы ознакомительный скрипт для сборки кастомных модулей.
 Надо сделать иначе:
-Написать скрипт get_custom_module.sh, который будет делать всё тоже самое, но только в самом начале работы скрипта
-build-pkg-oss.sh и не отдельно собирать модули в tmp, а сразу класть нужные Makefile.module-* в rpm/SPECS и contrib.
-Дальше всё по прежнему.
+- Написать скрипт get_custom_module.sh, который будет делать всё тоже самое, но только в самом начале работы скрипта
+  build-pkg-oss.sh и не отдельно собирать модули в tmp, а сразу класть нужные Makefile.module-* в rpm/SPECS и contrib.
+- Заодно исправить ошибку при установке кастомных модулей:
+```tty
+root@amster:/etc/nginx# dnf install nginx-module-error_page_inherit
+Last metadata expiration check: 0:27:28 ago on Thu 14 May 2026 03:32:53 AM MSK.
+Dependencies resolved.
+=============================================================================================================================================================================================================================================
+ Package                                                          Architecture                            Version                                                               Repository                                              Size
+=============================================================================================================================================================================================================================================
+Installing:
+ nginx-module-error_page_inherit                                  x86_64                                  1:1.31.0+0.0.1+ec4a601d-1.el10.ngx                                    nginx-custom-mainline                                   12 k
 
-### Дополнение
-Надо копировать файлы из папки src в SOURCES клонированного бранча pkg-oss перед сборкой и наверное править rpm/SPECS/nginx.spec.in чтобы кореектно добавлялись файлы и папки в сборку.
+Transaction Summary
+=============================================================================================================================================================================================================================================
+Install  1 Package
+
+Total download size: 12 k
+Installed size: 31 k
+Is this ok [y/N]: y
+Downloading Packages:
+nginx-module-error_page_inherit-1.31.0+0.0.1+ec4a601d-1.el10.ngx.x86_64.rpm                                                                                                                                   56 kB/s |  12 kB     00:00
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Total                                                                                                                                                                                                         55 kB/s |  12 kB     00:00
+Running transaction check
+Transaction check succeeded.
+Running transaction test
+Transaction test succeeded.
+Running transaction
+  Preparing        :                                                                                                                                                                                                                     1/1
+  Installing       : nginx-module-error_page_inherit-1:1.31.0+0.0.1+ec4a601d-1.el10.ngx.x86_64                                                                                                                                           1/1
+  Running scriptlet: nginx-module-error_page_inherit-1:1.31.0+0.0.1+ec4a601d-1.el10.ngx.x86_64                                                                                                                                           1/1
+/var/tmp/rpm-tmp.QcJ4Jz: line 3: syntax error near unexpected token `fi'
+/var/tmp/rpm-tmp.QcJ4Jz: line 3: `fi'
+warning: %post(nginx-module-error_page_inherit-1:1.31.0+0.0.1+ec4a601d-1.el10.ngx.x86_64) scriptlet failed, exit status 2
+
+Error in POSTIN scriptlet in rpm package nginx-module-error_page_inherit
+
+Installed:
+  nginx-module-error_page_inherit-1:1.31.0+0.0.1+ec4a601d-1.el10.ngx.x86_64
+
+Complete!
+```
+- Нужно сделать так, чтобы можно было (и это основная цель) собирать, подписывать и выкладывать в репо на gh-pages, только кастомные модули т.к. сам nginx и все его родные модули есть в родных репозиториях.
+- Соответственно, нужен отдельный workflow для добавления кастомных модулей в config/modules.json в inputs:
+```json
+      "name": "",
+      "nickname": "",
+      "repo": "",
+      "version_mode": "head_commit", # (default value)
+      "base_version": "0.0.1", # (default value)
+      "enabled": true # (default value) (type choise)
+```
+
+### Далее пока не особо понимаю как делать, надо думать
+- Надо копировать файлы, кроме gh-pages.tar.gz (он используется при публикации репо, может его куда в другое место положить) из папки src, в папку SOURCES клонированного бранча pkg-oss,
+  перед сборкой, если указана сборка base и наверное править rpm/SPECS/nginx.spec.in чтобы корректно добавлялись файлы и папки в сборку. 
+
