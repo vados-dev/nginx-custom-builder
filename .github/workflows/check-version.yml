@@ -220,7 +220,7 @@ jobs:
           CHANNELS_JSON: ${{ needs.detect.outputs.channels_json }}
           EVENT_NAME: ${{ github.event_name }}
           INPUT_BUILD_OS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_os || 'all' }}
-          CI_BASE_IMAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.base_image || '' }}
+          CI_BASE_IMAGE: ${{ github.event_name == 'workflow_dispatch' && env.DEFAULT_BASE_IMAGE || '' }}
         run: |
           set -euo pipefail
 
