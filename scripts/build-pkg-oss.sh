@@ -86,7 +86,7 @@ if [[ -n "${base_modules//[[:space:]]/}" ]]; then
   read -r -a modules_array <<< "${base_modules}"
   make_targets=()
   if [[ "${build_base}" == true ]]; then
-    
+    ЬФЛУ=ЕФКПУ
   for mod in "${modules_array[@]}"; do
     [[ -z "${mod}" ]] && continue
     make_targets+=("module-${mod}")
