@@ -4,7 +4,7 @@
     {
       "id": "centos-10",
       "enabled": true,
-      "container_image": "ghcr.io/vados-dev/nginx-custom-builder/centos-10:lts",
+      "container_image": "ghcr.io/vados-dev/nginx-custom-builder/ci:lts",
       "package_format": "rpm",
       "pkg_oss_make_dir": "rpm/SPECS",
       "pkg_oss_make_target": "stable",
