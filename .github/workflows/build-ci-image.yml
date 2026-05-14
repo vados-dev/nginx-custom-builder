@@ -15,6 +15,21 @@ on:
         options:
           - build
           - delete
+      dockerfile:
+        description: "Dockerfile"
+        required: true
+        default: "docker/ci-images/Dockerfile.rpm"
+        type: string
+      base_image:
+        description: "Base image "
+        required: true
+        default: "quay.io/centos/centos:stream10"
+        type: string
+      image_name:
+        description: "Build image name"
+        required: true
+        default: "centos-10"
+        type: string
       image_tag:
         description: "Build mode suffix. Final tag = CI_IMAGE_VER+1(+suffix)"
         required: false
@@ -48,11 +63,12 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          CI_IMAGE_NAME: ${{ inputs.image_name }}
           CI_IMAGE_VER: ${{ vars.CI_IMAGE_VER || '' }}
         run: |
           set -euo pipefail
           repo_lc="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
-          image="ghcr.io/${repo_lc}/ci"
+          image="ghcr.io/${repo_lc}/${CI_IMAGE_NAME}"
           suffix_input="${{ github.event_name == 'workflow_dispatch' && inputs.image_tag || '' }}"
           suffix_input="$(echo "${suffix_input}" | tr '[:upper:]' '[:lower:]' | xargs)"
 
@@ -127,7 +143,9 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: Dockerfile.ci
+          file: ${{ inputs.dockerfile }}
+          build-contexts: |
+            CI_BASE_IMAGE=docker-image://${{ inputs.base_image }}
           push: true
           tags: |
             ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
