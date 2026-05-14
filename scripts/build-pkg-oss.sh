@@ -91,7 +91,7 @@ if [[ -n "${base_modules//[[:space:]]/}" ]]; then
   if [[ "${#make_targets[@]}" -gt 0 ]]; then
     RPMBUILD_ARGS="${build_args}" make "${make_targets[@]}"
   else
-    RPMBUILD_ARGS="${build_args}" make base "${pkg_target}"
+    RPMBUILD_ARGS="${build_args}" make "${pkg_target}"
   fi
 else
   echo "BASE_MODULES is empty, fallback to: make base"
