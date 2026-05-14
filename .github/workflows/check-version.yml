@@ -5,7 +5,7 @@ permissions:
 
 env:
   DEFAULT_BASE_IMAGE: "ghcr.io/vados-dev/nginx-custom-builder/centos-10:lts"
-  DEFAULT_BASE_MODULES: "acme geoip2 image-filter njs perl xslt"
+  DEFAULT_BASE_MODULES: ""
   NOTIFY_ON_UPDATE: false
   NOTIFY_ON_RESULT: false
 
