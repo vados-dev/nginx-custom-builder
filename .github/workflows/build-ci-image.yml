@@ -142,10 +142,10 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v7
         with:
+          build-contexts: |
+            imagefile=docker-image://${{ inputs.base_image }}
           context: .
           file: ${{ inputs.dockerfile }}
-          build-contexts: |
-            CI_BASE_IMAGE=docker-image://${{ inputs.base_image }}
           push: true
           tags: |
             ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
