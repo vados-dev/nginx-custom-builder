@@ -161,8 +161,8 @@ jobs:
             ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}
                 meta-images: user/app
           meta-tags: |
-        type=ref,event=branch
-        type=ref,event=pr
+                type=ref,event=branch
+                type=ref,event=pr
         type=semver,pattern={{version}}
         type=semver,pattern={{major}}.{{minor}}
 
