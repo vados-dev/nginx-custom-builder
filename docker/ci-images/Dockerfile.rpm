@@ -19,7 +19,7 @@ cmark-devel mercurial libedit-devel libmaxminddb-devel && dnf clean all;
 # nedded for otel module
 RUN set -eux; if [ "$WIDTH_OTEL" = true ]; then \
                 dnf config-manager --set-enabled appstream && dnf -y install $OTEL_DEPS && dnf clean all; \
-            fi
+              fi
 
 COPY src/mc.tar.gz /tmp/mc.tar.gz
 RUN set -eux; \
