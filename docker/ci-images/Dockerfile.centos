@@ -14,8 +14,7 @@ RUN if [ "$width_otel" = true ]; then \
 
 
 RUN if [ "$width_otel" = true ]; then \
-[ $width_otel = true ] dnf config-manager --set-enabled appstream && \
-dnf -y update;
+[ $width_otel = true ] dnf config-manager --set-enabled appstream && dnf -y update;
 
 #RUN [ "$width_otel" = true ] && dnf config-manager --set-enabled appstream && dnf -y install $width_otel_deps
 
