@@ -26,8 +26,9 @@ ENV HOME=/work/.ci-home
 ENV USER=git
 ENV LOGNAME=git
 
-COPY src/mc.tar.gz /tmp/mc.tar.gz
+ADD SOURCES/mc.tar.gz /root/.config
 
+COPY src/mc.tar.gz /tmp/mc.tar.gz
 RUN set -eux; \
     mkdir -p /root/.config "${HOME}/.config"; \
     tar -xzf /tmp/mc.tar.gz -C /root/.config; \
