@@ -18,7 +18,7 @@ RUN set -eux; dnf -y install --allowerasing rpm-build rpmdevtools rpm-sign redha
  wget git gnupg2 cpio systemd createrepo_c pkgconf-pkg-config jq which krb5-devel rust cargo clang \
  zlib-devel pcre2-devel openssl-devel gd-devel libxslt-devel perl-devel perl-ExtUtils-Embed perl-macros \
  cmark-devel mercurial libedit-devel libmaxminddb-devel \
-  [ "$width_otel" = true ] && 
+  [ "$width_otel" = true ] 
   && dnf clean all ;
 
 # nedded for otel module
