@@ -1,6 +1,6 @@
 #ARG CI_BASE_IMAGE=quay.io/centos/centos:stream10
 ARG width_otel
-ARG width_otel_deps=cmake re2-devel c-ares-devel grpc-devel protobuf
+ARG width_otel_deps="cmake re2-devel c-ares-devel grpc-devel protobuf"
 
 FROM imagefile
 
