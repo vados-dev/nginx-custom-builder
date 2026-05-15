@@ -8,8 +8,6 @@ LABEL maintainer="vados-dev"
 LABEL com.docker.compose.service="nginx-ci-runner"
 LABEL com.docker.compose.project="nginx-ci"
 
-
-
 RUN set -eux; dnf -y install dnf-plugins-core || true
 RUN set -eux; dnf config-manager --set-enabled crb || true
 RUN set -eux; dnf -y install epel-release || true
