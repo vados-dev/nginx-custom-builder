@@ -33,7 +33,7 @@ on:
         required: true
         default: true
         type: boolean
-${{ github.event_name == 'workflow_dispatch' && inputs.base_modules || vars.BASE_MODULES || env.DEFAULT_BASE_MODULES }}
+        
       base_modules:
         description: "Space-separated RPM modules for pkg-oss (example: acme geoip2 image-filter njs otel perl xslt)"
         required: false
