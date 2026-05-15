@@ -9,8 +9,7 @@ LABEL com.docker.compose.service="nginx-ci-runner"
 LABEL com.docker.compose.project="nginx-ci"
 
 RUN set -eux; dnf -y install dnf-plugins-core && dnf config-manager --set-enabled crb && \
- dnf -y install epel-release || true
-RUN set -eux; dnf -y update || true
+ dnf -y install epel-release && dnf -y update || true
 
 #RUN [ $width_otel = true ] && dnf config-manager --set-enabled appstream && dnf -y install $width_otel_deps
 
