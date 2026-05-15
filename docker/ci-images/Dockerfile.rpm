@@ -22,7 +22,7 @@ RUN set -eux; if [ "$WIDTH_OTEL" = true ]; then \
               fi
 
 ADD docker/tools/mc.tar.gz /root/.config
-#COPY src/mc.tar.gz /tmp/mc.tar.gz
+#COPY docker/tools/mc.tar.gz /tmp/mc.tar.gz
 #RUN set -eux; \
 #    mkdir -p /root/.config "${HOME}/.config"; \
 #    tar -xzf /tmp/mc.tar.gz -C /root/.config; \
