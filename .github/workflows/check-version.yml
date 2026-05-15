@@ -4,6 +4,7 @@ permissions:
   contents: write
 
 env:
+  DEFAUlT_RUNNER_IMAGE: "ghcr.io/catthehacker/ubuntu:runner-latest"
   DEFAULT_BASE_IMAGE: "ghcr.io/vados-dev/nginx-custom-builder/centos-10:lts"
   DEFAULT_BUILD_BASE: false
   DEFAULT_BASE_MODULES: ""
@@ -75,7 +76,10 @@ on:
 
 jobs:
   detect:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    container:
+      image: ${{ env.DEFAUlT_RUNNER_IMAGE }}
+#    runs-on: ubuntu-latest
     outputs:
       channels_json: ${{ steps.detect.outputs.channels_json }}
       changed_any: ${{ steps.detect.outputs.changed_any }}
