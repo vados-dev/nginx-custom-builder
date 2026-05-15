@@ -15,6 +15,8 @@ RUN set -eux; dnf -y update || true
 # nedded for otel module
 SHELL [ "/bin/bash" ]
 
+
+
 RUN [ $width_otel = true ] && dnf config-manager --set-enabled appstream && dnf -y install $width_otel_deps
 
 RUN set -eux; dnf -y install --allowerasing rpm-build rpmdevtools rpm-sign redhat-rpm-config gcc make curl mc \
