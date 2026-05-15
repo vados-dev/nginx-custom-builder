@@ -71,7 +71,6 @@ jobs:
           set -euo pipefail
           repo_lc="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
           image="ghcr.io/${repo_lc}/${CI_IMAGE_NAME}"
-          suffix_input="${{ github.event_name == 'workflow_dispatch' && inputs.image_tag || '' }}"
           suffix_input="$(echo "${suffix_input}" | tr '[:upper:]' '[:lower:]' | xargs)"
 
           next_tag() {
