@@ -18,7 +18,6 @@ RUN set -eux; dnf -y install --allowerasing rpm-build rpmdevtools rpm-sign redha
  cmark-devel mercurial libedit-devel libmaxminddb-devel ;
 # nedded for otel module
 RUN set -eux; [ "$mod_otel" = "true" ] && dnf config-manager --set-enabled appstream && dnf -y install $mod_otel_deps
-    fi
 
 RUN set -eux; dnf clean all ;
 
