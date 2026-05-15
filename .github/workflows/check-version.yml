@@ -5,7 +5,7 @@ permissions:
 
 env:
   DEFAULT_BASE_IMAGE: "ghcr.io/vados-dev/nginx-custom-builder/centos-10:lts"
-  DEFAULT_BUILD_BASE: fa
+  DEFAULT_BUILD_BASE: false
   DEFAULT_BASE_MODULES: ""
   NOTIFY_ON_UPDATE: false
   NOTIFY_ON_RESULT: false
