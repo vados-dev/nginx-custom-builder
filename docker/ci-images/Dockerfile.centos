@@ -17,10 +17,6 @@ SHELL [ "/bin/bash" ]
 
 RUN if [ "$width_otel" = true ]; then \
         dnf config-manager --set-enabled appstream && dnf -y install $width_otel_deps; \
-    elif [ "$WEBSERVER" = "apache" ]; then \
-        apt-get update && apt-get install -y apache2; \
-    else \
-        echo "No valid webserver specified"; \
     fi
 
 RUN [ $width_otel = true ] && dnf config-manager --set-enabled appstream && dnf -y install $width_otel_deps
