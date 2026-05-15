@@ -7,7 +7,7 @@
       "container_image": "ghcr.io/vados-dev/nginx-custom-builder/centos-10:lts",
       "package_format": "rpm",
       "pkg_oss_make_dir": "rpm/SPECS",
-      "pkg_oss_make_target": "stable",
+      "pkg_oss_make_target": "all",
       "rpm_repo_os": "centos",
       "rpm_repo_release": "10"
     },
