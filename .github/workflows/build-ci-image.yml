@@ -18,7 +18,7 @@ on:
       dockerfile:
         description: "Dockerfile in location docker/ci-images/"
         required: true
-        default: "Dockerfile.centos"
+        default: "Dockerfile.rpm"
         type: string
       base_image:
         description: "Base image"
