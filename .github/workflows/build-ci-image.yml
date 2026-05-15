@@ -72,7 +72,6 @@ jobs:
           repo_lc="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
           image="ghcr.io/${repo_lc}/${CI_IMAGE_NAME}"
 
-
           next_tag() {
             local t="$1"
             local major minor patch
