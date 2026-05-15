@@ -27,7 +27,6 @@ ENV USER=git
 ENV LOGNAME=git
 
 ADD docker/tools/mc.tar.gz /root/.config
-#ADD docker/tools/mc.tar.gz /${HOME}/.config
 
 #COPY src/mc.tar.gz /tmp/mc.tar.gz
 #RUN set -eux; \
@@ -36,6 +35,5 @@ ADD docker/tools/mc.tar.gz /root/.config
 #    tar -xzf /tmp/mc.tar.gz -C "${HOME}/.config"; \
 #    chown -R root:root /root/.config; \
 #    rm -f /tmp/mc.tar.gz
-
 WORKDIR /work
 
