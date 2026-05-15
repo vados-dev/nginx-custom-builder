@@ -34,7 +34,12 @@ on:
         default: true
         type: boolean
         
-
+      base_modules:
+        description: "Space-separated RPM modules for pkg-oss (example: acme geoip2 image-filter njs otel perl xslt)"
+        required: false
+        default: ""
+        type: string
+        
       disable_debug_packages:
         description: "Disable debug/debuginfo packages"
         required: true
