@@ -1,4 +1,3 @@
-#ARG CI_BASE_IMAGE=quay.io/centos/centos:stream10
 ARG WIDTH_OTEL=true
 
 ENV OTEL_DEPS="cmake re2-devel c-ares-devel grpc-devel protobuf"
