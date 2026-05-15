@@ -385,7 +385,7 @@ jobs:
         env:
           CHANNEL: ${{ matrix.channel }}
           TARGET_ID: ${{ matrix.target_id }}
-          BUILD_BASE: ${{ github.event_name == 'workflow_dispatch' && inputs.build_base || vars.BASE_MODULES || env.DEFAULT_BASE_MODULES }}
+          BUILD_BASE: ${{ github.event_name == 'workflow_dispatch' && inputs.build_base || env.DEFAULT_BASE_MODULES }}
           BASE_MODULES: ${{ github.event_name == 'workflow_dispatch' && inputs.base_modules || vars.BASE_MODULES || env.DEFAULT_BASE_MODULES }}
           BUILD_ARGS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_args || '-bb' }}
         run: |
