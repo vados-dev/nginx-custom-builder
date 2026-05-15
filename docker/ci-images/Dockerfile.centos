@@ -16,7 +16,7 @@ RUN set -eux; dnf -y update || true
 SHELL [ "/bin/bash" ]
 
 RUN if [ "$width_otel" = true ]; then \
-        apt-get update && apt-get install -y nginx; \
+        dnf config-manager --set-enabled appstream && dnf -y install $width_otel_deps; \
     elif [ "$WEBSERVER" = "apache" ]; then \
         apt-get update && apt-get install -y apache2; \
     else \
