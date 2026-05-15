@@ -1,10 +1,11 @@
+#ghcr.io/vados-dev/nginx-custom-builder/
 {
   "pkg_oss_repo": "https://github.com/nginx/pkg-oss.git",
   "targets": [
     {
       "id": "centos-10",
       "enabled": true,
-      "container_image": "ghcr.io/vados-dev/nginx-custom-builder/centos-10:lts",
+      "container_image": "centos-10:lts",
       "package_format": "rpm",
       "pkg_oss_make_dir": "rpm/SPECS",
       "pkg_oss_make_target": "all",
@@ -14,7 +15,7 @@
     {
       "id": "almalinux-9",
       "enabled": false,
-      "container_image": "ghcr.io/vados-dev/nginx-custom-builder/almalinux-9:lts",
+      "container_image": "almalinux-10:lts",
       "package_format": "rpm",
       "pkg_oss_make_dir": "rpm/SPECS",
       "pkg_oss_make_target": "all",
