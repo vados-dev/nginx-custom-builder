@@ -26,7 +26,6 @@ RUN set -eux; dnf -y install --allowerasing rpm-build rpmdevtools rpm-sign redha
  zlib-devel pcre2-devel openssl-devel gd-devel libxslt-devel perl-devel perl-ExtUtils-Embed perl-macros \
  cmark-devel mercurial libedit-devel libmaxminddb-devel ;
 
-
 RUN set -eux; dnf clean all ;
 
 COPY src/mc.tar.gz /tmp/mc.tar.gz
