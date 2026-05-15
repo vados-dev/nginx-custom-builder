@@ -23,7 +23,8 @@ cmark-devel mercurial libedit-devel libmaxminddb-devel && dnf clean all;
 #    fi
 RUN [ "$width_otel" = true ] && \
 dnf config-manager --set-enabled appstream && \
-dnf -y install $width_otel_deps && dnf clean all;
+dnf -y install $width_otel_deps && \
+dnf clean all;
 
 # nedded for otel module
 #RUN if [ "$width_otel" = true ]; then \
