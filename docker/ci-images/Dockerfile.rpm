@@ -31,6 +31,3 @@ RUN set -eux; \
 
 WORKDIR /work
 
-ENV HOME=/work/.ci-home
-ENV USER=git
-ENV LOGNAME=git
