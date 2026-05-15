@@ -22,11 +22,6 @@ RUN if [ "$width_otel" = true ]; then \
         dnf config-manager --set-enabled appstream && dnf -y install $width_otel_deps && dnf clean all; \
     fi
 
-# nedded for otel module
-#RUN if [ "$width_otel" = true ]; then \
-#        dnf config-manager --set-enabled appstream && dnf -y install $width_otel_deps; \
-#    fi
-
 COPY src/mc.tar.gz /tmp/mc.tar.gz
 RUN set -eux; \
     mkdir -p /root/.config "${HOME}/.config"; \
