@@ -36,5 +36,3 @@ WORKDIR /work
 #    tar -xzf /tmp/mc.tar.gz -C "${HOME}/.config"; \
 #    chown -R root:root /root/.config; \
 #    rm -f /tmp/mc.tar.gz
-
-
