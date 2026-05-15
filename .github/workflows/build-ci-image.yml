@@ -157,6 +157,7 @@ jobs:
         with:
           build-contexts: |
             imagefile=docker-image://${{ inputs.base_image }}
+          build-args: |
             mod_otel=${{ inputs.width_otel }}
           context: .
           file: docker/ci-images/${{ inputs.dockerfile }}
