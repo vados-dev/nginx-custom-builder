@@ -18,7 +18,7 @@ on:
       dockerfile:
         description: "Dockerfile in location docker/ci-images/"
         required: true
-        default: "Dockerfile.rpm"
+        default: "Dockerfile.centos"
         type: string
       base_image:
         description: "Base image"
@@ -35,6 +35,11 @@ on:
         required: true
         default: "centos-10"
         type: string
+      width_otel:
+        description: "Install dependencies for otel module"
+        required: true
+        default: false
+        type: boolean
       image_tag:
         description: "Build mode suffix. Final tag = CI_IMAGE_VER+1(+suffix)"
         required: false
@@ -152,6 +157,7 @@ jobs:
         with:
           build-contexts: |
             imagefile=docker-image://${{ inputs.base_image }}
+            mod_otel=${{ inputs.width_otel }}
           context: .
           file: docker/ci-images/${{ inputs.dockerfile }}
           platforms: ${{ inputs.build_platforms }}

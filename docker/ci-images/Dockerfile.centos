@@ -1,23 +1,29 @@
 #ARG CI_BASE_IMAGE=quay.io/centos/centos:stream10
+ARG mod_otel=false
+ARG mod_otel_deps=cmake re2-devel c-ares-devel grpc-devel protobuf
+
 FROM imagefile
 
-LABEL maintainer="AmsterdamNL"
+LABEL maintainer="vados-dev"
 LABEL com.docker.compose.service="nginx-ci-runner"
 LABEL com.docker.compose.project="nginx-ci"
 
 RUN set -eux; dnf -y update || true
 RUN set -eux; dnf -y install dnf-plugins-core || true
 RUN set -eux; dnf config-manager --set-enabled crb || true
-# nedded for otel module
-# RUN set -eux; dnf config-manager --set-enabled appstream || true
-# cmake re2-devel c-ares-devel grpc-devel protobuf
-RUN set -eux; dnf config-manager --set-enabled appstream || true
 RUN set -eux; dnf -y install epel-release || true
 RUN set -eux; dnf -y update || true
-RUN set -eux; dnf -y install rpm-build rpmdevtools rpm-sign redhat-rpm-config gcc make curl mc \
+RUN set -eux; dnf -y install --allowerasing rpm-build rpmdevtools rpm-sign redhat-rpm-config gcc make curl mc \
  wget git gnupg2 cpio systemd createrepo_c pkgconf-pkg-config jq which krb5-devel rust cargo clang \
  zlib-devel pcre2-devel openssl-devel gd-devel libxslt-devel perl-devel perl-ExtUtils-Embed perl-macros \
- cmark-devel mercurial libedit-devel libmaxminddb-devel cmake re2-devel c-ares-devel grpc-devel protobuf && dnf clean all ;
+ cmark-devel mercurial libedit-devel libmaxminddb-devel ;
+# nedded for otel module
+RUN if [ "$mod_otel" = "true" ]; then \
+      dnf config-manager --set-enabled appstream || true \
+      dnf -y install ${mod_otel_deps} || true \
+    fi
+
+RUN set -eux; dnf clean all ;
 
 COPY src/mc.tar.gz /tmp/mc.tar.gz
 RUN set -eux; \
