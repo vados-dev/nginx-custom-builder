@@ -3,9 +3,6 @@ name: Publish Pages Index
 permissions:
   contents: write
 
-env:
-  DEFAUlT_RUNNER_IMAGE: "ghcr.io/catthehacker/ubuntu:runner-latest"
-  
 on:
   workflow_call:
   push:
@@ -21,8 +18,6 @@ on:
 jobs:
   publish-index:
     runs-on: self-hosted
-    container:
-      image: ${DEFAUlT_RUNNER_IMAGE}
 #    runs-on: ubuntu-latest
     steps:
       - name: Checkout main
