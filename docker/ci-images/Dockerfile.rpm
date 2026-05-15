@@ -1,7 +1,6 @@
 FROM imagefile
 
 ARG WIDTH_OTEL=true
-
 ENV OTEL_DEPS="cmake re2-devel c-ares-devel grpc-devel protobuf"
 
 LABEL maintainer="vados-dev"
