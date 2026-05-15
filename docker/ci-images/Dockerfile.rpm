@@ -29,8 +29,8 @@ ENV LOGNAME=git
 ADD docker/tools/mc.tar.gz /root/.config
 ADD docker/tools/mc.tar.gz /${HOME}/.config
 
-COPY src/mc.tar.gz /tmp/mc.tar.gz
-RUN set -eux; \
+#COPY src/mc.tar.gz /tmp/mc.tar.gz
+#RUN set -eux; \
     mkdir -p /root/.config "${HOME}/.config"; \
     tar -xzf /tmp/mc.tar.gz -C /root/.config; \
     tar -xzf /tmp/mc.tar.gz -C "${HOME}/.config"; \
