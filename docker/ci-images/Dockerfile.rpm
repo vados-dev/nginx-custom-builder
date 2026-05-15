@@ -21,7 +21,11 @@ RUN set -eux; if [ "$WIDTH_OTEL" = true ]; then \
                 dnf config-manager --set-enabled appstream && dnf -y install $OTEL_DEPS && dnf clean all; \
               fi
 
+
+
+              
 COPY src/mc.tar.gz /tmp/mc.tar.gz
+
 RUN set -eux; \
     mkdir -p /root/.config "${HOME}/.config"; \
     tar -xzf /tmp/mc.tar.gz -C /root/.config; \
