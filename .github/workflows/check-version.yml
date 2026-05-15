@@ -35,10 +35,9 @@ on:
         type: boolean
       build_base:
         description: "Space-separated RPM modules for pkg-oss (example: acme geoip2 image-filter njs otel perl xslt)"
-        required: true
+        required: false
         default: false
-        type: choice
-        options: [all, centos-10, almalinux-9]
+        type: boolean
       base_modules:
         description: "Space-separated RPM modules for pkg-oss (example: acme geoip2 image-filter njs otel perl xslt)"
         required: false
