@@ -15,7 +15,13 @@ RUN set -eux; dnf -y update || true
 # nedded for otel module
 SHELL [ "/bin/bash" ]
 
-
+RUN if [ "$WEBSERVER" = "nginx" ]; then \
+        apt-get update && apt-get install -y nginx; \
+    elif [ "$WEBSERVER" = "apache" ]; then \
+        apt-get update && apt-get install -y apache2; \
+    else \
+        echo "No valid webserver specified"; \
+    fi
 
 RUN [ $width_otel = true ] && dnf config-manager --set-enabled appstream && dnf -y install $width_otel_deps
 
