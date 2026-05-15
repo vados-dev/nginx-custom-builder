@@ -17,8 +17,7 @@ on:
 
 jobs:
   publish-index:
-    runs-on: self-hosted
-#    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout main
         uses: actions/checkout@v6
