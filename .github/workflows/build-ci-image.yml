@@ -40,14 +40,6 @@ on:
         required: true
         default: true
         type: boolean
-      image_tag:
-        description: "Build mode suffix. Final tag = CI_IMAGE_VER+1(+suffix)"
-        required: false
-        default: ""
-        type: choice
-        options:
-          - ""
-          - "b"
       delete_tags:
         description: "Delete mode: space/comma separated tags (e.g. v0.0.1b,sha-abc123)"
         required: false
