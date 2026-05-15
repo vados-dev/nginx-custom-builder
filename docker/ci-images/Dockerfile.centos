@@ -15,9 +15,9 @@ RUN set -eux; dnf -y install dnf-plugins-core && dnf config-manager --set-enable
 #RUN [ "$width_otel" = true ] && dnf config-manager --set-enabled appstream && dnf -y install $width_otel_deps
 
 RUN set -eux; dnf -y install --allowerasing rpm-build rpmdevtools rpm-sign redhat-rpm-config gcc make curl mc \
- wget git gnupg2 cpio systemd createrepo_c pkgconf-pkg-config jq which krb5-devel rust cargo clang \
- zlib-devel pcre2-devel openssl-devel gd-devel libxslt-devel perl-devel perl-ExtUtils-Embed perl-macros \
- cmark-devel mercurial libedit-devel libmaxminddb-devel \
+    wget git gnupg2 cpio systemd createrepo_c pkgconf-pkg-config jq which krb5-devel rust cargo clang \
+zlib-devel pcre2-devel openssl-devel gd-devel libxslt-devel perl-devel perl-ExtUtils-Embed perl-macros \
+cmark-devel mercurial libedit-devel libmaxminddb-devel \
 [ "$width_otel" = true ] $width_otel_deps && \
 dnf clean all;
 
