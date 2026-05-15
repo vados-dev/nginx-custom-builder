@@ -17,7 +17,7 @@ RUN set -eux; dnf -y install --allowerasing rpm-build rpmdevtools rpm-sign redha
  zlib-devel pcre2-devel openssl-devel gd-devel libxslt-devel perl-devel perl-ExtUtils-Embed perl-macros \
  cmark-devel mercurial libedit-devel libmaxminddb-devel ;
 # nedded for otel module
-RUN  [ "$width_otel" = "true" ] && dnf config-manager --set-enabled appstream && dnf -y install $width_otel_deps
+RUN bash [ "$width_otel" = "true" ] && dnf config-manager --set-enabled appstream && dnf -y install $width_otel_deps
 
 RUN set -eux; dnf clean all ;
 
