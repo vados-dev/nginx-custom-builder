@@ -122,7 +122,7 @@ jobs:
             highest_numeric_tag="${base_numeric_tag}"
           fi
 
-          tag="$(next_tag "${highest_numeric_tag}")${suffix_input}"
+          tag="$(next_tag "${highest_numeric_tag}")"
           tag_sanitized="$(echo "${tag}" | tr '/:@ ' '-' | tr -cd 'a-zA-Z0-9._-')"
           echo "image=${image}" >> "${GITHUB_OUTPUT}"
           echo "tag=${tag_sanitized}" >> "${GITHUB_OUTPUT}"
