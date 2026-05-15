@@ -276,8 +276,8 @@ jobs:
       - detect
       - resolve-targets
     runs-on: self-hosted
-    container:
-      image: ${DEFAUlT_RUNNER_IMAGE}
+#    container:
+#      image: ${DEFAUlT_RUNNER_IMAGE}
 #    runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.amsternl != '' && secrets.amsternl || github.token }}
