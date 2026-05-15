@@ -17,8 +17,9 @@ wget git gnupg2 cpio systemd createrepo_c pkgconf-pkg-config jq which krb5-devel
 zlib-devel pcre2-devel openssl-devel gd-devel libxslt-devel perl-devel perl-ExtUtils-Embed perl-macros \
 cmark-devel mercurial libedit-devel libmaxminddb-devel && dnf clean all;
 # nedded for otel module
-RUN set -eux; if [ "$WIDTH_OTEL" = true ]; then \
-                dnf config-manager --set-enabled appstream && dnf -y install $OTEL_DEPS && dnf clean all; \
+RUN set -eux; \
+if [ "$WIDTH_OTEL" = true ]; then \
+  dnf config-manager --set-enabled appstream && dnf -y install $OTEL_DEPS && dnf clean all; \
               fi
 
 ADD docker/tools/mc.tar.gz /root/.config
