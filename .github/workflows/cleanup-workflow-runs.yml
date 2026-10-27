@@ -5,8 +5,8 @@ permissions:
   contents: read
 
 on:
-  schedule:
-    - cron: "47 4 * * 1"
+#  schedule:
+#    - cron: "47 4 * * 1"
   workflow_dispatch:
     inputs:
       keep_runs_per_workflow:
